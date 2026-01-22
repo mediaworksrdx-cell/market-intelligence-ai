@@ -1,24 +1,18 @@
-
 package com.example.marketintelligence.domain.engine
 
-import com.example.chart_library.ProprietaryChartEngine
 import com.example.marketintelligence.data.engine.TradingViewChartEngine
+import com.example.marketintelligence.data.engine.ProprietaryChartEngine
 import javax.inject.Inject
-import javax.inject.Singleton
 
-@Singleton
 class ChartEngineFactory @Inject constructor(
-    tradingViewEngine: TradingViewChartEngine,
-    proprietaryChartEngine: ProprietaryChartEngine
+    private val tradingViewEngine: TradingViewChartEngine,
+    private val proprietaryEngine: ProprietaryChartEngine
 ) {
-    private val engines: Map<String, ChartEngine> = mapOf(
-        tradingViewEngine.engineName to tradingViewEngine,
-        proprietaryChartEngine.engineName to proprietaryChartEngine
-    )
-
-    fun getEngine(engineName: String): ChartEngine {
-        return engines[engineName] ?: tradingViewEngine // Default to TradingView
+    fun getEngine(name: String): ChartEngine {
+        return if (name == proprietaryEngine.engineName) {
+            proprietaryEngine
+        } else {
+            tradingViewEngine
+        }
     }
-
-    fun getAvailableEngineNames(): List<String> = engines.keys.toList()
 }

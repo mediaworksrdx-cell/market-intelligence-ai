@@ -1,20 +1,47 @@
-
 package com.example.marketintelligence.data.source.remote
 
-import com.example.marketintelligence.BuildConfig
-import com.example.marketintelligence.data.model.* // Import all the new models
-import com.google.ai.client.generativeai.GenerativeModel
-import kotlinx.serialization.json.Json
+import com.example.marketintelligence.data.model.AIAnalysisResult
+import com.example.marketintelligence.data.model.PersonalizedLearningPath
+import com.example.marketintelligence.data.model.PerformanceReview
+import javax.inject.Inject
+import javax.inject.Singleton
 
-private val API_KEY = BuildConfig.GEMINI_API_KEY
+@Singleton
+class GeminiService @Inject constructor() {
 
-class GeminiService {
-    // This file is now much cleaner, containing only service logic.
-    // All data class definitions have been moved.
-    private val json = Json { ignoreUnknownKeys = true; coerceInputValues = true }
-    suspend fun scanStockWithGemini(symbol: String, timeframe: String, currentPrice: Double?): AIAnalysisResult { /* Omitted */ return AIAnalysisResult("", "", 0, 0, "", null, "", "", null, null, null, null, "", "", "", "") }
-    suspend fun getTechnicalAnalysis(symbol: String): TechnicalAnalysis { /* Omitted */ return TechnicalAnalysis("", "", "", "") }
-    suspend fun getHoldingAnalysis(symbol: String, avgBuyPrice: Double, quantity: Double): HoldingAnalysis { /* Omitted */ return HoldingAnalysis("", "", "") }
-    suspend fun generateLearningPath(experience: String, risk: String, goals: List<String>): PersonalizedLearningPath { /* Omitted */ return PersonalizedLearningPath(emptyList(), "") }
-    suspend fun generatePerformanceReview(tradeHistory: String): PerformanceReview { /* Omitted */ return PerformanceReview("", "", "") }
+    suspend fun scanStockWithGemini(symbol: String, timeframe: String, currentPrice: Double?): AIAnalysisResult {
+        return AIAnalysisResult(
+            symbol = symbol,
+            signal = "NEUTRAL",
+            confidence = 50,
+            alpha_score = 50,
+            rr_ratio = "1:1",
+            pattern = "None",
+            pattern_complexity = "BASIC",
+            timeframe = timeframe,
+            entry_zone = null,
+            liquidity_zone = null,
+            stop_loss = null,
+            target = null,
+            risk = "MEDIUM",
+            rationale = "AI analysis placeholder.",
+            market_structure = "UNDEFINED",
+            timestamp = java.time.Instant.now().toString()
+        )
+    }
+
+    suspend fun generateLearningPath(experience: String, risk: String, goals: List<String>): PersonalizedLearningPath {
+        return PersonalizedLearningPath(
+            suggestedCourseOrder = listOf("Intro to AI Trading", "Risk Management 101"),
+            welcomeMessage = "Welcome to your personalized learning path."
+        )
+    }
+
+    suspend fun generatePerformanceReview(tradeHistory: String): PerformanceReview {
+        return PerformanceReview(
+            overallFeedback = "Good progress.",
+            identifiedWeakness = "None identified yet.",
+            suggestedNextLesson = "Advanced Strategies"
+        )
+    }
 }

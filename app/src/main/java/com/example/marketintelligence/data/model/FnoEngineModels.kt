@@ -1,9 +1,6 @@
 
 package com.example.marketintelligence.data.model
 
-import androidx.room.Entity
-import androidx.room.PrimaryKey
-
 // --- AI Engine Inputs & Outputs ---
 
 enum class MarketRegime {
@@ -32,17 +29,4 @@ data class RiskParameters(
     val capitalRequired: Double,
     val marginRequired: Double,
     val maxLoss: Double
-)
-
-// --- Persistence & Analytics ---
-
-@Entity(tableName = "executed_trades")
-data class ExecutedTradeEntity(
-    @PrimaryKey(autoGenerate = true) val id: Int = 0,
-    val signal: AiTradeSignal,
-    val outcome: String, // e.g., "TARGET_HIT", "STOP_LOSS_HIT", "CLOSED_MANUALLY"
-    val closingPrice: Double,
-    val profitAndLoss: Double,
-    val executedAt: Long,
-    val closedAt: Long
 )

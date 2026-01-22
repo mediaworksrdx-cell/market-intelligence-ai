@@ -1,4 +1,3 @@
-
 package com.example.marketintelligence.domain.engine
 
 import com.example.marketintelligence.data.model.AIAnalysisResult
@@ -8,11 +7,11 @@ import kotlinx.coroutines.flow.Flow
  * A common interface for any AI Scanner Engine.
  * This contract ensures that all engines are interchangeable.
  */
-interface ScannerEngine {
+interface ScannerEngine : Engine {
     /**
      * The unique name of this engine, used for selection in settings.
      */
-    val engineName: String
+    override val engineName: String
 
     /**
      * Performs an AI analysis on a given stock symbol.

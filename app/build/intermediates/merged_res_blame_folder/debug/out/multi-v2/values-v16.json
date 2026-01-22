@@ -1,20 +1,10 @@
 {
     "logs": [
         {
-            "outputFile": "com.example.marketintelligence.app-mergeDebugResources-73:/values-v16/values-v16.xml",
+            "outputFile": "com.example.marketintelligence.app-mergeDebugResources-74:/values-v16/values-v16.xml",
             "map": [
                 {
-                    "source": "/root/.gradle/caches/transforms-3/65c34017624c51979d683879773c1158/transformed/core-1.12.0/res/values-v16/values-v16.xml",
-                    "from": {
-                        "startLines": "2",
-                        "startColumns": "4",
-                        "startOffsets": "55",
-                        "endColumns": "65",
-                        "endOffsets": "116"
-                    }
-                },
-                {
-                    "source": "/root/.gradle/caches/transforms-3/1270a524814749eb1d94f6802c95eb97/transformed/appcompat-1.6.1/res/values-v16/values-v16.xml",
+                    "source": "/root/.gradle/caches/transforms-3/cae7f9bb1face06757b8af3f9e20f4f1/transformed/appcompat-1.6.1/res/values-v16/values-v16.xml",
                     "from": {
                         "startLines": "2",
                         "startColumns": "4",
@@ -30,6 +20,16 @@
                         "endLines": "6",
                         "endColumns": "12",
                         "endOffsets": "289"
+                    }
+                },
+                {
+                    "source": "/root/.gradle/caches/transforms-3/e26e496fd27111ce70b8fe125c7e57fc/transformed/core-1.12.0/res/values-v16/values-v16.xml",
+                    "from": {
+                        "startLines": "2",
+                        "startColumns": "4",
+                        "startOffsets": "55",
+                        "endColumns": "65",
+                        "endOffsets": "116"
                     }
                 }
             ]

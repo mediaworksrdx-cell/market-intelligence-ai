@@ -1,47 +1,57 @@
-
 package com.example.marketintelligence.ui.analysis
 
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.viewModelScope
-import com.example.marketintelligence.domain.engine.ChartEngine
 import com.example.marketintelligence.domain.engine.EngineRouter
-import com.example.marketintelligence.domain.usecase.GetTechnicalAnalysisUseCase
-import com.example.marketintelligence.services.TechnicalAnalysis
+import com.example.marketintelligence.domain.engine.ChartEngine
+import com.example.marketintelligence.domain.model.AIAnalysisResult
+import com.example.marketintelligence.data.local.MockData
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
-import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 data class AnalysisUiState(
-    val symbol: String,
-    val technicalAnalysis: TechnicalAnalysis? = null,
-    val livePrice: Double? = null,
-    val isLoading: Boolean = true,
-    val activeChartEngine: ChartEngine? = null // The UI will now get the engine instance directly
+    val symbol: String = "",
+    val selectedTimeframe: String = "1H",
+    val aiAnalysis: AIAnalysisResult? = null,
+    val technicalIndicators: TechnicalIndicators = TechnicalIndicators(),
+    val isLoading: Boolean = false
+)
+
+data class TechnicalIndicators(
+    val rsi: Double = 54.2,
+    val ema20: Double = 22450.0,
+    val ema50: Double = 22100.0,
+    val ema200: Double = 21500.0,
+    val macd: String = "Bullish Crossover",
+    val adx: Double = 24.5
 )
 
 @HiltViewModel
 class AnalysisViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
-    private val getTechnicalAnalysisUseCase: GetTechnicalAnalysisUseCase,
-    private val engineRouter: EngineRouter,
-    // ... MarketDataRepository for price updates
+    private val engineRouter: EngineRouter
 ) : ViewModel() {
-
-    // ... (rest of the logic is similar)
-    private val symbol: String = checkNotNull(savedStateHandle["symbol"])
+    
+    private val symbol: String = savedStateHandle["symbol"] ?: "NIFTY"
+    
     private val _uiState = MutableStateFlow(AnalysisUiState(symbol = symbol))
     val uiState = _uiState.asStateFlow()
 
+    val activeChartEngine: Flow<ChartEngine> = engineRouter.activeChartEngine
+
     init {
-        // Observe the active chart engine from the router
-        engineRouter.activeChartEngine
-            .onEach { engine ->
-                _uiState.update { it.copy(activeChartEngine = engine) }
-            }
-            .launchIn(viewModelScope)
-        
-        // ... (fetchAnalysis and subscribeToLivePrice logic remains)
+        loadAnalysisData(symbol, _uiState.value.selectedTimeframe)
+    }
+
+    fun onTimeframeSelected(timeframe: String) {
+        _uiState.update { it.copy(selectedTimeframe = timeframe) }
+        loadAnalysisData(symbol, timeframe)
+    }
+
+    private fun loadAnalysisData(symbol: String, timeframe: String) {
+        _uiState.update { it.copy(
+            aiAnalysis = MockData.NOTIFICATIONS_MOCK.firstOrNull()?.aiResult?.copy(symbol = symbol, timeframe = timeframe)
+        ) }
     }
 }

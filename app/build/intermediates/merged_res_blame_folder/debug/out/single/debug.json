@@ -1,26 +1,26 @@
 [
     {
-        "merged": "com.example.marketintelligence.app-merged_res-75:/drawable_ic_ai_scan.xml.flat",
-        "source": "com.example.marketintelligence.app-main-77:/drawable/ic_ai_scan.xml"
+        "merged": "com.example.marketintelligence.app-merged_res-76:/xml_network_security_config.xml.flat",
+        "source": "com.example.marketintelligence.app-main-78:/xml/network_security_config.xml"
     },
     {
-        "merged": "com.example.marketintelligence.app-merged_res-75:/xml_network_security_config.xml.flat",
-        "source": "com.example.marketintelligence.app-main-77:/xml/network_security_config.xml"
+        "merged": "com.example.marketintelligence.app-merged_res-76:/drawable_ic_portfolio.xml.flat",
+        "source": "com.example.marketintelligence.app-main-78:/drawable/ic_portfolio.xml"
     },
     {
-        "merged": "com.example.marketintelligence.app-merged_res-75:/drawable_ic_portfolio.xml.flat",
-        "source": "com.example.marketintelligence.app-main-77:/drawable/ic_portfolio.xml"
+        "merged": "com.example.marketintelligence.app-merged_res-76:/drawable_ic_ai_scan.xml.flat",
+        "source": "com.example.marketintelligence.app-main-78:/drawable/ic_ai_scan.xml"
     },
     {
-        "merged": "com.example.marketintelligence.app-merged_res-75:/drawable_ic_market.xml.flat",
-        "source": "com.example.marketintelligence.app-main-77:/drawable/ic_market.xml"
+        "merged": "com.example.marketintelligence.app-merged_res-76:/drawable_ic_fno.xml.flat",
+        "source": "com.example.marketintelligence.app-main-78:/drawable/ic_fno.xml"
     },
     {
-        "merged": "com.example.marketintelligence.app-merged_res-75:/drawable_ic_fno.xml.flat",
-        "source": "com.example.marketintelligence.app-main-77:/drawable/ic_fno.xml"
+        "merged": "com.example.marketintelligence.app-merged_res-76:/drawable_ic_market.xml.flat",
+        "source": "com.example.marketintelligence.app-main-78:/drawable/ic_market.xml"
     },
     {
-        "merged": "com.example.marketintelligence.app-merged_res-75:/drawable_ic_academy.xml.flat",
-        "source": "com.example.marketintelligence.app-main-77:/drawable/ic_academy.xml"
+        "merged": "com.example.marketintelligence.app-merged_res-76:/drawable_ic_academy.xml.flat",
+        "source": "com.example.marketintelligence.app-main-78:/drawable/ic_academy.xml"
     }
 ]

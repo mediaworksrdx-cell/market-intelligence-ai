@@ -1,20 +1,10 @@
-
 package com.example.marketintelligence.domain.repository
 
-import com.example.marketintelligence.data.model.AssetSearchResult
-import com.example.marketintelligence.data.model.OptionChainData
-import com.example.marketintelligence.data.model.RealTimeQuote
-import com.example.marketintelligence.data.model.StockQuote
+import com.example.marketintelligence.domain.model.StockData
+import com.example.marketintelligence.domain.model.OptionChain
 import kotlinx.coroutines.flow.Flow
 
 interface MarketDataRepository {
-    fun getQuote(symbol: String): Flow<Result<StockQuote>>
-    fun searchAssets(query: String): Flow<Result<List<AssetSearchResult>>>
-    fun getRealTimePriceUpdates(): Flow<RealTimeQuote>
-    fun updateSubscriptions(symbols: List<String>)
-
-    /**
-     * NEW FUNCTION: Fetches the complete option chain for a given underlying asset.
-     */
-    fun getOptionChain(symbol: String): Flow<Result<OptionChainData>>
+    fun getQuote(symbol: String): Flow<Result<StockData>>
+    fun getOptionChain(symbol: String): Flow<Result<OptionChain>>
 }

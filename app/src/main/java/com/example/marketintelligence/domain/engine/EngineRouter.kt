@@ -1,4 +1,3 @@
-
 package com.example.marketintelligence.domain.engine
 
 import com.example.marketintelligence.domain.repository.SettingsRepository
@@ -10,7 +9,7 @@ import javax.inject.Singleton
 class EngineRouter @Inject constructor(
     engines: Set<@JvmSuppressWildcards Engine>,
     settingsRepository: SettingsRepository,
-    private val logService: EngineLogService // Inject the logger
+    private val logService: EngineLogService
 ) {
     private val scannerEngines = engines.filterIsInstance<ScannerEngine>().associateBy { it.engineName }
     private val mentorEngines = engines.filterIsInstance<MentorEngine>().associateBy { it.engineName }
@@ -28,7 +27,7 @@ class EngineRouter @Inject constructor(
                 engine
             } else {
                 logService.logFallback("Scanner", selectedName, defaultScannerEngine.engineName)
-                defaultScannerEngine // Graceful fallback
+                defaultScannerEngine 
             }
         }
 
@@ -40,7 +39,7 @@ class EngineRouter @Inject constructor(
                 engine
             } else {
                 logService.logFallback("Mentor", selectedName, defaultMentorEngine.engineName)
-                defaultMentorEngine // Graceful fallback
+                defaultMentorEngine 
             }
         }
 
@@ -52,7 +51,7 @@ class EngineRouter @Inject constructor(
                 engine
             } else {
                 logService.logFallback("Chart", selectedName, defaultChartEngine.engineName)
-                defaultChartEngine // Graceful fallback
+                defaultChartEngine 
             }
         }
 }

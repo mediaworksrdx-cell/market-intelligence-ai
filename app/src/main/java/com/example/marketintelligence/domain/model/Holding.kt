@@ -1,7 +1,4 @@
-
 package com.example.marketintelligence.domain.model
-
-import com.example.marketintelligence.data.model.MarketType
 
 // This clean business object now lives in the domain layer.
 data class Holding(

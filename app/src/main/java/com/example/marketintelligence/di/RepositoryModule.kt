@@ -1,29 +1,30 @@
-
 package com.example.marketintelligence.di
 
-import com.example.marketintelligence.data.repository.*
-import com.example.marketintelligence.domain.repository.*
 import dagger.Binds
 import dagger.Module
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
+import javax.inject.Singleton
 
 @Module
 @InstallIn(SingletonComponent::class)
 abstract class RepositoryModule {
 
     @Binds
-    abstract fun bindSettingsRepository(impl: SettingsRepositoryImpl): SettingsRepository
+    @Singleton
+    abstract fun bindMarketDataRepository(
+        impl: com.example.marketintelligence.data.repository.MarketDataRepositoryImpl
+    ): com.example.marketintelligence.domain.repository.MarketDataRepository
 
     @Binds
-    abstract fun bindNotificationRepository(impl: NotificationRepositoryImpl): NotificationRepository
+    @Singleton
+    abstract fun bindSettingsRepository(
+        impl: com.example.marketintelligence.data.repository.SettingsRepositoryImpl
+    ): com.example.marketintelligence.domain.repository.SettingsRepository
 
     @Binds
-    abstract fun bindPortfolioRepository(impl: PortfolioRepositoryImpl): PortfolioRepository
-
-    @Binds
-    abstract fun bindWatchlistRepository(impl: WatchlistRepositoryImpl): WatchlistRepository
-
-    @Binds
-    abstract fun bindMarketDataRepository(impl: MarketDataRepositoryImpl): MarketDataRepository
+    @Singleton
+    abstract fun bindPortfolioRepository(
+        impl: com.example.marketintelligence.data.repository.PortfolioRepositoryImpl
+    ): com.example.marketintelligence.domain.repository.PortfolioRepository
 }

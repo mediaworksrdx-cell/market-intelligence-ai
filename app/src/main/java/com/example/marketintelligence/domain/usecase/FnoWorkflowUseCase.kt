@@ -1,7 +1,7 @@
-
 package com.example.marketintelligence.domain.usecase
 
 import com.example.marketintelligence.data.model.*
+import com.example.marketintelligence.domain.model.OptionChain
 import com.example.marketintelligence.domain.engine.*
 import com.example.marketintelligence.domain.repository.MarketDataRepository
 import kotlinx.coroutines.flow.first
@@ -17,7 +17,7 @@ class FnoWorkflowUseCase @Inject constructor(
     suspend fun generateSignal(symbol: String): Result<AiTradeSignal> {
         return try {
             // 1. Get Live Data
-            val optionChain = marketDataRepository.getOptionChain(symbol).first().getOrThrow()
+            val optionChain: OptionChain = marketDataRepository.getOptionChain(symbol).first().getOrThrow()
 
             // 2. Run the AI Engine Pipeline
             val regime = regimeEngine.detect(symbol)
@@ -26,7 +26,7 @@ class FnoWorkflowUseCase @Inject constructor(
             val riskParams = riskEngine.calculate(legs)
             
             // 3. Consolidate into the final AI Trade Signal
-            val netPremium = legs.sumOf { if (it.position == "BUY") -it.premium else it.premium }
+            val netPremium = legs.sumOf { if (it.action == TradeAction.BUY) -it.premium else it.premium }
             val signal = AiTradeSignal(
                 underlyingSymbol = symbol,
                 strategyName = strategyName,

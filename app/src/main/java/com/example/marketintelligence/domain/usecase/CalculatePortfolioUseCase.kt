@@ -1,8 +1,7 @@
-
 package com.example.marketintelligence.domain.usecase
 
-import com.example.marketintelligence.data.model.MarketType
-import com.example.marketintelligence.data.repository.StockQuote
+import com.example.marketintelligence.domain.model.MarketType
+import com.example.marketintelligence.domain.model.StockQuote
 import com.example.marketintelligence.data.source.local.TransactionEntity
 import com.example.marketintelligence.domain.model.Holding
 import javax.inject.Inject
@@ -18,7 +17,8 @@ class CalculatePortfolioUseCase @Inject constructor() {
             val quantity = txs.sumOf { if (it.type == "BUY") it.quantity else -it.quantity }
             if (quantity > 0) {
                 val invested = txs.filter { it.type == "BUY" }.sumOf { it.price * it.quantity }
-                val avgPrice = invested / txs.filter { it.type == "BUY" }.sumOf { it.quantity }
+                val buyQuantity = txs.filter { it.type == "BUY" }.sumOf { it.quantity }
+                val avgPrice = if (buyQuantity > 0.0) invested / buyQuantity else 0.0
                 
                 quotes[symbol]?.let { quote ->
                     val currentValue = quote.price * quantity
@@ -26,9 +26,8 @@ class CalculatePortfolioUseCase @Inject constructor() {
                     val todayPnl = (quote.change) * quantity
                     
                     val market = when {
-                        symbol.endsWith(".NS") -> MarketType.INDIA
-                        symbol.startsWith("CG:") -> MarketType.CRYPTO
-                        else -> MarketType.USA
+                        symbol.endsWith(".NS") -> MarketType.IN
+                        else -> MarketType.US
                     }
                     
                     holdingsMap[symbol] = Holding(symbol, quantity, avgPrice, invested, currentValue, totalPnl, todayPnl, market)

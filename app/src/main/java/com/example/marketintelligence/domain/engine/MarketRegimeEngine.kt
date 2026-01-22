@@ -1,8 +1,6 @@
-
 package com.example.marketintelligence.domain.engine
 
 import com.example.marketintelligence.data.model.MarketRegime
-import com.example.marketintelligence.data.model.OptionChainData
 import com.example.marketintelligence.domain.repository.MarketDataRepository
 import kotlinx.coroutines.flow.first
 import javax.inject.Inject
@@ -14,8 +12,6 @@ class MarketRegimeEngine @Inject constructor(
 ) {
     suspend fun detect(symbol: String): MarketRegime {
         val optionChain = marketDataRepository.getOptionChain(symbol).first().getOrNull()
-        // TODO: Implement proprietary market regime detection logic using OI, IV, etc.
-        // For now, we'll return a placeholder based on a simple rule.
         return if ((optionChain?.underlyingPrice ?: 0.0) > 23000) {
             MarketRegime.TRENDING_BULLISH
         } else {
