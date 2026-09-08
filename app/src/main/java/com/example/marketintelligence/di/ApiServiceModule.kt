@@ -32,7 +32,7 @@ object ApiServiceModule {
     @Singleton
     fun provideRetrofit(json: Json): Retrofit {
         return Retrofit.Builder()
-            .baseUrl("http://10.0.2.2:8080/")
+            .baseUrl(com.marketintelligence.ai.BuildConfig.BASE_URL)
             .addConverterFactory(json.asConverterFactory("application/json".toMediaType()))
             .build()
     }
