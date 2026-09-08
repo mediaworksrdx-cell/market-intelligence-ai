@@ -12,9 +12,9 @@ interface SettingsRepository {
     val riskProfile: Flow<String>
     val isNotificationsEnabled: Flow<Boolean>
 
-    suspend fun setScannerEngine(name: String)
-    suspend fun setMentorEngine(name: String)
-    suspend fun setChartEngine(name: String)
+    suspend fun setScannerEngine(engineName: String)
+    suspend fun setMentorEngine(engineName: String)
+    suspend fun setChartEngine(engineName: String)
     suspend fun setMarket(market: MarketType)
     suspend fun setDarkMode(enabled: Boolean)
     suspend fun setRiskProfile(profile: String)

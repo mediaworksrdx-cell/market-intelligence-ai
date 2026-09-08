@@ -2,31 +2,47 @@ package com.example.redxfnoscanner.domain
 
 import com.example.redxfnoscanner.data.FnoData
 
+/**
+ * Implements Module 8: Market Regime Classification.
+ * Determines the state of the market to filter strategies and set risk parameters.
+ */
 enum class MarketRegime {
-    TRENDING,
+    TRENDING_UP,
+    TRENDING_DOWN,
     RANGE_BOUND,
-    VOLATILITY_DRIVEN
+    VOLATILITY_EXPANSION,
+    EVENT_RISK,
+    TRENDING, // Restored
+    VOLATILITY_DRIVEN // Restored
 }
 
 class MarketRegimeIdentifier {
+    
+    // Module 8: Regime Classification Logic
     fun identifyRegime(fnoData: FnoData, optionChainAnalyzer: OptionChainAnalyzer): MarketRegime {
         val optionChain = fnoData.optionChains.firstOrNull() ?: return MarketRegime.RANGE_BOUND
 
         val pcr = optionChainAnalyzer.calculatePCR(optionChain)
         val buildupAnalysis = optionChainAnalyzer.analyzeBuildup(optionChain)
-        val averageIV = optionChain.options.map { it.impliedVolatility }.average()
-
+        
+        // IV Analysis (Module 4.1)
+        val averageIV = optionChain.options.filter { it.impliedVolatility > 0 }.map { it.impliedVolatility }.average()
+        
         val longBuildups = buildupAnalysis.count { it.buildupType == BuildupType.LONG_BUILDUP }
         val shortBuildups = buildupAnalysis.count { it.buildupType == BuildupType.SHORT_BUILDUP }
+        val shortCovering = buildupAnalysis.count { it.buildupType == BuildupType.SHORT_COVERING }
+        val longUnwinding = buildupAnalysis.count { it.buildupType == BuildupType.LONG_UNWINDING }
 
+        // Logic Hierarchy (Module 12)
         return when {
-            // High IV suggests volatility
-            averageIV > 30 -> MarketRegime.VOLATILITY_DRIVEN
+            // 1. Volatility check first
+            averageIV > 25.0 -> MarketRegime.VOLATILITY_EXPANSION
             
-            // Strong directional bias suggests a trending market
-            pcr > 1.2 || pcr < 0.8 || (longBuildups > shortBuildups * 1.5) -> MarketRegime.TRENDING
+            // 2. Strong Directional Bias via PCR & Buildups
+            pcr > 1.3 && (longBuildups + shortCovering > shortBuildups + longUnwinding) -> MarketRegime.TRENDING_UP
+            pcr < 0.7 && (shortBuildups + longUnwinding > longBuildups + shortCovering) -> MarketRegime.TRENDING_DOWN
             
-            // Otherwise, assume a range-bound market
+            // 3. Default to Range
             else -> MarketRegime.RANGE_BOUND
         }
     }

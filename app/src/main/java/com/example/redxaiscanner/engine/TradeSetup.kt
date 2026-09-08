@@ -13,7 +13,9 @@ data class ConfluenceSignal(
     val fvgSignal: FVGResult? = null,
     val versions: Map<String, String>,
     val integrityHash: String,
-    val explanation: SignalExplanation // Added to carry the full story
+    val explanation: SignalExplanation,
+    val liquidityZones: List<LiquidityZone> = emptyList(), // Added
+    val regime: MarketRegime = MarketRegime.UNDEFINED // Added
 )
 
 // Update TradeSetup to be the final container

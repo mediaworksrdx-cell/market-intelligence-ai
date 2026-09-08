@@ -1,5 +1,3 @@
-
-// This is the definitive settings file, forcing the use of the correct repositories.
 pluginManagement {
     repositories {
         google()
@@ -13,8 +11,10 @@ dependencyResolutionManagement {
     repositories {
         google()
         mavenCentral()
+        maven { url = uri("https://jitpack.io") }
     }
 }
 
 rootProject.name = "Market-Intelligence-Ai-Android"
 include(":app")
+include(":trade-engine")

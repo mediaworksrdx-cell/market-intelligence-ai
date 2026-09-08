@@ -1,8 +1,25 @@
 package com.example.redxchartlibrary.data.local
 
 import kotlinx.coroutines.flow.Flow
+import javax.inject.Inject
+import javax.inject.Singleton
 
-class DrawingRepository(private val drawingDao: DrawingDao) {
-    fun getAllDrawings(): Flow<List<Drawing>> = drawingDao.getAllDrawings()
-    suspend fun insertOrUpdate(drawing: Drawing) = drawingDao.insertDrawing(drawing)
+@Singleton
+class DrawingRepository @Inject constructor(private val drawingDao: DrawingDao) {
+
+    fun getDrawingsForChart(symbol: String, timeframe: String): Flow<List<Drawing>> {
+        return drawingDao.getDrawingsForChart(symbol, timeframe)
+    }
+
+    suspend fun insertDrawing(drawing: Drawing): Long {
+        return drawingDao.insertDrawing(drawing)
+    }
+
+    suspend fun updateDrawing(drawing: Drawing) {
+        drawingDao.updateDrawing(drawing)
+    }
+
+    suspend fun deleteDrawing(id: Int) {
+        drawingDao.deleteDrawing(id)
+    }
 }

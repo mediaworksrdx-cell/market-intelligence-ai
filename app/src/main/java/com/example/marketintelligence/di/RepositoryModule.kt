@@ -27,4 +27,16 @@ abstract class RepositoryModule {
     abstract fun bindPortfolioRepository(
         impl: com.example.marketintelligence.data.repository.PortfolioRepositoryImpl
     ): com.example.marketintelligence.domain.repository.PortfolioRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindMarketRepository(
+        impl: com.example.marketintelligence.data.repository.MarketRepositoryImpl
+    ): com.example.marketintelligence.domain.repository.MarketRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindInstrumentRepository(
+        impl: com.example.marketintelligence.data.repository.InstrumentRepositoryImpl
+    ): com.example.marketintelligence.domain.repository.InstrumentRepository
 }

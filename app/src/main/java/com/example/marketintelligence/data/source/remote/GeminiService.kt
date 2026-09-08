@@ -1,47 +1,52 @@
 package com.example.marketintelligence.data.source.remote
 
-import com.example.marketintelligence.data.model.AIAnalysisResult
-import com.example.marketintelligence.data.model.PersonalizedLearningPath
-import com.example.marketintelligence.data.model.PerformanceReview
+import com.example.marketintelligence.domain.model.AIAnalysisResult
+import com.example.marketintelligence.domain.model.PerformanceReview
+import com.example.marketintelligence.domain.model.PersonalizedLearningPath
+import com.example.marketintelligence.domain.model.SignalType
+import com.example.marketintelligence.domain.model.RiskLevel
 import javax.inject.Inject
-import javax.inject.Singleton
+import kotlinx.coroutines.delay
 
-@Singleton
 class GeminiService @Inject constructor() {
 
-    suspend fun scanStockWithGemini(symbol: String, timeframe: String, currentPrice: Double?): AIAnalysisResult {
+    suspend fun analyzeStock(symbol: String, timeframe: String): AIAnalysisResult {
+        // Simulated API Call
+        delay(500)
         return AIAnalysisResult(
             symbol = symbol,
-            signal = "NEUTRAL",
-            confidence = 50,
-            alpha_score = 50,
-            rr_ratio = "1:1",
-            pattern = "None",
-            pattern_complexity = "BASIC",
+            signal = SignalType.BULLISH,
+            confidence = 85,
+            alphaScore = 8,
+            rrRatio = "1:3",
+            pattern = "Bull Flag",
+            patternComplexity = "Intermediate",
             timeframe = timeframe,
-            entry_zone = null,
-            liquidity_zone = null,
-            stop_loss = null,
-            target = null,
-            risk = "MEDIUM",
-            rationale = "AI analysis placeholder.",
-            market_structure = "UNDEFINED",
-            timestamp = java.time.Instant.now().toString()
+            entryZone = "100-102",
+            liquidityZone = "98",
+            stopLoss = 95.0,
+            target = listOf("110", "115"),
+            risk = RiskLevel.MEDIUM,
+            rationale = "Gemini AI detects strong momentum on $timeframe.",
+            marketStructure = "Uptrend",
+            timestamp = "10:00 AM"
         )
     }
 
-    suspend fun generateLearningPath(experience: String, risk: String, goals: List<String>): PersonalizedLearningPath {
+    suspend fun generateLearningPath(profile: String, goals: List<String>): PersonalizedLearningPath {
+        delay(500)
         return PersonalizedLearningPath(
             suggestedCourseOrder = listOf("Intro to AI Trading", "Risk Management 101"),
-            welcomeMessage = "Welcome to your personalized learning path."
+            welcomeMessage = "Here is your Gemini-curated learning path based on your $profile profile."
         )
     }
 
-    suspend fun generatePerformanceReview(tradeHistory: String): PerformanceReview {
+    suspend fun evaluatePerformance(trades: List<Any>): PerformanceReview {
+        delay(500)
         return PerformanceReview(
-            overallFeedback = "Good progress.",
-            identifiedWeakness = "None identified yet.",
-            suggestedNextLesson = "Advanced Strategies"
+            overallFeedback = "Good discipline shown in recent trades.",
+            identifiedWeakness = "Tendency to exit early.",
+            suggestedNextLesson = "Psychology of Holding Winners"
         )
     }
 }

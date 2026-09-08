@@ -3,42 +3,82 @@ package com.example.redxaiscanner.engine
 import com.example.redxaiscanner.config.AppConfig
 import com.example.redxaiscanner.domain.model.Candle
 import java.math.BigDecimal
+import java.math.RoundingMode
 
 class TradeSetupEngine(
     private val appConfig: AppConfig
 ) {
     companion object {
-        const val VERSION = "1.1.0"
+        const val VERSION = "2.0.0"
     }
     
-    fun create(signal: ScoredSignal, candles: List<Candle>): TradeSetup? {
-        val orderBlock = signal.underlyingSignal.smcSignal as? OrderBlock ?: return null
+    fun create(signal: ScoredSignal, candles: List<Candle>, liquidityZones: List<LiquidityZone>): TradeSetup? {
+        val smcSignal = signal.underlyingSignal.smcSignal
         
-        val entryPrice: BigDecimal = BigDecimal.ONE
-        val stopLossPrice: BigDecimal = BigDecimal.ZERO
+        var entryPrice = BigDecimal.ZERO
+        var stopLossPrice = BigDecimal.ZERO
+        var bias = FVGDireciton.BULLISH
 
-        val riskPercentage = if (entryPrice.compareTo(BigDecimal.ZERO) != 0) {
-            ((entryPrice - stopLossPrice).abs() / entryPrice) * BigDecimal(100)
+        // Entry & SL Logic (Rule 6/12)
+        if (smcSignal is OrderBlock) {
+            if (smcSignal.direction == FVGDireciton.BULLISH) {
+                entryPrice = smcSignal.top // Proximal
+                stopLossPrice = smcSignal.bottom // Distal (Invalidation)
+                bias = FVGDireciton.BULLISH
+            } else {
+                entryPrice = smcSignal.bottom // Proximal
+                stopLossPrice = smcSignal.top // Distal
+                bias = FVGDireciton.BEARISH
+            }
         } else {
-            BigDecimal.ZERO
-        }
-        
-        if (riskPercentage > BigDecimal(appConfig.maxStopLossPercentage)) {
             return null
         }
 
+        // Validate Risk (Rule 12)
+        if (entryPrice.compareTo(BigDecimal.ZERO) == 0) return null
         val riskAmount = (entryPrice - stopLossPrice).abs()
-        val riskToRewardRatio = 2.0
-        val takeProfit1 = if (orderBlock.direction == FVGDireciton.BULLISH) entryPrice + riskAmount else entryPrice - riskAmount
-        val takeProfit2 = if (orderBlock.direction == FVGDireciton.BULLISH) entryPrice + (riskAmount * BigDecimal(riskToRewardRatio)) else entryPrice - (riskAmount * BigDecimal(riskToRewardRatio))
-        
+        if (riskAmount.compareTo(BigDecimal.ZERO) == 0) return null
+
+        val riskPercentage = (riskAmount.divide(entryPrice, 4, RoundingMode.HALF_UP)) * BigDecimal(100)
+        if (riskPercentage.toDouble() > appConfig.maxStopLossPercentage) {
+            return null
+        }
+
+        // Targets based on Liquidity (Rule 4/13)
+        // Using compareTo for safety in filter/sort
+        val targets = if (bias == FVGDireciton.BULLISH) {
+            liquidityZones.filter { it.priceLevel.compareTo(entryPrice) > 0 }.sortedBy { it.priceLevel }
+        } else {
+            liquidityZones.filter { it.priceLevel.compareTo(entryPrice) < 0 }.sortedByDescending { it.priceLevel }
+        }
+
+        val takeProfit1 = if (targets.isNotEmpty()) targets[0].priceLevel else (if(bias == FVGDireciton.BULLISH) entryPrice + riskAmount * BigDecimal("2") else entryPrice - riskAmount * BigDecimal("2"))
+        val takeProfit2 = if (targets.size > 1) targets[1].priceLevel else (if(bias == FVGDireciton.BULLISH) entryPrice + riskAmount * BigDecimal("4") else entryPrice - riskAmount * BigDecimal("4"))
+
+        val rr = if (riskAmount.compareTo(BigDecimal.ZERO) != 0) {
+            (takeProfit1 - entryPrice).abs().divide(riskAmount, 2, RoundingMode.HALF_UP)
+        } else {
+            BigDecimal.ZERO
+        }
+
+        // Rule 13: Explainability
         val explanation = SignalExplanation(
-            title = "Analysis Study Details",
+            title = "Institutional Setup",
             components = listOf(
                 ExplanationComponent(
-                    "Study Setup",
-                    "A theoretical study was generated with a reference price at $entryPrice",
-                    mapOf("Projection Ratio" to "1:$riskToRewardRatio")
+                    "Entry Logic",
+                    "Limit Order at Institutional Block (${if(bias == FVGDireciton.BULLISH) "Discount" else "Premium"})",
+                    mapOf("Price" to entryPrice.toPlainString())
+                ),
+                ExplanationComponent(
+                    "Invalidation (SL)",
+                    "Structural Failure below Block Distal Line",
+                    mapOf("Price" to stopLossPrice.toPlainString())
+                ),
+                ExplanationComponent(
+                    "Liquidity Targets",
+                    if (targets.isNotEmpty()) "Targeting internal/external liquidity pools" else "Projected 1:${rr} RR based on volatility",
+                    mapOf("TP1" to takeProfit1.toPlainString())
                 )
             )
         )
@@ -48,21 +88,10 @@ class TradeSetupEngine(
             stopLossPrice = stopLossPrice,
             takeProfit1 = takeProfit1,
             takeProfit2 = takeProfit2,
-            riskToRewardRatio = "1:${riskToRewardRatio}",
+            riskToRewardRatio = "1:$rr",
             underlyingSignal = signal,
             versions = signal.underlyingSignal.versions + ("trade_setup_engine" to VERSION),
             explanation = explanation
         )
-    }
-
-    private fun calculateATR(candles: List<Candle>): BigDecimal {
-        if (candles.size < 2) return BigDecimal.ZERO
-        val trueRanges = (1 until candles.size).map {
-            val prevClose = BigDecimal.valueOf(candles[it - 1].close.toDouble())
-            val high = BigDecimal.valueOf(candles[it].high.toDouble())
-            val low = BigDecimal.valueOf(candles[it].low.toDouble())
-            maxOf((high - low).abs(), (high - prevClose).abs(), (low - prevClose).abs())
-        }
-        return trueRanges.reduce { acc, tr -> acc + tr } / BigDecimal(trueRanges.size)
     }
 }

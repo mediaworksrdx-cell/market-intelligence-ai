@@ -3,6 +3,7 @@ package com.example.marketintelligence.data.source.local
 import androidx.room.TypeConverter
 import java.util.Date
 
+// Reverted to a simple class. Room will now be told to use this directly via an annotation on the AppDatabase class.
 class DatabaseTypeConverters {
     @TypeConverter
     fun fromTimestamp(value: Long?): Date? {

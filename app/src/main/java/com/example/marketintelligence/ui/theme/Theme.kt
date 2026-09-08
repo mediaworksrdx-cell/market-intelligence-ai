@@ -16,59 +16,58 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 
-private val DarkColorScheme = darkColorScheme(
-    primary = Color(0xFF00E676), // Bright Green
-    secondary = Color(0xFF2979FF), // Blue
-    tertiary = Color(0xFFFFC400), // Amber
-    background = Color(0xFF0A0A0A), // Near Black
-    surface = Color(0xFF1E1E1E), // Dark Gray
+private val InstitutionalDarkColorScheme = darkColorScheme(
+    primary = Color(0xFF00E676),
+    secondary = Color(0xFF00B0FF),
+    tertiary = Color(0xFFFFD600),
+    background = Color(0xFF000000),
+    surface = Color(0xFF0A0A0A),
     onPrimary = Color.Black,
     onSecondary = Color.White,
     onTertiary = Color.Black,
     onBackground = Color.White,
     onSurface = Color.White,
+    surfaceVariant = Color(0xFF111111),
+    outline = Color(0xFF1A1A1A)
 )
 
-private val LightColorScheme = lightColorScheme(
+private val InstitutionalLightColorScheme = lightColorScheme(
     primary = Color(0xFF00C853),
-    secondary = Color(0xFF2962FF),
+    secondary = Color(0xFF0091EA),
     tertiary = Color(0xFFFFAB00),
-    // Other default colors to override
-    background = Color(0xFFFFFBFE),
-    surface = Color(0xFFFFFBFE),
+    background = Color(0xFFF5F5F5),
+    surface = Color.White,
     onPrimary = Color.White,
     onSecondary = Color.White,
     onTertiary = Color.White,
-    onBackground = Color(0xFF1C1B1F),
-    onSurface = Color(0xFF1C1B1F),
+    onBackground = Color(0xFF121212),
+    onSurface = Color(0xFF121212),
+    surfaceVariant = Color(0xFFE0E0E0),
+    outline = Color(0xFFBDBDBD)
 )
 
+val AppGreen = Color(0xFF00E676)
+val AppRed = Color(0xFFFF1744)
 val TextPrimary = Color.White
 val TextSecondary = Color.Gray
-val AppGreen = Color(0xFF00E676)
-val AppRed = Color(0xFFFF5252)
 
 @Composable
 fun MarketIntelligenceAiAndroidTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
-    // Dynamic color is available on Android 12+
-    dynamicColor: Boolean = true,
+    dynamicColor: Boolean = false,
     content: @Composable () -> Unit
 ) {
-    val colorScheme = when {
-        dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
-            val context = LocalContext.current
-            if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
-        }
-        darkTheme -> DarkColorScheme
-        else -> LightColorScheme
-    }
+    val colorScheme = if (darkTheme) InstitutionalDarkColorScheme else InstitutionalLightColorScheme
+    
     val view = LocalView.current
     if (!view.isInEditMode) {
         SideEffect {
             val window = (view.context as Activity).window
             window.statusBarColor = colorScheme.background.toArgb()
-            WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = !darkTheme
+            window.navigationBarColor = colorScheme.background.toArgb()
+            val insetsController = WindowCompat.getInsetsController(window, view)
+            insetsController.isAppearanceLightStatusBars = !darkTheme
+            insetsController.isAppearanceLightNavigationBars = !darkTheme
         }
     }
 

@@ -78,8 +78,12 @@ fun MainScreen(
         item {
             Text(
                 text = when (marketRegime) {
-                    MarketRegime.TRENDING -> "Market is Trending"
+                    MarketRegime.TRENDING_UP -> "Market is Trending Up"
+                    MarketRegime.TRENDING_DOWN -> "Market is Trending Down"
                     MarketRegime.RANGE_BOUND -> "Market is Range-Bound"
+                    MarketRegime.VOLATILITY_EXPANSION -> "Volatility Expansion"
+                    MarketRegime.EVENT_RISK -> "High Event Risk"
+                    MarketRegime.TRENDING -> "Market is Trending"
                     MarketRegime.VOLATILITY_DRIVEN -> "Market is Volatility-Driven"
                     null -> "Fetching market data..."
                 },
@@ -114,7 +118,6 @@ fun TradeSignalView(tradeSignal: TradeSignal) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Text(text = "Trade Signal", style = MaterialTheme.typography.headlineSmall)
         Text(text = "Confidence: ${tradeSignal.confidenceScore}")
-        // ... other trade signal details
     }
 }
 

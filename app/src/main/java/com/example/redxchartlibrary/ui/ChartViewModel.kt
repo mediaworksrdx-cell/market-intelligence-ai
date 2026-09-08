@@ -1,86 +1,84 @@
 package com.example.redxchartlibrary.ui
 
-import android.app.Application
-import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.redxchartlibrary.data.MarketDataClient
-import com.example.redxchartlibrary.data.alerts.AlertEngine
-import com.example.redxchartlibrary.data.local.ChartDatabase
 import com.example.redxchartlibrary.data.local.Drawing
 import com.example.redxchartlibrary.data.local.DrawingRepository
-import com.example.redxchartlibrary.data.remote.ApiService
 import com.example.redxchartlibrary.model.Candle
 import com.example.redxchartlibrary.state.ChartState
-import com.jakewharton.retrofit2.converter.kotlinx.serialization.asConverterFactory
+import com.example.redxchartlibrary.util.TimeFrame
+import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
-import kotlinx.serialization.json.Json
-import okhttp3.MediaType.Companion.toMediaType
-import retrofit2.Retrofit
+import javax.inject.Inject
 
-sealed class UiState {
-    object Loading : UiState()
-    data class Success(val candles: List<Candle>) : UiState()
-    data class Error(val message: String) : UiState()
-}
+data class ChartUiState(
+    val candles: List<Candle> = emptyList(),
+    val isLoading: Boolean = true,
+    val error: String? = null
+)
 
-class ChartViewModel(application: Application) : AndroidViewModel(application) {
-
-    private val apiService: ApiService
-    private val marketDataClient: MarketDataClient
+@HiltViewModel
+class ChartViewModel @Inject constructor(
+    private val marketDataClient: MarketDataClient,
     private val drawingRepository: DrawingRepository
-    val alertEngine = AlertEngine()
+) : ViewModel() {
 
-    private val _uiState = MutableStateFlow<UiState>(UiState.Loading)
-    val uiState: StateFlow<UiState> = _uiState.asStateFlow()
+    private val _uiState = MutableStateFlow(ChartUiState())
+    val uiState = _uiState.asStateFlow()
     
     val chartState = ChartState()
-    val alertEvents = alertEngine.alertEvents
 
-    init {
-        val contentType = "application/json".toMediaType()
-        val json = Json { ignoreUnknownKeys = true }
-        
-        apiService = Retrofit.Builder()
-            .baseUrl("https://dummy.restapiexample.com/")
-            .addConverterFactory(json.asConverterFactory(contentType))
-            .build()
-            .create(ApiService::class.java)
-        
-        marketDataClient = MarketDataClient(apiService)
-        drawingRepository = DrawingRepository(ChartDatabase.getDatabase(application).drawingDao())
-        
-        observeDrawings()
+    fun loadChart(symbol: String, timeframe: TimeFrame) {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoading = true) }
+
+            // 1. Fetch historical candles
+            marketDataClient.fetchHistoricalCandles(symbol, timeframe)
+
+            // 2. Load historical drawings
+            drawingRepository.getDrawingsForChart(symbol, timeframe.identifier).collect { drawings ->
+                chartState.drawings.value = drawings
+            }
+
+            // 3. Get historical candles and combine with forming candle
+            marketDataClient.getHistoricalCandles(symbol, timeframe.identifier)
+                .combine(marketDataClient.formingCandleFlow) { historical, forming ->
+                    val combined = historical.toMutableList()
+                    val formingIndex = combined.indexOfFirst { it.openTime == forming.openTime }
+
+                    if (formingIndex != -1) {
+                        combined[formingIndex] = forming
+                    } else {
+                        combined.add(forming)
+                    }
+                    combined
+                }
+                .catch { e -> _uiState.update { it.copy(error = e.message, isLoading = false) } }
+                .collect { candles ->
+                    _uiState.update { it.copy(candles = candles, isLoading = false) }
+                }
+        }
+
+        // 4. Start the live stream for new ticks
+        marketDataClient.startLiveStream(symbol, timeframe)
     }
 
     fun saveDrawing(drawing: Drawing) {
         viewModelScope.launch {
-            drawingRepository.insertOrUpdate(drawing)
+            drawingRepository.insertDrawing(drawing)
         }
     }
 
-    fun startLiveStream() {
-    }
-
-    fun startHistoricalReplay() {
-    }
-
-    private fun observeDrawings() {
+    fun deleteDrawing(drawing: Drawing) {
         viewModelScope.launch {
-            drawingRepository.getAllDrawings().collect { drawings: List<Drawing> ->
-                chartState.drawings.clear()
-                chartState.drawings.addAll(drawings)
-            }
+            drawingRepository.deleteDrawing(drawing.id)
         }
     }
-
-    private fun listenForMarketData() {
-        viewModelScope.launch {
-            marketDataClient.marketDataFlow.collect { candle ->
-                val updatedCandles = (_uiState.value as? UiState.Success)?.candles.orEmpty() + candle
-                _uiState.value = UiState.Success(updatedCandles)
-                alertEngine.checkForAlerts(updatedCandles)
-            }
-        }
+    
+    override fun onCleared() {
+        marketDataClient.stopLiveStream()
+        super.onCleared()
     }
 }

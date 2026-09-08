@@ -15,7 +15,7 @@ class MarketDataRepositoryImpl @Inject constructor(
 ) : MarketDataRepository {
     override fun getQuote(symbol: String): Flow<Result<StockData>> = flow {
         // Implementation using domain.model.StockData
-        emit(Result.success(StockData(symbol, symbol, 0.0, 0.0, 0.0, "0", com.example.marketintelligence.domain.model.MarketType.IN)))
+        emit(Result.success(StockData(symbol, symbol, 0.0, 0.0, 0.0, 0.0, "0", com.example.marketintelligence.domain.model.MarketType.IN)))
     }
 
     override fun getOptionChain(symbol: String): Flow<Result<OptionChain>> = flow {

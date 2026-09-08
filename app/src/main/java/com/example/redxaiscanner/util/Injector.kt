@@ -67,6 +67,40 @@ object Injector {
         return ScannerViewModel(generateTradeSetup)
     }
 
+    fun provideGenerateTradeSetupUseCase(context: Context): GenerateTradeSetupUseCase {
+        val appConfig = ConfigManager.getConfig()
+        val auditLogger = AuditLoggerPlaceholder()
+        val profiler = PerformanceProfilerPlaceholder()
+        val dataIntegrityEngine = DataIntegrityEngine()
+        val tradeSetupEngine = TradeSetupEngine(appConfig)
+
+        val apiService = object : MarketApiService {
+            override suspend fun getCandles(symbol: String, timeframe: String) = MarketDataDto(symbol, emptyList())
+        }
+        val candleDao = object : CandleDao {
+            override suspend fun upsertAll(candles: List<CandleEntity>) {}
+            override fun getCandles(symbol: String, timeframe: String) = flowOf(emptyList<CandleEntity>())
+            override suspend fun trimCache(symbol: String, timeframe: String, limit: Int) {}
+        }
+        val repo = MarketDataRepositoryImpl(candleDao, apiService)
+
+        val patternEngine = PatternEngine()
+        val fvgEngine = FVGEngine()
+        val smcEngine = SMCEngine()
+        val volumeSpikeEngine = VolumeSpikeEngine()
+        val confidenceScoringEngine = ConfidenceScoringEngine()
+        val aiValidationEngine = AIValidationEngine()
+
+        val scanPatterns = ScanForPatternsUseCase(repo, patternEngine)
+        val scanFvgs = ScanForFVGUseCase(repo, fvgEngine)
+        val scanSmc = ScanForSMCUseCase(repo, smcEngine)
+        val scanVolumeSpikes = ScanForVolumeSpikesUseCase(repo, volumeSpikeEngine)
+        val findConfluence = FindConfluenceUseCase(scanSmc, scanPatterns, scanFvgs, scanVolumeSpikes, appConfig, profiler)
+        val scoreConfidence = ScoreConfidenceUseCase(findConfluence, repo, confidenceScoringEngine, auditLogger, appConfig)
+        val validateAi = ValidateSignalWithAIUseCase(scoreConfidence, repo, aiValidationEngine, isAiValidationEnabled = appConfig.isAiValidationEnabled)
+        return GenerateTradeSetupUseCase(validateAi, repo, dataIntegrityEngine, tradeSetupEngine)
+    }
+
     fun provideAppConfig(): AppConfig {
         return ConfigManager.getConfig()
     }

@@ -1,19 +1,38 @@
 # Android
 *.iml
 .gradle
+.gradle/
+.kotlin/
+local.properties
 /local.properties
-/.idea/caches
-/.idea/libraries
-/.idea/modules.xml
-/.idea/workspace.xml
-/.idea/navEditor.xml
-/.idea/assetWizardSettings.xml
+.idea/
+/.idea/
 .DS_Store
-/build
-/captures
+build/
+**/build/
+bin/
+**/bin/
+captures/
 .externalNativeBuild
 .cxx
+*.apk
+*.aar
+*.ap_
+*.aab
+*.dex
+*.class
+reports/
+
+# Local & Secrets
+*.keystore
+*.jks
 local.properties
+config.properties
+trade-engine/config.properties
+*.txt
+scratch/
+app/src_main/
+app/libs/
 
 # Web Artifacts (Excluded)
 node_modules
@@ -29,3 +48,4 @@ metadata.json
 /components/
 /backend/
 /services/
+

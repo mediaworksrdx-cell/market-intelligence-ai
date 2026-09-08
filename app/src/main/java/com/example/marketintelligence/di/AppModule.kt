@@ -2,64 +2,88 @@ package com.example.marketintelligence.di
 
 import android.content.Context
 import androidx.datastore.core.DataStore
-import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.datastore.preferences.core.Preferences
-import androidx.datastore.preferences.preferencesDataStoreFile
-import androidx.room.Room
+import androidx.datastore.preferences.preferencesDataStore
+import com.example.marketintelligence.data.source.CandleDataSourceImpl
+import com.example.marketintelligence.data.source.CandleRepository
+import com.example.marketintelligence.data.source.HistoricalDataOrchestrator
 import com.example.marketintelligence.data.source.local.AppDatabase
-import com.example.marketintelligence.data.source.local.NotificationDao
-import com.example.marketintelligence.data.source.local.TransactionDao
-import com.example.marketintelligence.data.source.local.HoldingDao
-import com.example.marketintelligence.data.source.local.ExecutedTradeDao
-import com.example.marketintelligence.data.source.remote.GeminiService
+import com.example.marketintelligence.data.source.local.CandleDao
+import com.example.marketintelligence.data.source.remote.MarketApiService
+import com.example.tradeengine.engine.CurrentCandleManager
+import com.example.tradeengine.live.WebSocketClient
+import com.example.tradeengine.repository.CandleDataSource
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import javax.inject.Singleton
+
+private const val USER_PREFERENCES_NAME = "user_preferences"
+
+val Context.dataStore: DataStore<Preferences> by preferencesDataStore(
+    name = USER_PREFERENCES_NAME
+)
 
 @Module
 @InstallIn(SingletonComponent::class)
 object AppModule {
 
-    private const val USER_PREFERENCES_NAME = "user_preferences"
-
     @Provides
     @Singleton
-    fun provideAppDatabase(@ApplicationContext context: Context): AppDatabase {
-        return Room.databaseBuilder(
-            context,
-            AppDatabase::class.java,
-            "market_intelligence_db"
-        )
-        .fallbackToDestructiveMigration()
-        .build()
+    fun provideDataStore(@ApplicationContext context: Context): DataStore<Preferences> {
+        return context.dataStore
+    }
+
+    @Provides
+    fun provideCandleDao(appDatabase: AppDatabase): CandleDao {
+        return appDatabase.candleDao()
     }
 
     @Provides
     @Singleton
-    fun providePreferencesDataStore(@ApplicationContext context: Context): DataStore<Preferences> {
-        return PreferenceDataStoreFactory.create(
-            produceFile = { context.preferencesDataStoreFile(USER_PREFERENCES_NAME) }
-        )
+    fun provideCandleRepository(candleDao: CandleDao): CandleRepository {
+        return CandleRepository(candleDao)
     }
 
     @Provides
-    fun provideNotificationDao(database: AppDatabase): NotificationDao = database.notificationDao()
-
-    @Provides
-    fun provideTransactionDao(database: AppDatabase): TransactionDao = database.transactionDao()
-
-    @Provides
-    fun provideHoldingDao(database: AppDatabase): HoldingDao = database.holdingDao()
-
-    @Provides
-    fun provideExecutedTradeDao(database: AppDatabase): ExecutedTradeDao = database.executedTradeDao()
+    @Singleton
+    fun provideCandleDataSource(candleRepository: CandleRepository): CandleDataSource {
+        return CandleDataSourceImpl(candleRepository)
+    }
 
     @Provides
     @Singleton
-    fun provideGeminiService(): GeminiService {
-        return GeminiService()
+    fun provideWebSocketClient(client: io.ktor.client.HttpClient, coroutineScope: CoroutineScope): WebSocketClient {
+        return WebSocketClient(client, coroutineScope)
+    }
+
+    @Provides
+    @Singleton
+    fun provideHistoricalDataOrchestrator(
+        marketApiService: MarketApiService,
+        candleRepository: CandleRepository
+    ): HistoricalDataOrchestrator {
+        return HistoricalDataOrchestrator(marketApiService, candleRepository)
+    }
+
+    @Provides
+    fun provideCurrentCandleManager(
+        candleDataSource: CandleDataSource,
+        coroutineScope: CoroutineScope
+    ): CurrentCandleManager {
+        // Note: This provides a new instance for each injection. You may want to scope this
+        // depending on your specific needs (e.g., to a ViewModel's lifecycle).
+        return CurrentCandleManager("", "1m", candleDataSource, coroutineScope)
+    }
+
+    @Provides
+    @Singleton
+    fun provideCoroutineScope(): CoroutineScope {
+        return CoroutineScope(SupervisorJob() + Dispatchers.Default)
     }
 }

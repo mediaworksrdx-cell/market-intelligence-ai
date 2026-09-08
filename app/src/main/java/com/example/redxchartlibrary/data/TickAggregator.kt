@@ -2,41 +2,59 @@ package com.example.redxchartlibrary.data
 
 import com.example.redxchartlibrary.model.Candle
 import com.example.redxchartlibrary.model.Tick
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
+import com.example.redxchartlibrary.util.TimeFrame
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.SharedFlow
+import java.util.concurrent.ConcurrentHashMap
 
-class TickAggregator(private val timeFrameMillis: Long) {
+class TickAggregator {
 
-    private var currentCandle: Candle? = null
-    private val _candleFlow = MutableStateFlow<Candle?>(null)
-    val candleFlow: StateFlow<Candle?> = _candleFlow
+    private val formingCandles = ConcurrentHashMap<String, Candle>()
 
-    fun addTick(tick: Tick) {
+    private val _formingCandleFlow = MutableSharedFlow<Candle>(replay = 10)
+    val formingCandleFlow: SharedFlow<Candle> = _formingCandleFlow
+
+    private val _completedCandleFlow = MutableSharedFlow<Candle>(replay = 10)
+    val completedCandleFlow: SharedFlow<Candle> = _completedCandleFlow
+
+    fun addTick(tick: Tick, timeframe: TimeFrame) {
+        val key = "${tick.symbol}-${timeframe.identifier}"
+        val timeFrameMillis = timeframe.duration
         val tickTimeBucket = tick.timestamp - (tick.timestamp % timeFrameMillis)
 
-        if (currentCandle == null || tickTimeBucket > currentCandle!!.timestamp) {
-            // Close previous candle and start a new one
-            currentCandle?.let {
-                // Optional: emit final version of the previous candle
+        val currentCandle = formingCandles[key]
+
+        if (currentCandle == null || tickTimeBucket > currentCandle.openTime) {
+            // Finalize the old candle
+            currentCandle?.let { 
+                _completedCandleFlow.tryEmit(it)
             }
-            currentCandle = Candle(
-                timestamp = tickTimeBucket,
+            
+            // Start a new candle
+            val newCandle = Candle(
+                symbol = tick.symbol,
+                timeframe = timeframe.identifier,
+                openTime = tickTimeBucket,
+                closeTime = tickTimeBucket + timeFrameMillis,
                 open = tick.price,
                 high = tick.price,
                 low = tick.price,
                 close = tick.price,
-                volume = 0
+                volume = tick.volume
             )
-        } else {
-            // Update the current candle
-            currentCandle = currentCandle!!.copy(
-                high = maxOf(currentCandle!!.high, tick.price),
-                low = minOf(currentCandle!!.low, tick.price),
-                close = tick.price,
-                // volume will be updated later
-            )
-        }
+            formingCandles[key] = newCandle
+            _formingCandleFlow.tryEmit(newCandle)
 
-        _candleFlow.value = currentCandle
+        } else {
+            // Update the existing forming candle
+            val updatedCandle = currentCandle.copy(
+                high = maxOf(currentCandle.high, tick.price),
+                low = minOf(currentCandle.low, tick.price),
+                close = tick.price,
+                volume = currentCandle.volume + tick.volume
+            )
+            formingCandles[key] = updatedCandle
+            _formingCandleFlow.tryEmit(updatedCandle)
+        }
     }
 }

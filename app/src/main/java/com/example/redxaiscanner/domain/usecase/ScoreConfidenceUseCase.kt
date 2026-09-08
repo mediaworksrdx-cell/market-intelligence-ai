@@ -13,8 +13,8 @@ class ScoreConfidenceUseCase(
     private val findConfluenceUseCase: FindConfluenceUseCase,
     private val marketDataRepository: MarketDataRepository,
     private val scoringEngine: ConfidenceScoringEngine,
-    private val auditLogger: AuditLogger, // Injected for audit logging
-    private val appConfig: AppConfig // Injected for configuration-driven control
+    private val auditLogger: AuditLogger,
+    private val appConfig: AppConfig
 ) {
 
     private val entryTimeframe = Timeframe.ONE_HOUR
@@ -31,9 +31,9 @@ class ScoreConfidenceUseCase(
                 
                 val scoredAndFiltered = signals
                     .map { signal -> 
-                        val scoredSignal = scoringEngine.score(signal, symbolCandles)
+                        val scoredSignal = scoringEngine.score(signal, symbolCandles, signal.regime, signal.liquidityZones)
                         val passed = scoredSignal.confidenceScore >= appConfig.signalScoreThreshold
-                        auditLogger.logSignalEvaluation(scoredSignal, passed) // Log every evaluation
+                        auditLogger.logSignalEvaluation(scoredSignal, passed)
                         if (passed) scoredSignal else null
                     }
                     .filterNotNull()

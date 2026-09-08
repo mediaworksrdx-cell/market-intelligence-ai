@@ -4,6 +4,8 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 data class Tick(
-    val timestamp: Long,
-    val price: Float
+    val symbol: String,
+    val price: Double = 0.0,
+    val volume: Double = 0.0,
+    val timestamp: Long
 )

@@ -1,10 +1,27 @@
-
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="24dp"
     android:height="24dp"
     android:viewportWidth="24"
     android:viewportHeight="24">
-  <path
-      android:fillColor="#FFFFFFFF"
-      android:pathData="M12,12m-10,0a10,10 0,1 1,20 0a10,10 0,1 1,-20 0"/>
+    <!-- Left & Right Bull Horns -->
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M2,2.5c2,3.5 5,5.5 7.5,6l-0.8,1.8C5.5,9.5 2.8,6.8 1.2,3.2L2,2.5z M22,2.5c-2,3.5 -5,5.5 -7.5,6l0.8,1.8c3.2,-0.8 5.9,-3.5 7.5,-7.1L22,2.5z"/>
+    <!-- Forehead Delta Peak -->
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M12,4.5l2.2,3.5H9.8L12,4.5z"/>
+    <!-- Bull Head Frame with Cutout Fierce Eyes (EvenOdd) -->
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:fillType="evenOdd"
+        android:pathData="M7,8h10l2,5 -3,4H8l-3,-4 2,-5z M8.2,11.5l2.2,0.8 -0.5,1.2 -2.2,-0.8 0.5,-1.2z M15.8,11.5l-2.2,0.8 0.5,1.2 2.2,-0.8 -0.5,-1.2z"/>
+    <!-- Muzzle / Snout -->
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M9,17.5h6v2.5H9z"/>
+    <!-- Bull Nose Ring -->
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M12,20c-1.1,0 -2,0.9 -2,2h1.2c0,-0.4 0.4,-0.8 0.8,-0.8s0.8,0.4 0.8,0.8H14c0,-1.1 -0.9,-2 -2,-2z"/>
 </vector>

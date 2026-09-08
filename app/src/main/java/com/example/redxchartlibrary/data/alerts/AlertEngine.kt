@@ -1,6 +1,6 @@
 package com.example.redxchartlibrary.data.alerts
 
-import com.example.redxchartlibrary.data.indicators.IndicatorResult
+import com.example.redxchartlibrary.data.indicators.IndicatorOutput
 import com.example.redxchartlibrary.model.Candle
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -27,16 +27,16 @@ class AlertEngine {
     }
 
     // This is the entry point for new data.
-    fun processData(latestCandle: Candle, indicatorResults: Map<String, IndicatorResult>) {
+    fun processData(latestCandle: Candle, indicatorOutputs: Map<String, IndicatorOutput>) {
         coroutineScope.launch {
-            evaluateConditions(latestCandle, indicatorResults)
+            evaluateConditions(latestCandle, indicatorOutputs)
             lastCandle = latestCandle
         }
     }
 
     private suspend fun evaluateConditions(
         candle: Candle,
-        indicators: Map<String, IndicatorResult>
+        indicators: Map<String, IndicatorOutput>
     ) {
         val previousClose = lastCandle?.close ?: candle.close
 

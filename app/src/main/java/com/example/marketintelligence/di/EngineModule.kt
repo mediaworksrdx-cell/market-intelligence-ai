@@ -1,7 +1,10 @@
 package com.example.marketintelligence.di
 
 import com.example.marketintelligence.data.engine.*
+import com.example.marketintelligence.domain.engine.ChartEngine
 import com.example.marketintelligence.domain.engine.Engine
+import com.example.marketintelligence.domain.engine.MentorEngine
+import com.example.marketintelligence.domain.engine.ScannerEngine
 import dagger.Binds
 import dagger.Module
 import dagger.hilt.InstallIn
@@ -12,21 +15,18 @@ import dagger.multibindings.IntoSet
 @InstallIn(SingletonComponent::class)
 abstract class EngineModule {
 
-    // --- Chart Engines ---
     @Binds @IntoSet
     abstract fun bindTradingViewChartEngine(engine: TradingViewChartEngine): Engine
 
     @Binds @IntoSet
     abstract fun bindProprietaryChartEngine(engine: ProprietaryChartEngine): Engine
 
-    // --- Scanner Engines ---
     @Binds @IntoSet
     abstract fun bindGeminiScannerEngine(engine: GeminiScannerEngineImpl): Engine
 
     @Binds @IntoSet
     abstract fun bindProprietaryScannerEngine(engine: ProprietaryScannerEngineImpl): Engine
 
-    // --- Mentor Engines ---
     @Binds @IntoSet
     abstract fun bindGeminiMentorEngine(engine: GeminiMentorEngineImpl): Engine
 

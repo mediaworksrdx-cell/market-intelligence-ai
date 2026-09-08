@@ -20,31 +20,46 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.marketintelligence.domain.model.MarketType
+import com.example.marketintelligence.ui.market.MarketToggle
+import com.example.marketintelligence.ui.market.MarketViewModel
 import com.example.marketintelligence.ui.theme.*
 
 @Composable
 fun SettingsScreen(
-    viewModel: SettingsViewModel = hiltViewModel()
+    viewModel: SettingsViewModel = hiltViewModel(),
+    marketViewModel: MarketViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val marketUiState by marketViewModel.uiState.collectAsState()
     val scrollState = rememberScrollState()
 
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.Black)
+            .background(MaterialTheme.colorScheme.background)
             .verticalScroll(scrollState)
             .padding(16.dp)
     ) {
-        Text("System Configuration", color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.ExtraBold)
-        Text("Institutional Control Panel", color = Color.Gray, fontSize = 12.sp)
+        Text("System Configuration", color = MaterialTheme.colorScheme.onBackground, fontSize = 24.sp, fontWeight = FontWeight.ExtraBold)
+        Text("Institutional Control Panel", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
         
+        Spacer(modifier = Modifier.height(24.dp))
+        
+        SettingsSection(title = "MARKET SELECTION") {
+            MarketToggle(
+                selectedMarket = marketUiState.selectedMarket,
+                onMarketSelected = { market: MarketType -> 
+                    marketViewModel.onMarketSelected(market) 
+                }
+            )
+        }
+
         Spacer(modifier = Modifier.height(24.dp))
 
         // 1. General Preferences
         SettingsSection(title = "GENERAL PREFERENCES") {
             SettingsToggleItem(
-                title = "Institutional Dark Mode",
+                title = "Dark Mode",
                 icon = Icons.Filled.DarkMode,
                 checked = uiState.isDarkMode,
                 onCheckedChange = { viewModel.setDarkMode(it) }
@@ -89,19 +104,19 @@ fun SettingsScreen(
         // 3. Risk Framework
         SettingsSection(title = "RISK FRAMEWORK") {
             Column(modifier = Modifier.padding(vertical = 8.dp)) {
-                Text("Study Risk Profile", color = Color.Gray, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                Text("Study Risk Profile", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                 Spacer(Modifier.height(8.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     listOf("CONSERVATIVE", "AGGRESSIVE").forEach { profile ->
                         val isSelected = uiState.riskProfile == profile
                         Surface(
-                            color = if (isSelected) AppGreen else Color(0xFF1A1A1A),
+                            color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
                             shape = RoundedCornerShape(8.dp),
                             modifier = Modifier.weight(1f).clickable { viewModel.setRiskProfile(profile) }
                         ) {
                             Text(
                                 text = profile,
-                                color = if (isSelected) Color.Black else Color.Gray,
+                                color = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.Bold,
                                 modifier = Modifier.padding(vertical = 8.dp),
@@ -121,7 +136,7 @@ fun SettingsScreen(
         Button(
             onClick = { /* Reset Logic */ },
             modifier = Modifier.fillMaxWidth(),
-            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1A1A1A)),
+            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
             shape = RoundedCornerShape(12.dp)
         ) {
             Text("Reset Institutional Data", color = AppRed, fontWeight = FontWeight.Bold)
@@ -134,10 +149,10 @@ fun SettingsScreen(
 @Composable
 fun SettingsSection(title: String, content: @Composable ColumnScope.() -> Unit) {
     Column {
-        Text(title, color = AppGreen, fontSize = 11.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 1.sp)
+        Text(title, color = MaterialTheme.colorScheme.primary, fontSize = 11.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 1.sp)
         Spacer(Modifier.height(12.dp))
         Card(
-            colors = CardDefaults.cardColors(containerColor = Color(0xFF121212)),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
             shape = RoundedCornerShape(16.dp),
             modifier = Modifier.fillMaxWidth()
         ) {
@@ -156,18 +171,18 @@ fun SettingsToggleItem(title: String, icon: ImageVector, checked: Boolean, onChe
         verticalAlignment = Alignment.CenterVertically
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Icon(icon, null, tint = Color.Gray, modifier = Modifier.size(20.dp))
+            Icon(icon, null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(20.dp))
             Spacer(Modifier.width(12.dp))
-            Text(title, color = Color.White, fontSize = 14.sp)
+            Text(title, color = MaterialTheme.colorScheme.onSurface, fontSize = 14.sp)
         }
         Switch(
             checked = checked,
             onCheckedChange = onCheckedChange,
             colors = SwitchDefaults.colors(
-                checkedThumbColor = Color.Black,
-                checkedTrackColor = AppGreen,
-                uncheckedThumbColor = Color.Gray,
-                uncheckedTrackColor = Color(0xFF1A1A1A)
+                checkedThumbColor = MaterialTheme.colorScheme.onPrimary,
+                checkedTrackColor = MaterialTheme.colorScheme.primary,
+                uncheckedThumbColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                uncheckedTrackColor = MaterialTheme.colorScheme.surfaceVariant
             )
         )
     }
@@ -184,14 +199,14 @@ fun SettingsSelectItem(title: String, icon: ImageVector, selected: String, optio
             verticalAlignment = Alignment.CenterVertically
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(icon, null, tint = Color.Gray, modifier = Modifier.size(20.dp))
+                Icon(icon, null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(20.dp))
                 Spacer(Modifier.width(12.dp))
                 Column {
-                    Text(title, color = Color.White, fontSize = 14.sp)
-                    Text(selected, color = AppGreen, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    Text(title, color = MaterialTheme.colorScheme.onSurface, fontSize = 14.sp)
+                    Text(selected, color = MaterialTheme.colorScheme.primary, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                 }
             }
-            Icon(Icons.Filled.ArrowDropDown, null, tint = Color.Gray)
+            Icon(Icons.Filled.ArrowDropDown, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         
         if (expanded) {
@@ -199,7 +214,7 @@ fun SettingsSelectItem(title: String, icon: ImageVector, selected: String, optio
             options.forEach { option ->
                 Text(
                     text = option,
-                    color = if(option == selected) Color.White else Color.Gray,
+                    color = if(option == selected) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier
                         .fillMaxWidth()
                         .clickable { 

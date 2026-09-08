@@ -1,10 +1,26 @@
-
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="24dp"
     android:height="24dp"
     android:viewportWidth="24"
     android:viewportHeight="24">
-  <path
-      android:fillColor="#FFFFFFFF"
-      android:pathData="M12,12m-10,0a10,10 0,1 1,20 0a10,10 0,1 1,-20 0"/>
+    <!-- Mortarboard Cap Diamond Top -->
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M12,2L1,7l11,5 8.5,-3.9V13h2V7.5L12,2z"/>
+    <!-- Hanging Cap Tassel -->
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M3,8v5.5c-0.6,0.2 -1,0.7 -1,1.3s0.4,1.1 1,1.3v0.9h1.2V16c0.6,-0.2 1,-0.7 1,-1.3s-0.4,-1.1 -1,-1.3V8H3z"/>
+    <!-- Scholar Cap Skullcap Base -->
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M5,10.5v2.5c0,2.5 3.1,4.5 7,4.5s7,-2 7,-4.5v-2.5l-7,3.2 -7,-3.2z"/>
+    <!-- Scholar Smart Spectacles -->
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M6.5,15h3.5v2.2H6.5zm7.5,0h3.5v2.2H14zm-3.5,0.7h3v1h-3z"/>
+    <!-- Academic Scholar Tie -->
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M11,19.2l1,-0.8 1,0.8 -0.5,3.6h-1z"/>
 </vector>

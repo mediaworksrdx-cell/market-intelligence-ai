@@ -1,18 +1,31 @@
 package com.example.redxchartlibrary.data.indicators
 
-// Represents a single data point for a line-based indicator (e.g., SMA, EMA, RSI)
-data class LineData(val timestamp: Long, val value: Float)
+sealed class Indicator {
+    abstract val name: String
+    abstract val requiresSeparatePane: Boolean
 
-// Represents a single data point for MACD, which has three lines
-data class MacdData(
-    val timestamp: Long,
-    val macdLine: Float,
-    val signalLine: Float,
-    val histogram: Float
-)
-
-// A generic container for any type of indicator result
-sealed class IndicatorResult {
-    data class Line(val data: List<LineData>) : IndicatorResult()
-    data class MACD(val data: List<MacdData>) : IndicatorResult()
+    data class SMA(val period: Int) : Indicator() {
+        override val name = "SMA($period)"
+        override val requiresSeparatePane = false
+    }
+    data class EMA(val period: Int) : Indicator() {
+        override val name = "EMA($period)"
+        override val requiresSeparatePane = false
+    }
+    data class BollingerBands(val period: Int, val multiplier: Double) : Indicator() {
+        override val name = "BB($period, $multiplier)"
+        override val requiresSeparatePane = false
+    }
+    object RSI : Indicator() {
+        override val name = "RSI"
+        override val requiresSeparatePane = true
+    }
+    object MACD : Indicator() {
+        override val name = "MACD"
+        override val requiresSeparatePane = true
+    }
+    object Volume : Indicator() {
+        override val name = "Volume"
+        override val requiresSeparatePane = true
+    }
 }

@@ -1,47 +1,70 @@
 package com.example.marketintelligence.ui.fno
 
-import com.example.marketintelligence.data.model.AiTradeSignal
-import com.example.marketintelligence.data.model.MarketRegime
 import com.example.marketintelligence.domain.model.*
 
 data class FnoUiState(
-    val searchQuery: String = "",
+    val searchQuery: String = "NIFTY",
     val selectedAsset: String = "NIFTY 50",
-    val spotPrice: Double = 0.0,
+    val spotPrice: Double = 22500.0,
     val isLoading: Boolean = false,
-    val errorMessage: String? = null,
-    val marketRegime: MarketRegime = MarketRegime.UNDEFINED,
     
-    // 1. Summary Data
+    // 1. Dashboard Data
     val summary: FnoSummary = FnoSummary(),
+    val futuresBuildup: List<BuildupData> = emptyList(),
+    val heatmapData: List<HeatmapItem> = emptyList(),
     
-    // 2. Options Study Data
+    // 2. Options Study
     val optionChain: OptionChain? = null,
-    val optionsStudyStats: OptionsStudyStats = OptionsStudyStats(),
+    val maxPainHistory: List<Double> = emptyList(),
+    val ivHistory: List<Double> = emptyList(),
+    val gexProfile: com.example.marketintelligence.domain.engine.GexProfile? = null,
+    val institutionalGreeks: Map<Double, com.example.marketintelligence.domain.engine.InstitutionalGreeks> = emptyMap(),
+    val participantData: List<ParticipantPositioning> = emptyList(),
     
-    // 3. Strategies
-    val availableStrategies: List<OptionStrategy> = emptyList(),
+    // 3. Strategy Builder
+    val activeLegs: List<StrategyLeg> = emptyList(),
+    val predefinedStrategies: List<OptionStrategy> = emptyList(),
     val selectedStrategy: OptionStrategy? = null,
-    
-    // AI Signal
-    val generatedSignal: AiTradeSignal? = null,
-    val mentorExplanation: String? = null
+    val selectedCategory: StrategyCategory = StrategyCategory.BULLISH,
+    val trackedStrategies: List<OptionStrategy> = emptyList(), // Saved strategies
+    val ivSimulation: Double = 0.0, // Shift in %
+    val timeSimulation: Int = 0, // Days from today
+    val strategyGreeks: Greeks = Greeks(0.0, 0.0, 0.0, 0.0)
+)
+
+enum class StrategyCategory {
+    BULLISH, BEARISH, NEUTRAL, VOLATILITY
+}
+
+data class ParticipantPositioning(
+    val participant: String,
+    val netFutures: Int,
+    val netCalls: Int,
+    val netPuts: Int,
+    val bias: String
 )
 
 data class FnoSummary(
-    val futuresPrices: List<FuturePrice> = emptyList(), // Near, Next, Far
+    val changePercent: Double = 0.0,
     val iv: Double = 0.0,
     val pcr: Double = 0.0,
     val maxPain: Double = 0.0,
+    val lotSize: Int = 0,
+    val trend: String = "NEUTRAL",
+    val contracts: List<FutureContract> = emptyList(),
     val highestCallOIStrike: Double = 0.0,
-    val highestPutOIStrike: Double = 0.0,
-    val nearMonthStrike: Double = 0.0
+    val highestPutOIStrike: Double = 0.0
 )
 
-data class FuturePrice(val expiry: String, val price: Double)
+data class BuildupData(
+    val symbol: String,
+    val type: String, // "Long Buildup", "Short Covering", etc.
+    val changePercent: Double,
+    val oiChangePercent: Double
+)
 
-data class OptionsStudyStats(
-    val maxPain: Double = 0.0,
-    val iv: Double = 0.0,
-    val pcr: Double = 0.0
+data class HeatmapItem(
+    val sector: String,
+    val changePercent: Double,
+    val weight: Float
 )

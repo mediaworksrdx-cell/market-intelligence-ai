@@ -15,9 +15,15 @@ class EngineRouter @Inject constructor(
     private val mentorEngines = engines.filterIsInstance<MentorEngine>().associateBy { it.engineName }
     private val chartEngines = engines.filterIsInstance<ChartEngine>().associateBy { it.engineName }
 
-    private val defaultScannerEngine = scannerEngines.values.first()
-    private val defaultMentorEngine = mentorEngines.values.first()
-    private val defaultChartEngine = chartEngines.values.first()
+    private val defaultScannerEngine = scannerEngines.values.firstOrNull()
+    private val defaultMentorEngine = mentorEngines.values.firstOrNull()
+    private val defaultChartEngine = chartEngines.values.firstOrNull()
+
+    init {
+        if (defaultScannerEngine == null) logService.logError("EngineRouter", IllegalStateException("No ScannerEngine registered"))
+        if (defaultMentorEngine == null) logService.logError("EngineRouter", IllegalStateException("No MentorEngine registered"))
+        if (defaultChartEngine == null) logService.logError("EngineRouter", IllegalStateException("No ChartEngine registered"))
+    }
 
     val activeScannerEngine = settingsRepository.selectedScannerEngine
         .map { selectedName ->
@@ -26,7 +32,9 @@ class EngineRouter @Inject constructor(
                 logService.logSwitch("Scanner", selectedName)
                 engine
             } else {
-                logService.logFallback("Scanner", selectedName, defaultScannerEngine.engineName)
+                defaultScannerEngine?.let {
+                    logService.logFallback("Scanner", selectedName, it.engineName)
+                }
                 defaultScannerEngine 
             }
         }
@@ -38,7 +46,9 @@ class EngineRouter @Inject constructor(
                 logService.logSwitch("Mentor", selectedName)
                 engine
             } else {
-                logService.logFallback("Mentor", selectedName, defaultMentorEngine.engineName)
+                defaultMentorEngine?.let {
+                    logService.logFallback("Mentor", selectedName, it.engineName)
+                }
                 defaultMentorEngine 
             }
         }
@@ -50,7 +60,9 @@ class EngineRouter @Inject constructor(
                 logService.logSwitch("Chart", selectedName)
                 engine
             } else {
-                logService.logFallback("Chart", selectedName, defaultChartEngine.engineName)
+                defaultChartEngine?.let {
+                    logService.logFallback("Chart", selectedName, it.engineName)
+                }
                 defaultChartEngine 
             }
         }

@@ -1,73 +1,92 @@
 package com.example.redxchartlibrary.data
 
-import com.example.redxchartlibrary.data.remote.ApiService
-import com.example.redxchartlibrary.model.Candle
+import com.example.marketintelligence.data.source.remote.MarketApiService
+import com.example.marketintelligence.data.source.remote.MarketDataSocket
+import com.example.redxchartlibrary.data.local.CandleRepository
 import com.example.redxchartlibrary.model.Tick
+import com.example.redxchartlibrary.util.TimeFrame
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
-import okhttp3.OkHttpClient
-import okhttp3.Request
-import okhttp3.WebSocket
-import okhttp3.WebSocketListener
+import java.util.Calendar
+import javax.inject.Inject
+import javax.inject.Singleton
 
-class MarketDataClient(private val apiService: ApiService) {
+@Singleton
+class MarketDataClient @Inject constructor(
+    private val apiService: MarketApiService,
+    private val marketDataSocket: MarketDataSocket,
+    private val tickAggregator: TickAggregator,
+    private val candleRepository: CandleRepository
+) {
 
-    private val tickAggregator = TickAggregator(60000) // 1-minute timeframe
-    private val tickPlayer = TickPlayer()
     private val coroutineScope = CoroutineScope(Dispatchers.Default)
-    private var dataCollectionJob: Job? = null
+    private var liveStreamJob: Job? = null
 
-    private val _marketDataFlow = MutableSharedFlow<Candle>()
-    val marketDataFlow: Flow<Candle> = _marketDataFlow
-
-    private var webSocket: WebSocket? = null
+    val formingCandleFlow = tickAggregator.formingCandleFlow
 
     init {
-        // Collect aggregated candles and push them to the main flow
+        // Persist completed candles
         coroutineScope.launch {
-            tickAggregator.candleFlow.collect { candle ->
-                candle?.let { _marketDataFlow.emit(it) }
+            tickAggregator.completedCandleFlow.collect { candle ->
+                candleRepository.saveCandles(listOf(candle))
             }
         }
     }
 
-    fun startLiveStream() {
-        stopAllStreams()
-        // In a real app, you would parse live ticks here.
-        // For now, we simulate live ticks.
-        dataCollectionJob = coroutineScope.launch {
-            var lastPrice = 200f
-            while (true) {
-                lastPrice += (Math.random() * 2 - 1).toFloat()
-                tickAggregator.addTick(Tick(System.currentTimeMillis(), lastPrice))
-                kotlinx.coroutines.delay(1500) // Slower ticks for live data
-            }
-        }
-    }
-    
-    fun startHistoricalReplay(speedMultiplier: Int) {
-        stopAllStreams()
-        tickPlayer.startReplay(speedMultiplier)
-        dataCollectionJob = coroutineScope.launch {
-            tickPlayer.tickFlow.collect { tick ->
-                tickAggregator.addTick(tick)
-            }
+    suspend fun fetchHistoricalCandles(symbol: String, timeframe: TimeFrame) {
+        val to = System.currentTimeMillis()
+        val from = Calendar.getInstance().apply { add(Calendar.YEAR, -1) }.timeInMillis
+        try {
+            val candles = apiService.getCandles(symbol, timeframe.identifier, from, to, "stock")
+            candleRepository.saveCandles(candles.map {
+                com.example.redxchartlibrary.model.Candle(
+                    symbol = symbol,
+                    timeframe = timeframe.identifier,
+                    openTime = it.openTime,
+                    open = it.open,
+                    high = it.high,
+                    low = it.low,
+                    close = it.close,
+                    volume = it.volume,
+                    closeTime = it.closeTime,
+                    isClosed = it.isClosed
+                )
+            })
+        } catch (e: Exception) {
+            // Log error
         }
     }
 
-    private fun stopAllStreams() {
-        dataCollectionJob?.cancel()
-        tickPlayer.stopReplay()
-        webSocket?.close(1000, "User switched stream")
+    fun startLiveStream(symbol: String, timeframe: TimeFrame) {
+        if (liveStreamJob?.isActive == true) return
+
+        liveStreamJob = coroutineScope.launch {
+            marketDataSocket.connect(symbol)
+                .catch { e ->
+                    // Log error
+                }
+                .collect { livePrice ->
+                    if (livePrice.symbol.equals(symbol, ignoreCase = true)) {
+                        val tick = Tick(
+                            symbol = livePrice.symbol,
+                            timestamp = System.currentTimeMillis(),
+                            price = livePrice.ltp,
+                            volume = 0.0
+                        )
+                        tickAggregator.addTick(tick, timeframe)
+                    }
+                }
+        }
     }
 
-    suspend fun getInitialCandles(symbol: String, from: Long, to: Long): List<Candle> {
-        // This would fetch historical candles for the initial chart view
-        return emptyList() // For now, we start with a clean slate
+    fun stopLiveStream() {
+        liveStreamJob?.cancel()
+        liveStreamJob = null
     }
+
+    fun getHistoricalCandles(symbol: String, timeframe: String) = candleRepository.getCandles(symbol, timeframe)
 }

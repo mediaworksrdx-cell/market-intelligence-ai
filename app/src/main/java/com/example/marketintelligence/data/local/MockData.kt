@@ -5,41 +5,43 @@ import com.example.marketintelligence.domain.model.*
 object MockData {
 
     val INDICES_IN = listOf(
-        IndexData("NIFTY 50", "NIFTY 50", 22500.0, 150.0, 0.67, MarketType.IN),
-        IndexData("BANKNIFTY", "BANK NIFTY", 48000.0, 500.0, 1.04, MarketType.IN),
-        IndexData("FINNIFTY", "FIN NIFTY", 21500.0, 100.0, 0.47, MarketType.IN),
-        IndexData("SENSEX", "SENSEX", 74000.0, 450.0, 0.61, MarketType.IN)
+        IndexData("NIFTY 50", "NIFTY 50", 22500.0, 22350.0, 150.0, 0.67, MarketType.IN, 256265L),
+        IndexData("BANKNIFTY", "BANK NIFTY", 48000.0, 47500.0, 500.0, 1.04, MarketType.IN, 260105L),
+        IndexData("FINNIFTY", "FIN NIFTY", 21500.0, 21400.0, 100.0, 0.47, MarketType.IN, 257801L),
+        IndexData("SENSEX", "SENSEX", 74000.0, 73550.0, 450.0, 0.61, MarketType.IN, 265L),
+        IndexData("MIDCPNIFTY", "NIFTY MIDCAP 50", 12250.0, 12150.0, 100.0, 0.85, MarketType.IN, 257033L),
+        IndexData("NIFTY NEXT 50", "NIFTY NEXT 50", 68500.0, 68150.0, 350.0, 0.52, MarketType.IN, 256521L),
+        IndexData("NIFTY IT", "NIFTY IT SECTOR", 35600.0, 35720.0, -120.0, -0.35, MarketType.IN, 257289L)
     )
 
     val WATCHLIST_INITIAL = listOf(
-        StockData("RELIANCE.NS", "Reliance Industries", 2950.0, 30.0, 1.0, "5M", MarketType.IN),
-        StockData("HDFCBANK.NS", "HDFC Bank", 1550.0, -10.0, -0.6, "8M", MarketType.IN),
-        StockData("INFY.NS", "Infosys", 1450.0, 15.0, 1.0, "4M", MarketType.IN),
-        StockData("TCS.NS", "Tata Consultancy", 4000.0, 20.0, 0.5, "3M", MarketType.IN)
+        StockData("RELIANCE.NS", "Reliance Industries", 2950.0, 2920.0, 30.0, 1.0, "5M", MarketType.IN, 738561L),
+        StockData("HDFCBANK.NS", "HDFC Bank", 1550.0, 1560.0, -10.0, -0.6, "8M", MarketType.IN, 341249L),
+        StockData("INFY.NS", "Infosys", 1450.0, 1435.0, 15.0, 1.0, "4M", MarketType.IN, 408065L),
+        StockData("TCS.NS", "Tata Consultancy", 4000.0, 3980.0, 20.0, 0.5, "3M", MarketType.IN, 2953213L),
+        StockData("ICICIBANK.NS", "ICICI Bank", 1120.0, 1105.0, 15.0, 1.35, "6M", MarketType.IN, 1270529L),
+        StockData("BHARTIARTL.NS", "Bharti Airtel", 1410.0, 1404.0, 6.0, 0.43, "3M", MarketType.IN, 2714625L),
+        StockData("TATAMOTORS.NS", "Tata Motors", 980.0, 983.0, -3.0, -0.31, "7M", MarketType.IN, 884737L),
+        StockData("ITC.NS", "ITC Limited", 435.0, 434.0, 1.0, 0.23, "9M", MarketType.IN, 424961L),
+        StockData("SBIN.NS", "State Bank of India", 825.0, 818.0, 7.0, 0.86, "8M", MarketType.IN, 779521L),
+        StockData("LT.NS", "Larsen & Toubro", 3540.0, 3510.0, 30.0, 0.85, "2M", MarketType.IN, 2939649L)
+    )
+
+    val CRYPTO_INITIAL = listOf(
+        CryptoData(id = "bitcoin", symbol = "BTC", name = "Bitcoin", price = 67450.0, changePercent = 2.14, marketCap = 1_320_000_000_000L),
+        CryptoData(id = "ethereum", symbol = "ETH", name = "Ethereum", price = 3520.0, changePercent = 1.62, marketCap = 422_000_000_000L),
+        CryptoData(id = "dogecoin", symbol = "DOGE", name = "Dogecoin", price = 0.125, changePercent = 3.85, marketCap = 18_200_000_000L),
+        CryptoData(id = "solana", symbol = "SOL", name = "Solana", price = 148.50, changePercent = 4.21, marketCap = 68_500_000_000L),
+        CryptoData(id = "binancecoin", symbol = "BNB", name = "BNB", price = 585.0, changePercent = -0.45, marketCap = 87_000_000_000L),
+        CryptoData(id = "shiba-inu", symbol = "SHIB", name = "Shiba Inu", price = 0.0000185, changePercent = 2.90, marketCap = 10_900_000_000L),
+        CryptoData(id = "cardano", symbol = "ADA", name = "Cardano", price = 0.48, changePercent = 1.15, marketCap = 17_100_000_000L),
+        CryptoData(id = "ripple", symbol = "XRP", name = "XRP", price = 0.52, changePercent = -0.80, marketCap = 29_000_000_000L),
+        CryptoData(id = "avalanche-2", symbol = "AVAX", name = "Avalanche", price = 32.40, changePercent = 2.30, marketCap = 12_800_000_000L)
     )
 
     val PORTFOLIO_INITIAL = listOf(
-        PortfolioItem("RELIANCE.NS", "Reliance Industries", 10.0, 2800.0, 2950.0, MarketType.IN, AssetType.STOCK, 85, "Strong Buy"),
-        PortfolioItem("BTC-USD", "Bitcoin", 0.1, 60000.0, 65000.0, MarketType.US, AssetType.CRYPTO, 90, "Bullish")
-    )
-    
-    val TRAINING_MODULES = listOf(
-        TrainingModule("1", "SMC Basics", "45m", false, listOf("Order Blocks", "FVG")),
-        TrainingModule("2", "Advanced Patterns", "1h 30m", false, listOf("Wyckoff", "Eliott Wave")),
-        TrainingModule("3", "Risk Management", "1h", true, listOf("Position Sizing", "Hedging"))
-    )
-    
-    val ECONOMIC_EVENTS = listOf(
-        EconomicEvent("1", "14:30", "USD", "Fed Interest Rate Decision", "HIGH", "5.50%", "5.50%", "5.50%"),
-        EconomicEvent("2", "18:00", "INR", "RBI Monetary Policy", "HIGH", "6.50%", "6.50%", "6.50%"),
-        EconomicEvent("3", "19:00", "USD", "Non-Farm Payroll", "HIGH", "275K", "198K", "229K"),
-        EconomicEvent("4", "20:00", "EUR", "ECB Main Refinancing Rate", "MEDIUM", "4.50%", "4.50%", "4.50%")
-    )
-
-    val IPO_DATA = listOf(
-        IPOData("TCHW", "TechWave Inc.", "Mar 10", "Mar 14", "250-260", 80.0, 30.0, "OPEN"),
-        IPOData("GRNF", "GreenFuture Energy", "Mar 15", "Mar 19", "400-420", 120.0, 28.0, "UPCOMING"),
-        IPOData("HLTH", "HealthSphere AI", "Mar 1", "Mar 5", "300-310", 0.0, 0.0, "CLOSED")
+        PortfolioItem("RELIANCE.NS", "Reliance Industries", 10.0, 2900.0, 2950.0, MarketType.IN, AssetType.STOCK, 85, "BULLISH"),
+        PortfolioItem("TCS.NS", "Tata Consultancy", 5.0, 3980.0, 4000.0, MarketType.IN, AssetType.STOCK, 70, "NEUTRAL")
     )
 
     val MOCK_AI_RESULT = AIAnalysisResult(
@@ -64,37 +66,7 @@ object MockData {
     val NOTIFICATIONS_MOCK = listOf(
         NotificationItem("1", NotificationType.AI_SIGNAL, "New BULLISH Signal on BANKNIFTY", "12:45 PM", Sentiment.POSITIVE, false, MOCK_AI_RESULT, eventData = null, ipoData = null),
         NotificationItem("2", NotificationType.NEWS, "Global markets rally on positive inflation data.", "11:30 AM", Sentiment.POSITIVE, false, aiResult = null, eventData = null, ipoData = null),
-        NotificationItem("3", NotificationType.EVENT, "Fed Interest Rate decision at 2:30 PM.", "10:00 AM", Sentiment.NEUTRAL, true, eventData = ECONOMIC_EVENTS[0]),
-        NotificationItem("4", NotificationType.IPO, "TechWave IPO closes today. GMP at 30%.", "9:15 AM", Sentiment.POSITIVE, true, ipoData = IPO_DATA[0])
-    )
-    
-    val MOCK_FO_CONTRACTS = listOf(
-        FutureContract("28MAR24", 22550.0, 0.68, "+5.2K", "2.1M", 22540.0, 10.0),
-        FutureContract("25APR24", 22680.0, 0.70, "+3.1K", "1.5M", 22670.0, 20.0),
-        FutureContract("30MAY24", 22800.0, 0.72, "+1.5K", "1.1M", 22790.0, 30.0)
-    )
-
-    val MOCK_FO_DATA_IN = FOSymbolData(
-        symbol = "NIFTY 50",
-        exchange = "NSE",
-        price = 22500.0,
-        changePercent = 0.67,
-        pcr = 0.95,
-        pcrSignal = "Neutral to Bullish",
-        maxPain = 22400.0,
-        iv = 14.5,
-        ivRank = 45.0,
-        ivPercentile = 60.0,
-        trend = "Bullish",
-        bias = "Positive",
-        buildup = "Long Buildup",
-        lotSize = 50,
-        contracts = MOCK_FO_CONTRACTS
-    )
-    
-    val STRATEGIES = listOf(
-        OptionStrategy("1", "Bull Call Spread", "Moderately Bullish", 5000.0, 2000.0, 22600.0, 65.0, 25.0, listOf("Buy 22500 CE", "Sell 22700 CE"), listOf(PayoffPoint(22000.0, -1000.0), PayoffPoint(23000.0, 5000.0))),
-        OptionStrategy("2", "Iron Condor", "Neutral", 3000.0, 7000.0, 22500.0, 75.0, 15.0, listOf("Sell 22500 CE", "Sell 22500 PE"), listOf(PayoffPoint(22000.0, -2000.0), PayoffPoint(23000.0, -2000.0))),
-        OptionStrategy("3", "Long Straddle", "High Volatility", 10000.0, 4000.0, 22300.0, 40.0, 50.0, listOf("Buy 22500 CE", "Buy 22500 PE"), listOf(PayoffPoint(22000.0, 1000.0), PayoffPoint(23000.0, 1000.0)))
+        NotificationItem("3", NotificationType.EVENT, "Fed Interest Rate decision at 2:30 PM.", "10:00 AM", Sentiment.NEUTRAL, true, eventData = null, ipoData = null),
+        NotificationItem("4", NotificationType.IPO, "TechWave IPO closes today. GMP at 30%.", "9:15 AM", Sentiment.POSITIVE, true, aiResult = null, eventData = null, ipoData = null)
     )
 }

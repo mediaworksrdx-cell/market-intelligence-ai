@@ -1,61 +1,90 @@
 package com.example.marketintelligence.data.repository
 
+import android.content.Context
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.*
+import androidx.datastore.preferences.preferencesDataStore
 import com.example.marketintelligence.domain.model.MarketType
 import com.example.marketintelligence.domain.repository.SettingsRepository
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 import javax.inject.Singleton
 
+private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "settings")
+
 @Singleton
-class SettingsRepositoryImpl @Inject constructor(
-    private val dataStore: DataStore<Preferences>
-) : SettingsRepository {
+class SettingsRepositoryImpl @Inject constructor(@ApplicationContext private val context: Context) : SettingsRepository {
 
-    private companion object {
-        val SCANNER_ENGINE_KEY = stringPreferencesKey("scanner_engine_preference")
-        val MENTOR_ENGINE_KEY = stringPreferencesKey("mentor_engine_preference")
-        val CHART_ENGINE_KEY = stringPreferencesKey("chart_engine_preference")
-        val MARKET_KEY = stringPreferencesKey("market_preference")
-        val DARK_MODE_KEY = booleanPreferencesKey("dark_mode_preference")
-        val RISK_PROFILE_KEY = stringPreferencesKey("risk_profile_preference")
-        val NOTIFICATIONS_ENABLED_KEY = booleanPreferencesKey("notifications_enabled_preference")
+    private val selectedScannerEngineKey = stringPreferencesKey("selected_scanner_engine")
+    private val selectedMentorEngineKey = stringPreferencesKey("selected_mentor_engine")
+    private val selectedChartEngineKey = stringPreferencesKey("selected_chart_engine")
+    private val selectedMarketKey = stringPreferencesKey("selected_market")
+    private val isDarkModeKey = booleanPreferencesKey("is_dark_mode")
+    private val riskProfileKey = stringPreferencesKey("risk_profile")
+    private val isNotificationsEnabledKey = booleanPreferencesKey("is_notifications_enabled")
+
+    override val selectedScannerEngine: Flow<String> = context.dataStore.data
+        .map { preferences ->
+            preferences[selectedScannerEngineKey] ?: "Default"
+        }
+
+    override val selectedMentorEngine: Flow<String> = context.dataStore.data
+        .map { preferences ->
+            preferences[selectedMentorEngineKey] ?: "Gemini"
+        }
+
+    override val selectedChartEngine: Flow<String> = context.dataStore.data
+        .map { preferences ->
+            preferences[selectedChartEngineKey] ?: "Proprietary Engine"
+        }
+
+    override val selectedMarket: Flow<MarketType> = context.dataStore.data
+        .map { preferences ->
+            MarketType.valueOf(preferences[selectedMarketKey] ?: MarketType.IN.name)
+        }
+
+    override val isDarkMode: Flow<Boolean> = context.dataStore.data
+        .map { preferences ->
+            preferences[isDarkModeKey] ?: true
+        }
+
+    override val riskProfile: Flow<String> = context.dataStore.data
+        .map { preferences ->
+            preferences[riskProfileKey] ?: "CONSERVATIVE"
+        }
+
+    override val isNotificationsEnabled: Flow<Boolean> = context.dataStore.data
+        .map { preferences ->
+            preferences[isNotificationsEnabledKey] ?: true
+        }
+
+    override suspend fun setScannerEngine(engineName: String) {
+        context.dataStore.edit { it[selectedScannerEngineKey] = engineName }
     }
 
-    override val selectedScannerEngine: Flow<String> = dataStore.data.map { it[SCANNER_ENGINE_KEY] ?: "Standard (Gemini)" }
-    override val selectedMentorEngine: Flow<String> = dataStore.data.map { it[MENTOR_ENGINE_KEY] ?: "Standard (Gemini)" }
-    override val selectedChartEngine: Flow<String> = dataStore.data.map { it[CHART_ENGINE_KEY] ?: "Proprietary Engine" }
-    
-    override val selectedMarket: Flow<MarketType> = dataStore.data.map { 
-        val name = it[MARKET_KEY] ?: MarketType.IN.name
-        try { MarketType.valueOf(name) } catch(e: Exception) { MarketType.IN }
+    override suspend fun setMentorEngine(engineName: String) {
+        context.dataStore.edit { it[selectedMentorEngineKey] = engineName }
     }
 
-    override val isDarkMode: Flow<Boolean> = dataStore.data.map { it[DARK_MODE_KEY] ?: true }
-    override val riskProfile: Flow<String> = dataStore.data.map { it[RISK_PROFILE_KEY] ?: "CONSERVATIVE" }
-    override val isNotificationsEnabled: Flow<Boolean> = dataStore.data.map { it[NOTIFICATIONS_ENABLED_KEY] ?: true }
+    override suspend fun setChartEngine(engineName: String) {
+        context.dataStore.edit { it[selectedChartEngineKey] = engineName }
+    }
 
-    override suspend fun setScannerEngine(name: String) {
-        dataStore.edit { it[SCANNER_ENGINE_KEY] = name }
-    }
-    override suspend fun setMentorEngine(name: String) {
-        dataStore.edit { it[MENTOR_ENGINE_KEY] = name }
-    }
-    override suspend fun setChartEngine(name: String) {
-        dataStore.edit { it[CHART_ENGINE_KEY] = name }
-    }
     override suspend fun setMarket(market: MarketType) {
-        dataStore.edit { it[MARKET_KEY] = market.name }
+        context.dataStore.edit { it[selectedMarketKey] = market.name }
     }
+
     override suspend fun setDarkMode(enabled: Boolean) {
-        dataStore.edit { it[DARK_MODE_KEY] = enabled }
+        context.dataStore.edit { it[isDarkModeKey] = enabled }
     }
+
     override suspend fun setRiskProfile(profile: String) {
-        dataStore.edit { it[RISK_PROFILE_KEY] = profile }
+        context.dataStore.edit { it[riskProfileKey] = profile }
     }
+
     override suspend fun setNotificationsEnabled(enabled: Boolean) {
-        dataStore.edit { it[NOTIFICATIONS_ENABLED_KEY] = enabled }
+        context.dataStore.edit { it[isNotificationsEnabledKey] = enabled }
     }
 }

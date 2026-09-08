@@ -1,24 +1,17 @@
 package com.example.marketintelligence.domain.engine
 
-import com.example.marketintelligence.data.model.AIAnalysisResult
+import com.example.marketintelligence.domain.engine.Engine
+import com.example.marketintelligence.domain.model.AIAnalysisResult
 import kotlinx.coroutines.flow.Flow
 
-/**
- * A common interface for any AI Scanner Engine.
- * This contract ensures that all engines are interchangeable.
- */
 interface ScannerEngine : Engine {
     /**
-     * The unique name of this engine, used for selection in settings.
+     * Performs a single scan on the given symbol and timeframe.
      */
-    override val engineName: String
+    suspend fun scanSymbol(symbol: String, timeframe: String): AIAnalysisResult
 
     /**
-     * Performs an AI analysis on a given stock symbol.
-     *
-     * @param symbol The stock symbol to analyze.
-     * @param timeframe The chart timeframe.
-     * @return A Flow emitting the Result of the AIAnalysisResult.
+     * Continuously monitors a list of symbols and emits results as they are found.
      */
-    fun scan(symbol: String, timeframe: String): Flow<Result<AIAnalysisResult>>
+    fun monitorSymbols(symbols: List<String>): Flow<AIAnalysisResult>
 }

@@ -1,8 +1,7 @@
-
 package com.example.marketintelligence.domain.engine
 
-import com.example.marketintelligence.data.model.AIAnalysisResult
 import com.example.marketintelligence.data.model.AiTradeSignal
+import com.example.marketintelligence.domain.model.AIAnalysisResult
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import javax.inject.Inject

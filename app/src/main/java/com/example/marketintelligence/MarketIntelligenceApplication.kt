@@ -1,18 +1,48 @@
-
 package com.example.marketintelligence
 
 import android.app.Application
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.os.Build
+import androidx.hilt.work.HiltWorkerFactory
+import androidx.work.Configuration
 import dagger.hilt.android.HiltAndroidApp
+import javax.inject.Inject
 
 @HiltAndroidApp
-class MarketIntelligenceApplication : Application() {
+open class MarketIntelligenceApplication : Application(), Configuration.Provider {
+
+    @Inject
+    lateinit var workerFactory: HiltWorkerFactory
+
+    override val workManagerConfiguration: Configuration
+        get() = Configuration.Builder()
+            .apply {
+                if (::workerFactory.isInitialized) {
+                    setWorkerFactory(workerFactory)
+                }
+            }
+            .build()
 
     override fun onCreate() {
         super.onCreate()
+        setupCrashHandler()
         createNotificationChannel()
+    }
+
+    private fun setupCrashHandler() {
+        val defaultHandler = Thread.getDefaultUncaughtExceptionHandler()
+        Thread.setDefaultUncaughtExceptionHandler { thread, throwable ->
+            android.util.Log.e("FATAL_APP_CRASH", "Uncaught exception in thread ${thread.name}", throwable)
+            try {
+                val crashFile = java.io.File(filesDir, "crash_log.txt")
+                crashFile.writeText(
+                    "Timestamp: ${java.util.Date()}\nThread: ${thread.name}\nException: ${throwable.message}\n${android.util.Log.getStackTraceString(throwable)}"
+                )
+            } catch (e: Exception) {
+            }
+            defaultHandler?.uncaughtException(thread, throwable)
+        }
     }
 
     private fun createNotificationChannel() {

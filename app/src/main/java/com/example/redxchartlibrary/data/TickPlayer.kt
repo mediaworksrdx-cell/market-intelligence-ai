@@ -47,7 +47,7 @@ class TickPlayer {
         val startTime = System.currentTimeMillis() - 1000 * 60 * 60 // 1 hour ago
         for (i in 0 until 5000) {
             price += (Math.random() * 0.5 - 0.25).toFloat()
-            ticks.add(Tick(startTime + i * 100, price))
+            ticks.add(Tick(symbol = "BTC/USD", price = price.toDouble(), volume = Math.random() * 100, timestamp = startTime + i * 100))
         }
         return ticks
     }

@@ -6,44 +6,57 @@ import kotlin.math.roundToInt
 
 class ConfidenceScoringEngine {
 
-    // Define the weights for each component of the score
+    // Rule Set 11: Weights
     private val weights = mapOf(
-        "structural_alignment" to 0.40, // 40%
-        "fvg_quality" to 0.25,          // 25%
-        "pattern_strength" to 0.15,     // 15%
-        "volume_confirmation" to 0.20   // 20%
+        "confluence_layers" to 0.35,
+        "liquidity_proximity" to 0.20,
+        "structural_quality" to 0.25,
+        "risk_clarity" to 0.20
     )
 
     /**
-     * Scores a validated ConfluenceSignal based on multiple quantitative factors.
-     *
-     * @param signal The signal to score.
-     * @param candles The list of candles for the timeframe, needed for volume/volatility analysis.
-     * @return A ScoredSignal containing the normalized score and a breakdown.
+     * Scores a validated ConfluenceSignal based on Rule Set 11.
      */
-    fun score(signal: ConfluenceSignal, candles: List<Candle>): ScoredSignal {
+    fun score(signal: ConfluenceSignal, candles: List<Candle>, regime: MarketRegime, liquidityZones: List<LiquidityZone>): ScoredSignal {
         val breakdown = mutableMapOf<String, Int>()
 
-        // 1. Structural Alignment (already validated, so it gets a high base score)
-        breakdown["structural_alignment"] = 100
+        // 1. Confluence Layers Score (Rule 10: Minimum 4 layers)
+        var layers = 0
+        if (regime != MarketRegime.UNDEFINED) layers++
+        if (signal.smcSignal is OrderBlock) layers++
+        if (signal.fvgSignal != null) layers++
+        if (signal.patternSignal != null) layers++
+        
+        breakdown["confluence_layers"] = (layers / 4.0 * 100).coerceAtMost(100.0).toInt()
 
-        // 2. FVG Quality Score
-        val fvgScore = signal.fvgSignal?.strength?.let { (it * 100).toInt() } ?: 0
-        breakdown["fvg_quality"] = fvgScore
+        // 2. Liquidity Proximity (Rule 11)
+        val currentPrice = candles.last().close
+        val nearestLiquidity = liquidityZones.minByOrNull { (it.priceLevel - currentPrice).abs() }
+        val distToLiq = nearestLiquidity?.let { (it.priceLevel - currentPrice).abs().toDouble() } ?: Double.MAX_VALUE
+        val proximityScore = if (distToLiq < currentPrice.toDouble() * 0.01) 90 else 50
+        breakdown["liquidity_proximity"] = proximityScore
 
-        // 3. Pattern Strength Score
-        val patternScore = signal.patternSignal?.strengthScore?.let { (it * 100).toInt() } ?: 0
-        breakdown["pattern_strength"] = patternScore
+        // 3. Structural Quality (Volume/Impulse from Order Block)
+        breakdown["structural_quality"] = calculateVolumeScore(signal.smcSignal, candles)
 
-        // 4. Volume Confirmation Score
-        val volumeScore = calculateVolumeScore(signal.smcSignal, candles)
-        breakdown["volume_confirmation"] = volumeScore
+        // 4. Risk Clarity (Rule 12: Invalidation point defined)
+        val riskScore = if (signal.smcSignal is OrderBlock) 95 else 60
+        breakdown["risk_clarity"] = riskScore
 
-        // Calculate the final weighted score
-        val finalScore = (breakdown["structural_alignment"]!! * weights["structural_alignment"]!!) +
-                         (breakdown["fvg_quality"]!! * weights["fvg_quality"]!!) +
-                         (breakdown["pattern_strength"]!! * weights["pattern_strength"]!!) +
-                         (breakdown["volume_confirmation"]!! * weights["volume_confirmation"]!!)
+        // Penalties (Rule 11)
+        var finalScore = 0.0
+        weights.forEach { (k, w) -> finalScore += (breakdown[k] ?: 0) * (w ?: 0.0) }
+
+        // Volatility Uncertainty Penalty
+        if (regime == MarketRegime.HIGH_VOLATILITY || regime == MarketRegime.UNDEFINED) {
+            finalScore *= 0.8
+        }
+        
+        // RSI Check (Rule 8)
+        val rsi = calculateRSI(candles)
+        val isBullishSignal = signal.smcSignal is OrderBlock && signal.smcSignal.direction == FVGDireciton.BULLISH
+        if (isBullishSignal && rsi < 40) finalScore *= 0.9
+        if (!isBullishSignal && rsi > 60) finalScore *= 0.9
 
         return ScoredSignal(
             confidenceScore = finalScore.roundToInt().coerceIn(0, 100),
@@ -52,31 +65,60 @@ class ConfidenceScoringEngine {
         )
     }
 
-    /**
-     * Calculates a score based on the volume profile around an SMC event (e.g., Order Block).
-     * A strong event should be accompanied by significant volume.
-     */
     private fun calculateVolumeScore(smcSignal: Any, candles: List<Candle>): Int {
         val signalTimestamp = when (smcSignal) {
             is OrderBlock -> smcSignal.timestamp
             is MarketStructureEvent -> smcSignal.timestamp
-            else -> return 0
+            else -> return 50
         }
 
-        val signalCandle = candles.find { it.timestamp == signalTimestamp } ?: return 0
+        val signalCandle = candles.find { it.timestamp == signalTimestamp } ?: return 50
         
-        // Calculate the average volume over a recent lookback period
         val lookback = 20
         val startIndex = (candles.indexOf(signalCandle) - lookback).coerceAtLeast(0)
         val relevantCandles = candles.subList(startIndex, candles.indexOf(signalCandle))
-        if(relevantCandles.isEmpty()) return 50 // Not enough data, return neutral
+        if(relevantCandles.isEmpty()) return 50
 
         val averageVolume = relevantCandles.map { it.volume }.reduce { acc, v -> acc + v } / BigDecimal(relevantCandles.size)
         if (averageVolume == BigDecimal.ZERO) return 50
 
-        // Score based on how much the signal candle's volume exceeds the recent average
-        val volumeRatio = (signalCandle.volume.toDouble() / averageVolume.toDouble()).coerceIn(0.0, 3.0) // Cap at 3x for normalization
-        
+        val volumeRatio = (signalCandle.volume.toDouble() / averageVolume.toDouble()).coerceIn(0.0, 3.0)
         return (volumeRatio / 3.0 * 100).roundToInt()
+    }
+    
+    private fun calculateRSI(candles: List<Candle>, period: Int = 14): Double {
+        if (candles.size <= period) return 50.0
+        
+        var avgGain = 0.0
+        var avgLoss = 0.0
+        
+        for (i in 1..period) {
+            val change = candles[i].close.toDouble() - candles[i-1].close.toDouble()
+            if (change > 0) avgGain += change else avgLoss += kotlin.math.abs(change)
+        }
+        avgGain /= period
+        avgLoss /= period
+        
+        if (avgLoss == 0.0) return 100.0
+        
+        var rs = avgGain / avgLoss
+        var rsi = 100.0 - (100.0 / (1.0 + rs))
+        
+        for (i in period + 1 until candles.size) {
+            val change = candles[i].close.toDouble() - candles[i-1].close.toDouble()
+            val gain = if (change > 0) change else 0.0
+            val loss = if (change < 0) kotlin.math.abs(change) else 0.0
+            
+            avgGain = (avgGain * (period - 1) + gain) / period
+            avgLoss = (avgLoss * (period - 1) + loss) / period
+            
+            if (avgLoss == 0.0) {
+                rsi = 100.0
+            } else {
+                rs = avgGain / avgLoss
+                rsi = 100.0 - (100.0 / (1.0 + rs))
+            }
+        }
+        return rsi
     }
 }

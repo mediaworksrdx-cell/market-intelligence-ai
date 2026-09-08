@@ -5,13 +5,18 @@ import kotlinx.serialization.Serializable
 enum class MarketType { IN, US, UAE }
 
 @Serializable
+data class MacroData(val symbol: String, val value: String)
+
+@Serializable
 data class IndexData(
     val symbol: String,
     val name: String,
     val price: Double,
+    val openPrice: Double,
     val change: Double,
     val changePercent: Double,
-    val market: MarketType
+    val market: MarketType,
+    val instrumentToken: Long? = null
 )
 
 @Serializable
@@ -19,19 +24,12 @@ data class StockData(
     val symbol: String,
     val name: String,
     val price: Double,
+    val openPrice: Double,
     val change: Double,
     val changePercent: Double,
     val volume: String,
-    val market: MarketType
-)
-
-@Serializable
-data class CryptoData(
-    val symbol: String,
-    val name: String,
-    val price: Double,
-    val change: Double,
-    val changePercent: Double
+    val market: MarketType,
+    val instrumentToken: Long? = null
 )
 
 @Serializable
@@ -99,38 +97,28 @@ data class OptionChainData(
 data class OptionChain(
     val underlyingPrice: Double,
     val strikes: List<OptionChainData>
-) {
-    val calls: List<OptionChainData> get() = strikes
-    val puts: List<OptionChainData> get() = strikes
-}
+)
 
 @Serializable
 data class Greeks(
     val delta: Double,
     val gamma: Double,
     val theta: Double,
-    val vega: Double
+    val vega: Double,
+    val rho: Double = 0.0
 )
 
 @Serializable
-data class NotificationItem(
+data class StrategyLeg(
     val id: String,
-    val type: NotificationType,
-    val title: String,
-    val time: String,
-    val sentiment: Sentiment? = null,
-    val read: Boolean,
-    val aiResult: AIAnalysisResult? = null,
-    val eventData: EconomicEvent? = null,
-    val ipoData: IPOData? = null
+    val type: String, // "BUY", "SELL"
+    val instrument: String, // "CALL", "PUT", "FUT"
+    val strike: Double,
+    val expiry: String,
+    val qty: Int,
+    val entryPrice: Double,
+    val currentPrice: Double
 )
-
-enum class NotificationType { AI_SIGNAL, NEWS, EVENT, IPO }
-enum class Sentiment { POSITIVE, NEGATIVE, NEUTRAL }
-
-enum class BuildupType {
-    LONG_BUILDUP, SHORT_BUILDUP, SHORT_COVERING, LONG_UNWINDING, NEUTRAL
-}
 
 @Serializable
 data class OptionStrategy(
@@ -139,17 +127,17 @@ data class OptionStrategy(
     val description: String,
     val maxProfit: Double,
     val maxLoss: Double,
-    val breakeven: Double,
+    val breakeven: List<Double>,
     val probability: Double,
     val roi: Double,
     val legs: List<String>,
-    val payoffPoints: List<PayoffPoint>
+    val payoffPoints: List<PayoffPoint>,
+    val todayPayoffPoints: List<PayoffPoint> = emptyList()
 )
 
 @Serializable
 data class PayoffPoint(val price: Double, val pnl: Double)
 
-// Restored missing models
 @Serializable
 data class TrainingModule(
     val id: String,
@@ -157,30 +145,6 @@ data class TrainingModule(
     val duration: String,
     val locked: Boolean,
     val topics: List<String>
-)
-
-@Serializable
-data class EconomicEvent(
-    val id: String,
-    val time: String,
-    val currency: String,
-    val event: String,
-    val impact: String,
-    val actual: String,
-    val forecast: String,
-    val previous: String
-)
-
-@Serializable
-data class IPOData(
-    val symbol: String,
-    val name: String,
-    val openDate: String,
-    val closeDate: String,
-    val priceBand: String,
-    val gmp: Double,
-    val gmpPercent: Double,
-    val status: String
 )
 
 @Serializable
@@ -214,16 +178,70 @@ data class FOSymbolData(
 )
 
 @Serializable
-data class StrategyDefinition(
+data class EconomicEvent(
     val id: String,
+    val time: String,
+    val currency: String,
+    val event: String,
+    val impact: String,
+    val actual: String,
+    val forecast: String,
+    val previous: String
+)
+
+@Serializable
+data class IPOData(
+    val symbol: String,
     val name: String,
-    val type: String,
-    val description: String,
-    val risk: String,
-    val profitProb: Double,
-    val maxProfit: String,
-    val maxLoss: String,
-    val breakeven: String,
-    val roi: String,
-    val payoffData: List<PayoffPoint>
+    val openDate: String,
+    val closeDate: String,
+    val priceBand: String,
+    val gmp: Double,
+    val gmpPercent: Double,
+    val status: String
+)
+
+@Serializable
+data class NotificationItem(
+    val id: String,
+    val type: NotificationType,
+    val title: String,
+    val time: String,
+    val sentiment: Sentiment? = null,
+    val read: Boolean,
+    val aiResult: AIAnalysisResult? = null,
+    val eventData: EconomicEvent? = null,
+    val ipoData: IPOData? = null
+)
+
+enum class NotificationType { AI_SIGNAL, NEWS, EVENT, IPO }
+enum class Sentiment { POSITIVE, NEGATIVE, NEUTRAL }
+
+enum class BuildupType {
+    LONG_BUILDUP, SHORT_BUILDUP, SHORT_COVERING, LONG_UNWINDING, NEUTRAL
+}
+
+@Serializable
+data class Holding(
+    val symbol: String,
+    val quantity: Double,
+    val avgPrice: Double,
+    val investedValue: Double,
+    val currentValue: Double,
+    val totalPnl: Double,
+    val todayPnl: Double,
+    val market: MarketType
+)
+
+@Serializable
+data class PersonalizedLearningPath(
+    val suggestedCourseOrder: List<String>,
+    val welcomeMessage: String
+)
+
+@Serializable
+data class PerformanceReview(
+    val overallFeedback: String,
+    val identifiedWeakness: String,
+    val suggestedNextLesson: String
 )

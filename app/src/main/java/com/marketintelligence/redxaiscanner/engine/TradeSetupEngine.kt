@@ -1,0 +1,97 @@
+package com.marketintelligence.redxaiscanner.engine
+
+import com.marketintelligence.redxaiscanner.config.AppConfig
+import com.marketintelligence.redxaiscanner.domain.model.Candle
+import java.math.BigDecimal
+import java.math.RoundingMode
+
+class TradeSetupEngine(
+    private val appConfig: AppConfig
+) {
+    companion object {
+        const val VERSION = "2.0.0"
+    }
+    
+    fun create(signal: ScoredSignal, candles: List<Candle>, liquidityZones: List<LiquidityZone>): TradeSetup? {
+        val smcSignal = signal.underlyingSignal.smcSignal
+        
+        var entryPrice = BigDecimal.ZERO
+        var stopLossPrice = BigDecimal.ZERO
+        var bias = FVGDirection.BULLISH
+
+        // Entry & SL Logic (Rule 6/12)
+        if (smcSignal is OrderBlock) {
+            if (smcSignal.direction == FVGDirection.BULLISH) {
+                entryPrice = smcSignal.top // Proximal
+                stopLossPrice = smcSignal.bottom // Distal (Invalidation)
+                bias = FVGDirection.BULLISH
+            } else {
+                entryPrice = smcSignal.bottom // Proximal
+                stopLossPrice = smcSignal.top // Distal
+                bias = FVGDirection.BEARISH
+            }
+        } else {
+            return null
+        }
+
+        // Validate Risk (Rule 12)
+        if (entryPrice.compareTo(BigDecimal.ZERO) == 0) return null
+        val riskAmount = (entryPrice - stopLossPrice).abs()
+        if (riskAmount.compareTo(BigDecimal.ZERO) == 0) return null
+
+        val riskPercentage = (riskAmount.divide(entryPrice, 4, RoundingMode.HALF_UP)) * BigDecimal(100)
+        if (riskPercentage.toDouble() > appConfig.maxStopLossPercentage) {
+            return null
+        }
+
+        // Targets based on Liquidity (Rule 4/13)
+        // Using compareTo for safety in filter/sort
+        val targets = if (bias == FVGDirection.BULLISH) {
+            liquidityZones.filter { it.priceLevel.compareTo(entryPrice) > 0 }.sortedBy { it.priceLevel }
+        } else {
+            liquidityZones.filter { it.priceLevel.compareTo(entryPrice) < 0 }.sortedByDescending { it.priceLevel }
+        }
+
+        val takeProfit1 = if (targets.isNotEmpty()) targets[0].priceLevel else (if(bias == FVGDirection.BULLISH) entryPrice + riskAmount * BigDecimal("2") else entryPrice - riskAmount * BigDecimal("2"))
+        val takeProfit2 = if (targets.size > 1) targets[1].priceLevel else (if(bias == FVGDirection.BULLISH) entryPrice + riskAmount * BigDecimal("4") else entryPrice - riskAmount * BigDecimal("4"))
+
+        val rr = if (riskAmount.compareTo(BigDecimal.ZERO) != 0) {
+            (takeProfit1 - entryPrice).abs().divide(riskAmount, 2, RoundingMode.HALF_UP)
+        } else {
+            BigDecimal.ZERO
+        }
+
+        // Rule 13: Explainability
+        val explanation = SignalExplanation(
+            title = "Institutional Setup",
+            components = listOf(
+                ExplanationComponent(
+                    "Entry Logic",
+                    "Limit Order at Institutional Block (${if(bias == FVGDirection.BULLISH) "Discount" else "Premium"})",
+                    mapOf("Price" to entryPrice.toPlainString())
+                ),
+                ExplanationComponent(
+                    "Invalidation (SL)",
+                    "Structural Failure below Block Distal Line",
+                    mapOf("Price" to stopLossPrice.toPlainString())
+                ),
+                ExplanationComponent(
+                    "Liquidity Targets",
+                    if (targets.isNotEmpty()) "Targeting internal/external liquidity pools" else "Projected 1:${rr} RR based on volatility",
+                    mapOf("TP1" to takeProfit1.toPlainString())
+                )
+            )
+        )
+
+        return TradeSetup(
+            entryPrice = entryPrice,
+            stopLossPrice = stopLossPrice,
+            takeProfit1 = takeProfit1,
+            takeProfit2 = takeProfit2,
+            riskToRewardRatio = "1:$rr",
+            underlyingSignal = signal,
+            versions = signal.underlyingSignal.versions + ("trade_setup_engine" to VERSION),
+            explanation = explanation
+        )
+    }
+}

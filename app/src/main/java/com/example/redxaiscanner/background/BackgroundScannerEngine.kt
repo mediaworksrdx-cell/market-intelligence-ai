@@ -20,21 +20,21 @@ class BackgroundScannerEngine(context: Context) {
      * @param symbols The list of market symbols to scan.
      */
     fun startManualScan(symbols: List<String>) {
-        val inputData = Data.Builder()
-            .putStringArray(AnalysisWorker.KEY_SYMBOLS, symbols.toTypedArray())
-            .build()
-        
-        val constraints = Constraints.Builder()
-            .setRequiredNetworkType(NetworkType.CONNECTED)
-            .build()
-
-        val scanRequest = OneTimeWorkRequestBuilder<AnalysisWorker>()
-            .setInputData(inputData)
-            .setConstraints(constraints)
-            .addTag("MANUAL_SCAN")
-            .build()
-
-        workManager.enqueue(scanRequest)
+//        val inputData = Data.Builder()
+//            .putStringArray(AnalysisWorker.KEY_SYMBOLS, symbols.toTypedArray())
+//            .build()
+//        
+//        val constraints = Constraints.Builder()
+//            .setRequiredNetworkType(NetworkType.CONNECTED)
+//            .build()
+//
+//        val scanRequest = OneTimeWorkRequestBuilder<AnalysisWorker>()
+//            .setInputData(inputData)
+//            .setConstraints(constraints)
+//            .addTag("MANUAL_SCAN")
+//            .build()
+//
+//        workManager.enqueue(scanRequest)
     }
 
     /**
@@ -46,37 +46,37 @@ class BackgroundScannerEngine(context: Context) {
      * @param timeUnit The unit of time for the interval (e.g., TimeUnit.HOURS).
      */
     fun scheduleAutoScan(symbols: List<String>, interval: Long, timeUnit: TimeUnit) {
-        val inputData = Data.Builder()
-            .putStringArray(AnalysisWorker.KEY_SYMBOLS, symbols.toTypedArray())
-            .build()
-        
-        // --- PRODUCTION OPTIMIZATIONS ---
-        // For long-running, periodic tasks, it's critical to respect device resources.
-        // These constraints ensure the work only runs when conditions are optimal,
-        // preventing battery drain and unnecessary data usage.
-         val constraints = Constraints.Builder()
-            .setRequiredNetworkType(NetworkType.UNMETERED) // Use Wi-Fi to save mobile data
-            .setRequiresCharging(true)                  // Only run when the device is charging
-            .setRequiresDeviceIdle(true)                // Only run when the device is not actively in use
-            .build()
-
-        val periodicScanRequest = PeriodicWorkRequestBuilder<AnalysisWorker>(interval, timeUnit)
-            .setInputData(inputData)
-            .setConstraints(constraints)
-            .addTag("AUTO_SCAN")
-            .build()
-
-        workManager.enqueueUniquePeriodicWork(
-            AnalysisWorker.UNIQUE_PERIODIC_SCAN,
-            ExistingPeriodicWorkPolicy.REPLACE, // Replace the old scan with the new one
-            periodicScanRequest
-        )
+//        val inputData = Data.Builder()
+//            .putStringArray(AnalysisWorker.KEY_SYMBOLS, symbols.toTypedArray())
+//            .build()
+//        
+//        // --- PRODUCTION OPTIMIZATIONS ---
+//        // For long-running, periodic tasks, it's critical to respect device resources.
+//        // These constraints ensure the work only runs when conditions are optimal,
+//        // preventing battery drain and unnecessary data usage.
+//         val constraints = Constraints.Builder()
+//            .setRequiredNetworkType(NetworkType.UNMETERED) // Use Wi-Fi to save mobile data
+//            .setRequiresCharging(true)                  // Only run when the device is charging
+//            .setRequiresDeviceIdle(true)                // Only run when the device is not actively in use
+//            .build()
+//
+//        val periodicScanRequest = PeriodicWorkRequestBuilder<AnalysisWorker>(interval, timeUnit)
+//            .setInputData(inputData)
+//            .setConstraints(constraints)
+//            .addTag("AUTO_SCAN")
+//            .build()
+//
+//        workManager.enqueueUniquePeriodicWork(
+//            AnalysisWorker.UNIQUE_PERIODIC_SCAN,
+//            ExistingPeriodicWorkPolicy.REPLACE, // Replace the old scan with the new one
+//            periodicScanRequest
+//        )
     }
 
     /**
      * Cancels all scheduled auto-scans.
      */
     fun cancelAutoScans() {
-        workManager.cancelUniqueWork(AnalysisWorker.UNIQUE_PERIODIC_SCAN)
+//        workManager.cancelUniqueWork(AnalysisWorker.UNIQUE_PERIODIC_SCAN)
     }
 }

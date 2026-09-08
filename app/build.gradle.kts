@@ -1,7 +1,3 @@
-import java.util.Properties
-import java.io.FileInputStream
-import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
-
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -10,10 +6,19 @@ plugins {
     id("org.jetbrains.kotlin.plugin.serialization")
 }
 
+import java.util.Properties
+import java.io.FileInputStream
+
 val localProperties = Properties()
 val localPropertiesFile = rootProject.file("local.properties")
 if (localPropertiesFile.exists()) {
     localProperties.load(FileInputStream(localPropertiesFile))
+}
+
+val keystoreProperties = Properties()
+val keystorePropertiesFile = rootProject.file("keystore.properties")
+if (keystorePropertiesFile.exists()) {
+    keystoreProperties.load(FileInputStream(keystorePropertiesFile))
 }
 
 android {
@@ -30,18 +35,29 @@ android {
         vectorDrawables {
             useSupportLibrary = true
         }
-        multiDexEnabled = true 
-        
+        multiDexEnabled = true
+
         buildConfigField("String", "GEMINI_API_KEY", "\"${localProperties.getProperty("GEMINI_API_KEY", "")}\"")
         buildConfigField("String", "TD_API_KEY", "\"${localProperties.getProperty("TD_API_KEY", "")}\"")
         buildConfigField("String", "ALPACA_API_KEY", "\"${localProperties.getProperty("ALPACA_API_KEY", "")}\"")
         buildConfigField("String", "ALPACA_SECRET_KEY", "\"${localProperties.getProperty("ALPACA_SECRET_KEY", "")}\"")
     }
 
+    signingConfigs {
+        create("release") {
+            keyAlias = keystoreProperties["keyAlias"] as String? ?: "key0"
+            keyPassword = keystoreProperties["keyPassword"] as String? ?: "password"
+            storeFile = file(keystoreProperties["storeFile"] as String? ?: "release.keystore")
+            storePassword = keystoreProperties["storePassword"] as String? ?: "password"
+        }
+    }
+
     buildTypes {
         release {
-            isMinifyEnabled = true
+            isMinifyEnabled = false
+            isShrinkResources = false
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+            signingConfig = signingConfigs.getByName("release")
         }
     }
     compileOptions {
@@ -61,20 +77,24 @@ android {
     packaging {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
+            excludes += "/META-INF/INDEX.LIST"
+            excludes += "/META-INF/io.netty.versions.properties"
         }
+    }
+
+    packagingOptions {
+        exclude("org/apache/commons/codec/language/bm/gen_rules_dutch.txt")
+        exclude("org/apache/commons/codec/language/bm/gen_approx_greeklatin.txt")
+    }
+
+    lint {
+        checkReleaseBuilds = false
+        abortOnError = false
     }
 }
 
-// Exclude duplicate nested source folders and script files
-tasks.withType<KotlinCompile>().configureEach {
-    exclude("**/com/example/redxchartlibrary/java/**")
-    exclude("**/com/example/redxaiscanner/java/**")
-    exclude("**/com/example/redxaimentor/java/**")
-    exclude("**/com/example/redxfnoscanner/java/**")
-    exclude("**/*.kts")
-}
-
 dependencies {
+    implementation(project(":trade-engine"))
     implementation("androidx.core:core-ktx:1.12.0")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.7.0")
     implementation("androidx.activity:activity-compose:1.8.2")
@@ -95,13 +115,59 @@ dependencies {
     implementation("com.squareup.retrofit2:retrofit:2.9.0")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.3")
     implementation("com.jakewharton.retrofit:retrofit2-kotlinx-serialization-converter:1.0.0")
-    implementation("com.squareup.okhttp3:okhttp:4.12.0")
     implementation("androidx.datastore:datastore-preferences:1.0.0")
     implementation("androidx.work:work-runtime-ktx:2.9.0")
     implementation("androidx.hilt:hilt-work:1.2.0")
     ksp("androidx.hilt:hilt-compiler:1.2.0")
     implementation("com.google.accompanist:accompanist-flowlayout:0.32.0")
     implementation("com.google.accompanist:accompanist-swiperefresh:0.32.0")
+
     implementation("com.google.ai.client.generativeai:generativeai:0.2.2")
-    debugImplementation("androidx.compose.ui:ui-tooling")
+
+    implementation("com.amplifyframework:core:2.14.0")
+    implementation("com.amplifyframework:aws-api:2.14.0")
+
+    implementation("com.github.ben-manes.caffeine:caffeine:3.2.3")
+
+    implementation("io.ktor:ktor-client-core:2.3.10")
+    implementation("io.ktor:ktor-client-okhttp:2.3.10")
+    implementation("io.ktor:ktor-client-websockets:2.3.10")
+    implementation("io.ktor:ktor-client-content-negotiation:2.3.10")
+    implementation("io.ktor:ktor-serialization-kotlinx-json:2.3.10")
+
+    constraints {
+        implementation("org.jetbrains.kotlinx:kotlinx-serialization-core:1.6.3") {
+            because("Ensure all serialization libraries are on the same version")
+        }
+        implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.3") {
+            because("Ensure all serialization libraries are on the same version")
+        }
+    }
+}
+
+tasks.register("generateKeystore") {
+    doLast {
+        val keystoreFile = file("release.keystore")
+        if (!keystoreFile.exists()) {
+            println("Generating keystore...")
+            ant.withGroovyBuilder {
+                "genkey"(
+                    mapOf(
+                        "alias" to "key0",
+                        "storepass" to "marketintelligence",
+                        "keypass" to "marketintelligence",
+                        "keystore" to keystoreFile.absolutePath,
+                        "dname" to "CN=Market Intelligence, OU=Engineering, O=Market Intelligence, L=City, S=State, C=US",
+                        "validity" to 10000,
+                        "keyalg" to "RSA",
+                        "keysize" to 2048,
+                        "storetype" to "JKS"
+                    )
+                )
+            }
+            println("Keystore generated at ${keystoreFile.absolutePath}")
+        } else {
+             println("Keystore already exists.")
+        }
+    }
 }

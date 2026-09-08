@@ -11,7 +11,7 @@ import kotlinx.coroutines.flow.combine
 class GenerateTradeSetupUseCase(
     private val validateSignalWithAIUseCase: ValidateSignalWithAIUseCase,
     private val marketDataRepository: MarketDataRepository,
-    private val dataIntegrityEngine: DataIntegrityEngine, // Injected for pre-analysis checks
+    private val dataIntegrityEngine: DataIntegrityEngine,
     private val tradeSetupEngine: TradeSetupEngine
 ) {
 
@@ -27,17 +27,20 @@ class GenerateTradeSetupUseCase(
             for ((symbol, results) in validatedResults) {
                 val symbolCandles = candles[symbol] ?: continue
                 
-                // --- GOVERNANCE CONTROL: Data Integrity Check ---
                 val integrityReport = dataIntegrityEngine.validate(symbolCandles)
                 if (!integrityReport.isValid) {
-                    // Log this failure for auditing
-                    println("AUDIT REJECTION: Data for $symbol failed integrity check. Issues: ${integrityReport.issues}")
-                    continue // Skip analysis for this symbol
+                    continue
                 }
 
                 val setups = results
-                    .filter { it.underlyingSignal.underlyingSignal.integrityHash == integrityReport.dataHash } // Ensure signal was from this exact data
-                    .mapNotNull { result -> tradeSetupEngine.create(result.underlyingSignal, symbolCandles) }
+                    .filter { it.underlyingSignal.underlyingSignal.integrityHash == integrityReport.dataHash }
+                    .mapNotNull { result -> 
+                        tradeSetupEngine.create(
+                            result.underlyingSignal, 
+                            symbolCandles, 
+                            result.underlyingSignal.underlyingSignal.liquidityZones
+                        ) 
+                    }
                 
                 if (setups.isNotEmpty()) {
                     finalSetups.getOrPut(symbol) { mutableListOf() }.addAll(setups)

@@ -3,5 +3,11 @@
     <domain-config cleartextTrafficPermitted="true">
         <domain includeSubdomains="true">10.0.2.2</domain>
     </domain-config>
+
+    <!-- Allow cleartext traffic for your AWS backend -->
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="true">65.2.28.48</domain>
+    </domain-config>
+
     <!-- By default, all other domains will require HTTPS -->
 </network-security-config>

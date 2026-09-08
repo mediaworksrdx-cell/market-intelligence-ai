@@ -1,7 +1,6 @@
 package com.example.redxaiscanner.background
 
 import android.content.Context
-import androidx.hilt.work.HiltWorker
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import com.example.redxaiscanner.domain.usecase.GenerateTradeSetupUseCase
@@ -9,17 +8,14 @@ import com.example.redxaiscanner.engine.AlertEvent
 import com.example.redxaiscanner.engine.MarketBias
 import com.example.redxaiscanner.engine.OrderBlock
 import com.example.redxaiscanner.engine.TradeSetup
-import dagger.assisted.Assisted
-import dagger.assisted.AssistedInject
 import kotlinx.coroutines.flow.first
 
-@HiltWorker
-class AnalysisWorker @AssistedInject constructor(
-    @Assisted appContext: Context,
-    @Assisted workerParams: WorkerParameters,
-    // Hilt will inject the entire analysis pipeline here
-    private val generateTradeSetupUseCase: GenerateTradeSetupUseCase
+class AnalysisWorker(
+    appContext: Context,
+    workerParams: WorkerParameters
 ) : CoroutineWorker(appContext, workerParams) {
+
+    private val generateTradeSetupUseCase = com.example.redxaiscanner.util.Injector.provideGenerateTradeSetupUseCase(appContext)
 
     companion object {
         const val KEY_SYMBOLS = "KEY_SYMBOLS"
