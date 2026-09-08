@@ -25,6 +25,7 @@ object AppConfig {
 
     // --- Zerodha API Credentials --- //
     val apiKey: String = properties.getProperty("ZERODHA_API_KEY", System.getenv("ZERODHA_API_KEY") ?: "")
+    val apiSecret: String = properties.getProperty("ZERODHA_API_SECRET", System.getenv("ZERODHA_API_SECRET") ?: "")
     val accessToken: String = properties.getProperty("ZERODHA_ACCESS_TOKEN", System.getenv("ZERODHA_ACCESS_TOKEN") ?: "")
 
     // --- CoinGecko API Credentials --- //
