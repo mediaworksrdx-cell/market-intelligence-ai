@@ -220,9 +220,14 @@ fun main() {
                     return@get
                 }
 
-                val prices = CoingeckoClient.getMarketsData(vsCurrencies)
-                cryptoCache.put(vsCurrencies, prices)
-                call.respond(prices)
+                try {
+                    val prices = CoingeckoClient.getMarketsData(vsCurrencies)
+                    cryptoCache.put(vsCurrencies, prices)
+                    call.respond(prices)
+                } catch (e: Exception) {
+                    logger.error("Error fetching crypto prices from CoinGecko: ${e.message}", e)
+                    call.respond(HttpStatusCode.InternalServerError, ErrorResponse(e.message ?: "Failed to fetch crypto prices"))
+                }
             }
             post("/subscribe") {
                 val request = call.receive<SubscribeRequest>()
@@ -274,9 +279,10 @@ fun main() {
                 }
 
                 val stockResults = instruments.filter {
-                    (it.tradingsymbol.contains(query, ignoreCase = true) || it.name.contains(query, ignoreCase = true)) &&
+                    ((it.tradingsymbol != null && it.tradingsymbol.contains(query, ignoreCase = true)) ||
+                     (it.name != null && it.name.contains(query, ignoreCase = true))) &&
                     (it.exchange == "NSE" || it.exchange == "NFO")
-                }.take(20).map { ApiSearchResult(it.tradingsymbol, it.name, it.instrument_type) }
+                }.take(20).map { ApiSearchResult(it.tradingsymbol ?: "", it.name ?: it.tradingsymbol ?: "", it.instrument_type ?: "") }
 
                 logger.info("Found ${stockResults.size} stock/F&O results and ${cryptoResults.size} crypto results.")
                 call.respond(stockResults + cryptoResults)
@@ -335,8 +341,13 @@ fun main() {
                     return@get
                 }
 
-                val ohlcData = CoingeckoClient.getOhlcData(coinId, vsCurrency, days)
-                call.respond(ohlcData)
+                try {
+                    val ohlcData = CoingeckoClient.getOhlcData(coinId, vsCurrency, days)
+                    call.respond(ohlcData)
+                } catch (e: Exception) {
+                    logger.error("Error fetching Coingecko OHLC: ${e.message}", e)
+                    call.respond(HttpStatusCode.InternalServerError, ErrorResponse(e.message ?: "Failed to fetch OHLC"))
+                }
             }
 
             get("/instruments") {

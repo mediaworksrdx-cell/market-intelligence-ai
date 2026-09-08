@@ -17,12 +17,12 @@ import kotlinx.coroutines.sync.withLock
 
 @Serializable
 data class CryptoData(
-    val id: String,
-    val symbol: String,
-    val name: String,
-    @SerialName("current_price") val price: Double,
-    @SerialName("price_change_percentage_24h") val changePercent: Double,
-    @SerialName("market_cap") val marketCap: Long
+    val id: String = "",
+    val symbol: String = "",
+    val name: String = "",
+    @SerialName("current_price") val price: Double? = 0.0,
+    @SerialName("price_change_percentage_24h") val changePercent: Double? = 0.0,
+    @SerialName("market_cap") val marketCap: Long? = 0L
 )
 
 @Serializable

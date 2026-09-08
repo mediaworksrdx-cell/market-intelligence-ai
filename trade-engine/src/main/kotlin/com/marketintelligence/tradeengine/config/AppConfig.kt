@@ -16,8 +16,14 @@ object AppConfig {
         for (file in searchPaths) {
             if (file.exists() && file.isFile) {
                 try {
-                    FileInputStream(file).use { load(it) }
-                    break
+                    val temp = Properties()
+                    FileInputStream(file).use { temp.load(it) }
+                    temp.stringPropertyNames().forEach { name ->
+                        val value = temp.getProperty(name)
+                        if (!value.isNullOrBlank() && getProperty(name).isNullOrBlank()) {
+                            setProperty(name, value)
+                        }
+                    }
                 } catch (_: Exception) {}
             }
         }

@@ -14,6 +14,8 @@ import kotlinx.coroutines.sync.withPermit
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.*
 
+import org.slf4j.LoggerFactory
+
 /**
  * Ticker response model from Binance API.
  */
@@ -30,8 +32,11 @@ data class TickerData(
 
 /**
  * Binance REST API Client for fetching public market data.
+ * Supports automatic fallback to Binance US when binance.com is geo-restricted (e.g. on US cloud servers).
  */
 object BinanceClient {
+
+    private val logger = LoggerFactory.getLogger("BinanceClient")
 
     private val jsonConfig = Json { 
         ignoreUnknownKeys = true
@@ -47,6 +52,43 @@ object BinanceClient {
     // Concurrency limit to avoid being rate-limited by Binance API
     private val requestSemaphore = Semaphore(5)
 
+    private val candidateUrls = listOf("https://api.binance.com", "https://api.binance.us")
+    @Volatile
+    private var preferredBaseUrl: String? = null
+
+    private suspend fun fetch(path: String, params: Map<String, String>): String {
+        val urlsToTry = if (preferredBaseUrl != null) {
+            listOf(preferredBaseUrl!!) + candidateUrls.filter { it != preferredBaseUrl }
+        } else {
+            candidateUrls
+        }
+
+        var lastException: Exception? = null
+        for (baseUrl in urlsToTry) {
+            try {
+                val response = client.get("$baseUrl$path") {
+                    url {
+                        params.forEach { (k, v) -> parameters.append(k, v) }
+                    }
+                }
+                val body = response.bodyAsText()
+                if (response.status.value in 200..299 &&
+                    !body.contains("restricted location", ignoreCase = true) &&
+                    !body.contains("\"code\":", ignoreCase = true)
+                ) {
+                    preferredBaseUrl = baseUrl
+                    return body
+                } else {
+                    logger.warn("Binance endpoint $baseUrl$path returned status ${response.status.value}: $body")
+                }
+            } catch (e: Exception) {
+                lastException = e
+                logger.warn("Failed connecting to $baseUrl$path: ${e.message}")
+            }
+        }
+        throw lastException ?: IllegalStateException("All Binance endpoints failed for $path")
+    }
+
     /**
      * Fetches candlestick data (klines) for a specific symbol and interval.
      * 
@@ -55,15 +97,15 @@ object BinanceClient {
      * @param limit The number of candles to fetch (default: 500, max: 1000).
      */
     suspend fun getKlines(symbol: String, interval: String, limit: Int = 500): List<Candle> {
-        val responseText = client.get("https://api.binance.com/api/v3/klines") {
-            url {
-                parameters.append("symbol", symbol)
-                parameters.append("interval", interval)
-                parameters.append("limit", limit.toString())
-            }
-        }.bodyAsText()
+        val params = mapOf(
+            "symbol" to symbol,
+            "interval" to interval,
+            "limit" to limit.toString()
+        )
+        val responseText = fetch("/api/v3/klines", params)
 
-        val jsonArray = jsonConfig.parseToJsonElement(responseText).jsonArray
+        val jsonElement = jsonConfig.parseToJsonElement(responseText)
+        val jsonArray = jsonElement.jsonArray
 
         return jsonArray.map { element ->
             val klineArray = element.jsonArray
@@ -90,12 +132,8 @@ object BinanceClient {
      * @param symbol The trading pair symbol, e.g., "BTCUSDT".
      */
     suspend fun get24hrTicker(symbol: String): TickerData {
-        val responseText = client.get("https://api.binance.com/api/v3/ticker/24hr") {
-            url {
-                parameters.append("symbol", symbol)
-            }
-        }.bodyAsText()
-        
+        val params = mapOf("symbol" to symbol)
+        val responseText = fetch("/api/v3/ticker/24hr", params)
         return jsonConfig.decodeFromString(TickerData.serializer(), responseText)
     }
 
@@ -114,7 +152,12 @@ object BinanceClient {
         symbols.map { symbol ->
             async {
                 requestSemaphore.withPermit {
-                    symbol to getKlines(symbol, interval, limit)
+                    try {
+                        symbol to getKlines(symbol, interval, limit)
+                    } catch (e: Exception) {
+                        logger.error("Failed to fetch klines for $symbol: ${e.message}")
+                        symbol to emptyList()
+                    }
                 }
             }
         }.associate { it.await() }
