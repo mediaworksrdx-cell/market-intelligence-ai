@@ -10,6 +10,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ShowChart
 import androidx.compose.material.icons.filled.*
@@ -20,6 +21,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -51,20 +53,20 @@ fun AIScannerScreen(
             )
         }
 
-        Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
+        Column(modifier = Modifier.fillMaxSize().padding(horizontal = 12.dp, vertical = 8.dp)) {
             Text(
                 "INTELLIGENCE SCANNER",
                 color = MaterialTheme.colorScheme.onBackground,
-                fontSize = 18.sp,
+                fontSize = 14.sp,
                 fontWeight = FontWeight.Bold
             )
             Text(
                 "Institutional-grade analysis models",
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                fontSize = 11.sp
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                fontSize = 8.sp
             )
             
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(6.dp))
 
             ManualScanTab(uiState, viewModel, onViewChart)
         }
@@ -79,76 +81,102 @@ fun ManualScanTab(
     viewModel: AIScannerViewModel,
     onViewChart: (String) -> Unit
 ) {
-    Column(modifier = Modifier.fillMaxSize()) {
-        Card(
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-            shape = RoundedCornerShape(12.dp),
-            modifier = Modifier.fillMaxWidth().border(0.5.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(12.dp))
-        ) {
-            Column(modifier = Modifier.padding(12.dp)) {
-                Text("Analysis Configuration", color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold, fontSize = 13.sp)
-                Spacer(modifier = Modifier.height(12.dp))
-                
-                TextField(
-                    value = uiState.searchQuery,
-                    onValueChange = { viewModel.onSearchQueryChanged(it) },
-                    modifier = Modifier.fillMaxWidth().height(52.dp),
-                    placeholder = { Text("Search symbol...", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp) },
-                    textStyle = TextStyle(color = MaterialTheme.colorScheme.onSurface, fontSize = 13.sp, fontWeight = FontWeight.Medium),
-                    leadingIcon = { Icon(Icons.Default.Search, null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(14.dp)) },
-                    colors = TextFieldDefaults.colors(
-                        focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-                        unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-                        focusedIndicatorColor = Color.Transparent,
-                        unfocusedIndicatorColor = Color.Transparent,
-                        focusedTextColor = MaterialTheme.colorScheme.onSurface,
-                        unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
-                        cursorColor = MaterialTheme.colorScheme.primary
-                    ),
-                    shape = RoundedCornerShape(6.dp),
-                    singleLine = true
-                )
-                
-                Spacer(modifier = Modifier.height(12.dp))
-                Text("Study Timeframe", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 10.sp)
-                val timeframes = listOf("15m", "1H", "4H", "1D")
-                Row(modifier = Modifier.padding(vertical = 4.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    timeframes.forEach { tf ->
-                        val isSelected = tf == uiState.selectedTimeframe
-                        Surface(
-                            color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
-                            shape = RoundedCornerShape(6.dp),
-                            modifier = Modifier.weight(1f).clickable { viewModel.onTimeframeSelected(tf) }.border(0.5.dp, if(isSelected) MaterialTheme.colorScheme.primary else Color.Transparent, RoundedCornerShape(6.dp))
-                        ) {
-                            Text(
-                                text = tf,
-                                color = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
-                                fontSize = 10.sp,
-                                fontWeight = FontWeight.Bold,
-                                modifier = Modifier.padding(vertical = 6.dp),
-                                textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                            )
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+        contentPadding = PaddingValues(bottom = 80.dp)
+    ) {
+        item {
+            Card(
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                shape = RoundedCornerShape(10.dp),
+                modifier = Modifier.fillMaxWidth().border(0.5.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.4f), RoundedCornerShape(10.dp))
+            ) {
+                Column(modifier = Modifier.padding(10.dp)) {
+                    Text("Analysis Configuration", color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold, fontSize = 11.sp)
+                    Spacer(modifier = Modifier.height(6.dp))
+                    
+                    BasicTextField(
+                        value = uiState.searchQuery,
+                        onValueChange = { viewModel.onSearchQueryChanged(it) },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(38.dp)
+                            .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(6.dp))
+                            .padding(horizontal = 10.dp),
+                        textStyle = TextStyle(
+                            color = MaterialTheme.colorScheme.onSurface,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Medium
+                        ),
+                        singleLine = true,
+                        cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+                        decorationBox = { innerTextField ->
+                            Row(
+                                modifier = Modifier.fillMaxSize(),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    Icons.Default.Search,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.size(13.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Box(
+                                    modifier = Modifier.weight(1f),
+                                    contentAlignment = Alignment.CenterStart
+                                ) {
+                                    if (uiState.searchQuery.isEmpty()) {
+                                        Text(
+                                            "Search symbol...",
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                                            fontSize = 10.sp
+                                        )
+                                    }
+                                    innerTextField()
+                                }
+                            }
+                        }
+                    )
+                    
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text("Study Timeframe", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 8.5.sp)
+                    val timeframes = listOf("15m", "1H", "4H", "1D")
+                    Row(modifier = Modifier.padding(vertical = 3.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        timeframes.forEach { tf ->
+                            val isSelected = tf == uiState.selectedTimeframe
+                            Surface(
+                                color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
+                                shape = RoundedCornerShape(6.dp),
+                                modifier = Modifier.weight(1f).clickable { viewModel.onTimeframeSelected(tf) }.border(0.5.dp, if(isSelected) MaterialTheme.colorScheme.primary else Color.Transparent, RoundedCornerShape(6.dp))
+                            ) {
+                                Text(
+                                    text = tf,
+                                    color = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                    fontSize = 9.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier.padding(vertical = 5.dp),
+                                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                                )
+                            }
                         }
                     }
-                }
-                
-                Spacer(modifier = Modifier.height(12.dp))
-                Button(
-                    onClick = { viewModel.startManualScan() },
-                    modifier = Modifier.fillMaxWidth().height(44.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
-                    shape = RoundedCornerShape(8.dp),
-                    contentPadding = PaddingValues(0.dp)
-                ) {
-                    if (uiState.isLoading) CircularProgressIndicator(modifier = Modifier.size(18.dp), color = MaterialTheme.colorScheme.onPrimary)
-                    else Text("Trigger Study Scan", color = MaterialTheme.colorScheme.onPrimary, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                    
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Button(
+                        onClick = { viewModel.startManualScan() },
+                        modifier = Modifier.fillMaxWidth().height(36.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+                        shape = RoundedCornerShape(6.dp),
+                        contentPadding = PaddingValues(0.dp)
+                    ) {
+                        if (uiState.isLoading) CircularProgressIndicator(modifier = Modifier.size(16.dp), color = MaterialTheme.colorScheme.onPrimary)
+                        else Text("Trigger Study Scan", color = MaterialTheme.colorScheme.onPrimary, fontWeight = FontWeight.Bold, fontSize = 11.sp)
+                    }
                 }
             }
         }
-        
-        Spacer(modifier = Modifier.height(16.dp))
-        
-        LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp), contentPadding = PaddingValues(bottom = 80.dp)) {
             itemsIndexed(
                 items = uiState.manualScanResults,
                 key = { index, setup -> "${setup.underlyingSignal.underlyingSignal.symbol}_${setup.underlyingSignal.underlyingSignal.timeframe}_${setup.entryPrice}_${setup.stopLossPrice}_$index" }
@@ -188,7 +216,6 @@ fun ManualScanTab(
             }
         }
     }
-}
 
 @Composable
 fun AdvancedStudyCard(setup: TradeSetup, onViewChart: (String) -> Unit) {

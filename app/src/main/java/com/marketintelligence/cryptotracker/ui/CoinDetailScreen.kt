@@ -99,6 +99,7 @@ fun CoinDetailScreen(
                         symbol = state.symbol,
                         timeframe = "15m",
                         candles = state.candles,
+                        currentPrice = state.currentPrice,
                         indicatorConfig = ChartIndicatorConfig(
                             showSMC = true,
                             showEMA = true,

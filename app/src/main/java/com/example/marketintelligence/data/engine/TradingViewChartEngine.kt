@@ -42,7 +42,7 @@ class TradingViewChartEngine @Inject constructor() : ChartEngine {
             symbol.contains("NIFTY") -> "NSE:NIFTY"
             symbol.contains("BANKNIFTY") -> "NSE:BANKNIFTY"
             symbol.endsWith(".NS") -> "NSE:${symbol.removeSuffix(".NS")}"
-            symbol.contains("-USD") -> "BINANCE:${symbol.replace("-", "")}T"
+            symbol.contains("-USD") -> "COINBASE:${symbol.replace("-", "")}"
             else -> symbol
         }
 

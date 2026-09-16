@@ -73,4 +73,10 @@ interface WatchlistDao {
 
     @Query("SELECT COUNT(*) FROM watchlist WHERE type = :type")
     suspend fun getCountByType(type: String): Int
+
+    @Query("DELETE FROM watchlist")
+    suspend fun clearAll()
+
+    @Query("DELETE FROM watchlist WHERE type = :type")
+    suspend fun deleteByType(type: String)
 }

@@ -37,14 +37,31 @@ fun AnalysisScreen(
     engineRouter: EngineRouter
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val marketUiState by marketViewModel.uiState.collectAsState()
     val activeChartEngine by engineRouter.activeChartEngine.collectAsState(initial = null)
     var isFullScreen by remember { mutableStateOf(false) }
 
     val scrollState = rememberScrollState()
 
-    val liveInstrumentData by remember(uiState.symbol) {
+    DisposableEffect(Unit) {
+        marketViewModel.startListeningForLivePrices()
+        marketViewModel.startPollingCryptoPrices()
+        onDispose {}
+    }
+
+    val liveInstrumentData by remember(uiState.symbol, marketUiState) {
         derivedStateOf {
             marketViewModel.getSelectedInstrumentData(uiState.symbol)
+        }
+    }
+
+    val currentLivePrice by remember(uiState.symbol, uiState.currentPrice, liveInstrumentData) {
+        derivedStateOf {
+            when {
+                uiState.currentPrice > 0.0 -> uiState.currentPrice
+                liveInstrumentData != null && liveInstrumentData!!.price > 0.0 -> liveInstrumentData!!.price
+                else -> uiState.candles.lastOrNull()?.close ?: 0.0
+            }
         }
     }
 
@@ -62,7 +79,14 @@ fun AnalysisScreen(
                 AdvancedCandleStickChart(
                     chartState = uiState.chartState,
                     modifier = Modifier.fillMaxSize(),
-                    onAddDrawingPoint = { point -> viewModel.addDrawingPoint(point) }
+                    timeframe = uiState.selectedTimeframe,
+                    currentPrice = currentLivePrice,
+                    onAddDrawingPoint = { point -> viewModel.addDrawingPoint(point) },
+                    onSelectDrawing = { viewModel.selectDrawing(it) },
+                    onDeleteDrawing = { viewModel.deleteDrawing(it) },
+                    onContinueDrawing = { viewModel.continueDrawing(it) },
+                    onOpenIndicatorSettingsFor = { viewModel.openIndicatorSettings(it) },
+                    onToggleIndicator = { viewModel.toggleIndicator(it) }
                 )
 
                 IconButton(
@@ -86,6 +110,9 @@ fun AnalysisScreen(
             InstitutionalHeader(
                 symbol = uiState.symbol,
                 liveData = liveInstrumentData,
+                currentPrice = uiState.currentPrice,
+                priceChange = uiState.priceChange,
+                priceChangePercent = uiState.priceChangePercent
             )
 
             // ── Chart Toolbar ──
@@ -95,14 +122,25 @@ fun AnalysisScreen(
                 activeDrawingTool = uiState.chartState.activeDrawingTool,
                 activeIndicatorCount = uiState.chartState.activeIndicators.count { it.enabled },
                 activeIndicators = uiState.chartState.activeIndicators,
+                cursorMode = uiState.chartState.cursorMode,
+                showVolume = uiState.chartState.showVolume,
+                showVolumeProfile = uiState.chartState.showVolumeProfile,
+                showFnoOverlay = uiState.chartState.showFnoOverlay,
+                showSmcOverlay = uiState.chartState.showSmcOverlay,
                 onTimeframeSelected = { viewModel.onTimeframeSelected(it) },
                 onChartTypeSelected = { viewModel.onChartTypeSelected(it) },
+                onCursorModeChanged = { viewModel.setCursorMode(it) },
                 onToggleIndicator = { viewModel.toggleIndicator(it) },
                 onOpenIndicatorSettings = { viewModel.toggleIndicatorSheet() },
+                onOpenIndicatorSettingsFor = { viewModel.openIndicatorSettings(it) },
                 onDrawingToolSelected = { viewModel.selectDrawingTool(it) },
                 onClearDrawings = { viewModel.clearDrawings() },
                 onToggleIndicators = { viewModel.toggleIndicatorSheet() },
                 onToggleDrawingTools = { viewModel.toggleDrawingPalette() },
+                onToggleVolume = { viewModel.toggleVolume() },
+                onToggleVolumeProfile = { viewModel.toggleVolumeProfile() },
+                onToggleFnoOverlay = { viewModel.toggleFnoOverlay() },
+                onToggleSmcOverlay = { viewModel.toggleSmcOverlay() },
                 onToggleFullScreen = { isFullScreen = true }
             )
 
@@ -112,10 +150,7 @@ fun AnalysisScreen(
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(420.dp)
-                    .pointerInput(Unit) {
-                        detectTapGestures(onDoubleTap = { isFullScreen = true })
-                    },
+                    .height(470.dp),
                 shape = RoundedCornerShape(12.dp),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                 elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
@@ -130,7 +165,14 @@ fun AnalysisScreen(
                         AdvancedCandleStickChart(
                             chartState = uiState.chartState,
                             modifier = Modifier.fillMaxSize(),
-                            onAddDrawingPoint = { point -> viewModel.addDrawingPoint(point) }
+                            timeframe = uiState.selectedTimeframe,
+                            currentPrice = currentLivePrice,
+                            onAddDrawingPoint = { point -> viewModel.addDrawingPoint(point) },
+                            onSelectDrawing = { viewModel.selectDrawing(it) },
+                            onDeleteDrawing = { viewModel.deleteDrawing(it) },
+                            onContinueDrawing = { viewModel.continueDrawing(it) },
+                            onOpenIndicatorSettingsFor = { viewModel.openIndicatorSettings(it) },
+                            onToggleIndicator = { viewModel.toggleIndicator(it) }
                         )
                     }
                 }
@@ -148,6 +190,7 @@ fun AnalysisScreen(
         ) {
             IndicatorSettingsSheet(
                 activeIndicators = uiState.chartState.activeIndicators,
+                targetIndicatorType = uiState.targetIndicatorType,
                 onToggleIndicator = { viewModel.toggleIndicator(it) },
                 onUpdateIndicator = { viewModel.updateIndicator(it) },
                 onDismiss = { viewModel.toggleIndicatorSheet() }
@@ -172,10 +215,28 @@ fun AnalysisScreen(
 }
 
 @Composable
-fun InstitutionalHeader(symbol: String, liveData: StockData?) {
-    val price = liveData?.price ?: 0.0
-    val change = liveData?.change ?: 0.0
-    val changePercent = liveData?.changePercent ?: 0.0
+fun InstitutionalHeader(
+    symbol: String,
+    liveData: StockData?,
+    currentPrice: Double = 0.0,
+    priceChange: Double = 0.0,
+    priceChangePercent: Double = 0.0
+) {
+    val price = when {
+        currentPrice > 0.0 -> currentPrice
+        liveData != null && liveData.price > 0.0 -> liveData.price
+        else -> 0.0
+    }
+    val change = when {
+        currentPrice > 0.0 -> priceChange
+        liveData != null && liveData.price > 0.0 -> liveData.change
+        else -> 0.0
+    }
+    val changePercent = when {
+        currentPrice > 0.0 -> priceChangePercent
+        liveData != null && liveData.price > 0.0 -> liveData.changePercent
+        else -> 0.0
+    }
     val isPositive = change >= 0
 
     Column(modifier = Modifier.padding(top = 16.dp)) {
@@ -188,20 +249,42 @@ fun InstitutionalHeader(symbol: String, liveData: StockData?) {
                 Text(
                     text = symbol.uppercase(),
                     color = MaterialTheme.colorScheme.onBackground,
-                    fontSize = 24.sp,
+                    fontSize = 18.sp,
                     fontWeight = FontWeight.ExtraBold,
                     fontFamily = FontFamily.Monospace
                 )
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(modifier = Modifier.size(6.dp).background(MaterialTheme.colorScheme.primary, RoundedCornerShape(3.dp)))
-                    Spacer(Modifier.width(6.dp))
-                    Text("LIVE DATA ACTIVE", color = MaterialTheme.colorScheme.primary, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                    Box(modifier = Modifier.size(5.dp).background(MaterialTheme.colorScheme.primary, RoundedCornerShape(2.5.dp)))
+                    Spacer(Modifier.width(4.dp))
+                    Text("LIVE DATA ACTIVE", color = MaterialTheme.colorScheme.primary, fontSize = 8.5.sp, fontWeight = FontWeight.Bold)
                 }
             }
 
             Column(horizontalAlignment = Alignment.End) {
-                Text("%.2f".format(price), color = MaterialTheme.colorScheme.onBackground, fontSize = 20.sp, fontWeight = FontWeight.ExtraBold, fontFamily = FontFamily.Monospace)
-                Text("${if(isPositive) "+" else ""}${"%.2f".format(change)} (${if(isPositive) "+" else ""}${"%.2f".format(changePercent)}%)", color = if(isPositive) AppGreen else AppRed, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                val formattedPrice = when {
+                    price <= 0.0 -> "0.00"
+                    price < 0.001 -> String.format(java.util.Locale.US, "%.7f", price)
+                    price < 1.0 -> String.format(java.util.Locale.US, "%.4f", price)
+                    else -> String.format(java.util.Locale.US, "%,.2f", price)
+                }
+                val formattedChange = when {
+                    kotlin.math.abs(change) < 0.001 -> String.format(java.util.Locale.US, "%.7f", change)
+                    else -> String.format(java.util.Locale.US, "%.2f", change)
+                }
+                Text(
+                    text = formattedPrice,
+                    color = MaterialTheme.colorScheme.onBackground,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    fontFamily = FontFamily.Monospace
+                )
+                Text(
+                    text = "${if (isPositive) "+" else ""}$formattedChange (${if (isPositive) "+" else ""}${"%.2f".format(changePercent)}%)",
+                    color = if (isPositive) AppGreen else AppRed,
+                    fontSize = 10.5.sp,
+                    fontWeight = FontWeight.Bold,
+                    fontFamily = FontFamily.Monospace
+                )
             }
         }
 

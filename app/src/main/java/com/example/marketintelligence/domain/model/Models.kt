@@ -118,7 +118,21 @@ data class StrategyLeg(
     val qty: Int,
     val entryPrice: Double,
     val currentPrice: Double
-)
+) {
+    val pnl: Double
+        get() {
+            val mult = if (type.equals("BUY", ignoreCase = true)) 1.0 else -1.0
+            return (currentPrice - entryPrice) * qty * mult
+        }
+
+    val pnlPercent: Double
+        get() {
+            return if (entryPrice > 0.0) {
+                val mult = if (type.equals("BUY", ignoreCase = true)) 1.0 else -1.0
+                ((currentPrice - entryPrice) / entryPrice) * 100.0 * mult
+            } else 0.0
+        }
+}
 
 @Serializable
 data class OptionStrategy(
@@ -132,7 +146,8 @@ data class OptionStrategy(
     val roi: Double,
     val legs: List<String>,
     val payoffPoints: List<PayoffPoint>,
-    val todayPayoffPoints: List<PayoffPoint> = emptyList()
+    val todayPayoffPoints: List<PayoffPoint> = emptyList(),
+    val rawLegs: List<StrategyLeg> = emptyList()
 )
 
 @Serializable
@@ -220,6 +235,32 @@ enum class Sentiment { POSITIVE, NEGATIVE, NEUTRAL }
 enum class BuildupType {
     LONG_BUILDUP, SHORT_BUILDUP, SHORT_COVERING, LONG_UNWINDING, NEUTRAL
 }
+
+enum class BuildupSortOrder {
+    OI_GAINERS, OI_LOSERS, PRICE_GAINERS, PRICE_LOSERS, VOLUME, PCR
+}
+
+enum class AssetTypeFilter {
+    ALL, INDICES, STOCKS
+}
+
+@Serializable
+data class FnoBuildupStock(
+    val symbol: String,
+    val name: String,
+    val isIndex: Boolean,
+    val sector: String,
+    val ltp: Double,
+    val priceChange: Double,
+    val priceChangePct: Double,
+    val openInterest: Long,
+    val oiChange: Long,
+    val oiChangePct: Double,
+    val buildupType: BuildupType,
+    val volume: Long,
+    val pcr: Double = 1.0,
+    val basis: Double = 0.0
+)
 
 @Serializable
 data class Holding(

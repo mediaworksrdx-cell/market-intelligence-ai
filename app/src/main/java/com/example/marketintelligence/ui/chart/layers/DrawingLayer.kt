@@ -11,13 +11,17 @@ import androidx.compose.ui.unit.dp
 import com.example.marketintelligence.domain.chart.DrawingData
 import com.example.marketintelligence.domain.chart.DrawingToolType
 
+import com.example.marketintelligence.domain.chart.ChartPoint
+
 /**
  * Renders user-drawn annotations (trendlines, horizontal lines, Fibonacci, rectangles, channels)
- * on the price chart canvas.
+ * on the price chart canvas with live rubber-band preview and touch selection highlights.
  */
 fun DrawScope.drawDrawingLayer(
     drawings: List<DrawingData>,
     currentDrawing: DrawingData?,
+    selectedDrawingId: String? = null,
+    rubberBandPoint: ChartPoint? = null,
     visibleStartIndex: Int,
     visibleEndIndex: Int,
     priceMin: Double,
@@ -32,20 +36,52 @@ fun DrawScope.drawDrawingLayer(
     if (priceRange <= 0 || candleIntervalMs <= 0) return
 
     val allDrawings = if (currentDrawing != null) drawings + currentDrawing else drawings
+    val visibleCount = visibleEndIndex - visibleStartIndex
 
     for (drawing in allDrawings) {
         if (drawing.points.isEmpty()) continue
-        val color = Color(drawing.color)
-        val strokeWidth = drawing.lineWidth.dp.toPx()
+        val isSelected = drawing.id == selectedDrawingId
+        val baseColor = if (isSelected) Color(0xFF00E5FF) else Color((drawing.color and 0xFFFFFFFFL).toInt())
+        val strokeWidth = (if (isSelected) drawing.lineWidth + 1f else drawing.lineWidth).dp.toPx()
 
         when (drawing.toolType) {
-            DrawingToolType.TRENDLINE -> drawTrendline(drawing, visibleStartIndex, visibleEndIndex, priceMin, priceRange, chartAreaHeight, chartWidth, candleStartTime, candleIntervalMs, color, strokeWidth)
-            DrawingToolType.HORIZONTAL_LINE -> drawHorizontalLine(drawing, priceMin, priceRange, chartAreaHeight, chartWidth, color, strokeWidth)
-            DrawingToolType.FIBONACCI -> drawFibonacci(drawing, visibleStartIndex, visibleEndIndex, priceMin, priceRange, chartAreaHeight, chartWidth, candleStartTime, candleIntervalMs, color, strokeWidth)
-            DrawingToolType.RECTANGLE -> drawRectangleDrawing(drawing, visibleStartIndex, visibleEndIndex, priceMin, priceRange, chartAreaHeight, chartWidth, candleStartTime, candleIntervalMs, color, strokeWidth)
-            DrawingToolType.CHANNEL -> drawChannel(drawing, visibleStartIndex, visibleEndIndex, priceMin, priceRange, chartAreaHeight, chartWidth, candleStartTime, candleIntervalMs, color, strokeWidth)
+            DrawingToolType.TRENDLINE -> drawTrendline(drawing, visibleStartIndex, visibleEndIndex, priceMin, priceRange, chartAreaHeight, chartWidth, candleStartTime, candleIntervalMs, baseColor, strokeWidth)
+            DrawingToolType.HORIZONTAL_LINE -> drawHorizontalLine(drawing, priceMin, priceRange, chartAreaHeight, chartWidth, baseColor, strokeWidth)
+            DrawingToolType.FIBONACCI -> drawFibonacci(drawing, visibleStartIndex, visibleEndIndex, priceMin, priceRange, chartAreaHeight, chartWidth, candleStartTime, candleIntervalMs, baseColor, strokeWidth)
+            DrawingToolType.RECTANGLE -> drawRectangleDrawing(drawing, visibleStartIndex, visibleEndIndex, priceMin, priceRange, chartAreaHeight, chartWidth, candleStartTime, candleIntervalMs, baseColor, strokeWidth)
+            DrawingToolType.CHANNEL -> drawChannel(drawing, visibleStartIndex, visibleEndIndex, priceMin, priceRange, chartAreaHeight, chartWidth, candleStartTime, candleIntervalMs, baseColor, strokeWidth)
             DrawingToolType.NONE -> {}
         }
+
+        // Highlight control points if selected
+        if (isSelected) {
+            for (p in drawing.points) {
+                val px = timestampToX(p.timestamp, visibleStartIndex, candleStartTime, candleIntervalMs, chartWidth, visibleCount)
+                val py = priceToY(p.price, priceMin, priceRange, chartAreaHeight)
+                drawCircle(Color(0xFF00E5FF), radius = 8.dp.toPx(), center = Offset(px, py), style = Stroke(2.dp.toPx()))
+                drawCircle(Color.White, radius = 4.dp.toPx(), center = Offset(px, py))
+            }
+        }
+    }
+
+    // Live rubber-band preview line for in-progress drawings
+    if (currentDrawing != null && currentDrawing.points.isNotEmpty() && rubberBandPoint != null) {
+        val lastPoint = currentDrawing.points.last()
+        val x1 = timestampToX(lastPoint.timestamp, visibleStartIndex, candleStartTime, candleIntervalMs, chartWidth, visibleCount)
+        val y1 = priceToY(lastPoint.price, priceMin, priceRange, chartAreaHeight)
+        val x2 = timestampToX(rubberBandPoint.timestamp, visibleStartIndex, candleStartTime, candleIntervalMs, chartWidth, visibleCount)
+        val y2 = priceToY(rubberBandPoint.price, priceMin, priceRange, chartAreaHeight)
+
+        drawLine(
+            color = Color(0xFF00E5FF).copy(alpha = 0.85f),
+            start = Offset(x1, y1),
+            end = Offset(x2, y2),
+            strokeWidth = 1.8.dp.toPx(),
+            pathEffect = PathEffect.dashPathEffect(floatArrayOf(6.dp.toPx(), 4.dp.toPx()))
+        )
+        // Preview anchor point at current cursor
+        drawCircle(Color(0xFF00E5FF), radius = 5.dp.toPx(), center = Offset(x2, y2), style = Stroke(1.5.dp.toPx()))
+        drawCircle(Color.White, radius = 2.5.dp.toPx(), center = Offset(x2, y2))
     }
 }
 

@@ -59,109 +59,102 @@ fun MarketScreen(
         }
     }
 
-    Column(
+    LazyColumn(
         modifier = Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
-            .padding(horizontal = 16.dp)
+            .padding(horizontal = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+        contentPadding = PaddingValues(top = 4.dp, bottom = 24.dp)
     ) {
-        MacroTicker(uiState.macroData)
-
-        Spacer(modifier = Modifier.height(8.dp))
-
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                "INTELLIGENCE HUB",
-                color = MaterialTheme.colorScheme.onBackground,
-                fontSize = 18.sp,
-                fontWeight = FontWeight.ExtraBold,
-                letterSpacing = 0.5.sp
-            )
-            
-            TextButton(
-                onClick = { marketViewModel.toggleEditMode() },
-                contentPadding = PaddingValues(0.dp)
-            ) {
-                Text(
-                    text = if (uiState.isEditMode) "SAVE" else "EDIT",
-                    color = MaterialTheme.colorScheme.primary,
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Bold
-                )
-            }
+        item {
+            MacroTicker(uiState.macroData)
         }
-        
-        MarketBreadthIndicator(
-            advancing = uiState.advancingCount,
-            declining = uiState.decliningCount
-        )
 
-        Spacer(modifier = Modifier.height(12.dp))
-
-        // Clickable Search Bar
-        if (uiState.searchQuery.isBlank()) {
+        item {
+            Spacer(modifier = Modifier.height(2.dp))
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { onNavigateToSearch() } 
-                    .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(6.dp))
-                    .border(0.5.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(6.dp))
-                    .padding(horizontal = 16.dp, vertical = 14.dp),
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Icon(Icons.Default.Search, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
-                Spacer(modifier = Modifier.width(12.dp))
                 Text(
-                    "Search & Add (NIFTY, RELIANCE, BTC...)", 
-                    color = MaterialTheme.colorScheme.onSurfaceVariant, 
-                    fontSize = 13.sp, 
-                    fontWeight = FontWeight.Medium
+                    "INTELLIGENCE HUB",
+                    color = MaterialTheme.colorScheme.onBackground,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    letterSpacing = 0.5.sp
                 )
+                
+                TextButton(
+                    onClick = { marketViewModel.toggleEditMode() },
+                    contentPadding = PaddingValues(0.dp)
+                ) {
+                    Text(
+                        text = if (uiState.isEditMode) "SAVE" else "EDIT",
+                        color = MaterialTheme.colorScheme.primary,
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
             }
-        } else {
-            SearchResults(searchResults = searchResults, onResultClick = { symbol, type -> onNavigateToAnalysis(symbol, type) })
         }
         
-        Spacer(modifier = Modifier.height(16.dp))
+        item {
+            Spacer(modifier = Modifier.height(2.dp))
+            // Clickable Search Bar
+            if (uiState.searchQuery.isBlank()) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { onNavigateToSearch() } 
+                        .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(6.dp))
+                        .border(0.5.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(6.dp))
+                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(Icons.Default.Search, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(15.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        "Search & Add (NIFTY, RELIANCE, BTC...)", 
+                        color = MaterialTheme.colorScheme.onSurfaceVariant, 
+                        fontSize = 11.sp, 
+                        fontWeight = FontWeight.Medium
+                    )
+                }
+            } else {
+                SearchResults(searchResults = searchResults, onResultClick = { symbol, type -> onNavigateToAnalysis(symbol, type) })
+            }
+        }
         
-        LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
-            contentPadding = PaddingValues(bottom = 24.dp)
-        ) {
-            item {
-                SectionHeader("Core Indices", onDetailClick = {})
-                IndicesGrid(
-                    indices = uiState.indices,
-                    isEditMode = uiState.isEditMode,
-                    onRemove = { marketViewModel.removeIndex(it) },
-                    onIndexClick = onNavigateToAnalysis
-                )
-            }
-            
-            item {
-                SectionHeader("Strategic Watchlist", onDetailClick = {})
-                WatchlistContent(
-                    stocks = uiState.watchlist,
-                    isEditMode = uiState.isEditMode,
-                    onRemove = { marketViewModel.removeStock(it) },
-                    onStockClick = onNavigateToAnalysis
-                )
-            }
-            
-            item {
-                SectionHeader("Crypto Intelligence", onDetailClick = {})
-                CryptoContent(
-                    cryptos = uiState.cryptos,
-                    isEditMode = uiState.isEditMode,
-                    onRemove = { marketViewModel.removeCrypto(it) },
-                    onCryptoClick = onNavigateToAnalysis
-                )
-            }
+        item {
+            SectionHeader("Core Indices", onDetailClick = {})
+            IndicesGrid(
+                indices = uiState.indices,
+                isEditMode = uiState.isEditMode,
+                onRemove = { marketViewModel.removeIndex(it) },
+                onIndexClick = onNavigateToAnalysis
+            )
+        }
+        
+        item {
+            SectionHeader("Strategic Watchlist", onDetailClick = {})
+            WatchlistContent(
+                stocks = uiState.watchlist,
+                isEditMode = uiState.isEditMode,
+                onRemove = { marketViewModel.removeStock(it) },
+                onStockClick = onNavigateToAnalysis
+            )
+        }
+        
+        item {
+            SectionHeader("Crypto Intelligence", onDetailClick = {})
+            CryptoContent(
+                cryptos = uiState.cryptos,
+                isEditMode = uiState.isEditMode,
+                onRemove = { marketViewModel.removeCrypto(it) },
+                onCryptoClick = onNavigateToAnalysis
+            )
         }
     }
 }
@@ -227,23 +220,6 @@ fun MacroTicker(macroData: List<MacroData>) {
                 Spacer(Modifier.width(4.dp))
                 Text(parts.getOrNull(1) ?: "--", color = MaterialTheme.colorScheme.onBackground, fontSize = 9.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace)
             }
-        }
-    }
-}
-
-@Composable
-fun MarketBreadthIndicator(advancing: Int, declining: Int) {
-    val total = (advancing + declining).coerceAtLeast(1)
-    val ratio = advancing.toFloat() / total
-
-    Column(modifier = Modifier.padding(vertical = 2.dp)) {
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            Text("ADVANCING: $advancing", color = AppGreen, fontSize = 8.sp, fontWeight = FontWeight.ExtraBold)
-            Text("DECLINING: $declining", color = AppRed, fontSize = 8.sp, fontWeight = FontWeight.ExtraBold)
-        }
-        Spacer(Modifier.height(4.dp))
-        Row(modifier = Modifier.fillMaxWidth().height(2.dp).background(AppRed.copy(alpha = 0.2f), RoundedCornerShape(1.dp))) {
-            Box(modifier = Modifier.fillMaxHeight().weight(ratio.coerceIn(0.01f, 0.99f)).background(AppGreen, RoundedCornerShape(1.dp)))
         }
     }
 }
@@ -474,9 +450,15 @@ fun AssetRow(
             Sparkline(isPositive = isPositive)
         }
 
-        Column(modifier = Modifier.weight(1f), horizontalAlignment = Alignment.End) {
+        Column(modifier = Modifier.weight(1.2f), horizontalAlignment = Alignment.End) {
+            val formattedPrice = when {
+                price <= 0.0 -> "0.00"
+                price < 0.001 -> String.format(java.util.Locale.US, "%.7f", price)
+                price < 1.0 -> String.format(java.util.Locale.US, "%.4f", price)
+                else -> String.format(java.util.Locale.US, "%,.2f", price)
+            }
             Text(
-                "%.2f".format(price),
+                formattedPrice,
                 color = MaterialTheme.colorScheme.onSurface,
                 fontWeight = FontWeight.Bold,
                 fontSize = 13.sp,

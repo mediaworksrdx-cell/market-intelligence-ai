@@ -46,11 +46,14 @@ class MarketRepositoryImpl @Inject constructor(
     init {
         CoroutineScope(Dispatchers.IO).launch {
             val prefs = context.getSharedPreferences("market_repo_prefs", Context.MODE_PRIVATE)
-            val isSeeded = prefs.getBoolean("has_seeded_defaults_v3", false)
+            val isSeeded = prefs.getBoolean("has_seeded_hub_v9", false)
             if (!isSeeded) {
+                watchlistDao.clearAll()
                 val initialEntities = mutableListOf<WatchlistEntity>()
 
-                MockData.INDICES_IN.forEach {
+                // India, US, and UAE Indices
+                val allIndices = MockData.INDICES_IN + MockData.INDICES_US + MockData.INDICES_UAE
+                allIndices.forEach {
                     initialEntities.add(
                         WatchlistEntity(
                             symbol = it.symbol,
@@ -63,7 +66,9 @@ class MarketRepositoryImpl @Inject constructor(
                     )
                 }
 
-                MockData.WATCHLIST_INITIAL.forEach {
+                // India, US, and UAE Stocks
+                val allStocks = MockData.WATCHLIST_INITIAL + MockData.WATCHLIST_US + MockData.WATCHLIST_UAE
+                allStocks.forEach {
                     initialEntities.add(
                         WatchlistEntity(
                             symbol = it.symbol,
@@ -90,8 +95,21 @@ class MarketRepositoryImpl @Inject constructor(
                 }
 
                 watchlistDao.insertAll(initialEntities)
-                prefs.edit().putBoolean("has_seeded_defaults_v3", true).apply()
+                prefs.edit().putBoolean("has_seeded_hub_v9", true).apply()
             }
+            // Always ensure TCS token is corrected to 2953217L
+            try {
+                watchlistDao.insert(
+                    WatchlistEntity(
+                        symbol = "TCS.NS",
+                        name = "Tata Consultancy",
+                        type = "STOCK",
+                        price = 2200.0,
+                        changePercent = -2.48,
+                        instrumentToken = 2953217L
+                    )
+                )
+            } catch (_: Exception) {}
         }
     }
 
@@ -145,15 +163,33 @@ class MarketRepositoryImpl @Inject constructor(
     override suspend fun getCryptoLivePrices(): List<CryptoData> {
         return withContext(Dispatchers.IO) {
             val currentTime = System.currentTimeMillis()
-            if (currentTime - lastFetchTime > 30000 || cachedCryptoPrices.isEmpty()) {
+            if (currentTime - lastFetchTime > 2000L || cachedCryptoPrices.isEmpty()) {
+                var fetched: List<CryptoData> = emptyList()
+                // 1. Primary: fetch from Trade Engine backend (/crypto-prices) which holds live CoinGecko authenticated & cached prices
                 try {
-                    val apiPrices = coinGeckoApiService.getLiveCryptoPrices()
-                    if (apiPrices.isNotEmpty()) {
-                        cachedCryptoPrices = apiPrices
-                        lastFetchTime = currentTime
+                    val serverPrices = apiService.getCryptoPrices()
+                    if (serverPrices.isNotEmpty()) {
+                        fetched = serverPrices
                     }
                 } catch (e: Exception) {
-                    Log.e(TAG, "Failed to fetch crypto prices", e)
+                    Log.w(TAG, "Trade engine crypto-prices unavailable, falling back to direct CoinGecko: ${e.message}")
+                }
+
+                // 2. Secondary fallback: direct CoinGecko API
+                if (fetched.isEmpty()) {
+                    try {
+                        val apiPrices = coinGeckoApiService.getLiveCryptoPrices()
+                        if (apiPrices.isNotEmpty()) {
+                            fetched = apiPrices
+                        }
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Direct CoinGecko fetch failed: ${e.message}")
+                    }
+                }
+
+                if (fetched.isNotEmpty()) {
+                    cachedCryptoPrices = fetched
+                    lastFetchTime = currentTime
                 }
             }
             if (cachedCryptoPrices.isEmpty()) {
@@ -169,7 +205,8 @@ class MarketRepositoryImpl @Inject constructor(
             val q = query.trim()
             if (q.isBlank()) return@withContext emptyList()
 
-            val indexMatches = MockData.INDICES_IN.filter {
+            val allIndices = MockData.INDICES_IN + MockData.INDICES_US + MockData.INDICES_UAE
+            val indexMatches = allIndices.filter {
                 it.symbol.contains(q, ignoreCase = true) || it.name.contains(q, ignoreCase = true)
             }.map {
                 SearchResult(it.symbol, it.name, "INDEX")
@@ -181,10 +218,15 @@ class MarketRepositoryImpl @Inject constructor(
                 SearchResult(it.symbol, it.name, "CRYPTO")
             }
 
-            val mockStocks = MockData.WATCHLIST_INITIAL.filter {
+            val allStocks = MockData.WATCHLIST_INITIAL + MockData.WATCHLIST_US + MockData.WATCHLIST_UAE
+            val mockStocks = allStocks.filter {
                 it.symbol.contains(q, ignoreCase = true) || it.name.contains(q, ignoreCase = true)
             }.map {
                 SearchResult(it.symbol, it.name, "STOCK")
+            }
+
+            val catalogMatches = com.example.marketintelligence.data.util.MarketPriceCatalog.getAllKnownAssets().filter {
+                it.symbol.contains(q, ignoreCase = true) || it.name.contains(q, ignoreCase = true)
             }
 
             val apiResults = try {
@@ -206,7 +248,7 @@ class MarketRepositoryImpl @Inject constructor(
                 emptyList()
             }
 
-            (indexMatches + cryptoMatches + mockStocks + apiResults + daoMatches)
+            (indexMatches + cryptoMatches + mockStocks + catalogMatches + apiResults + daoMatches)
                 .distinctBy { it.symbol.uppercase() }
         }
     }
@@ -235,7 +277,7 @@ class MarketRepositoryImpl @Inject constructor(
             "RELIANCE" -> 738561L
             "HDFCBANK" -> 341249L
             "INFY" -> 408065L
-            "TCS" -> 2953213L
+            "TCS" -> 2953217L
             "ICICIBANK" -> 1270529L
             "BHARTIARTL" -> 2714625L
             "TATAMOTORS" -> 884737L
@@ -259,7 +301,7 @@ class MarketRepositoryImpl @Inject constructor(
             "RELIANCE" -> 2950.0 to 1.0
             "HDFCBANK" -> 1550.0 to -0.6
             "INFY" -> 1450.0 to 1.0
-            "TCS" -> 4000.0 to 0.5
+            "TCS" -> 2200.0 to -2.48
             "ICICIBANK" -> 1120.0 to 0.8
             "SBIN" -> 830.0 to 1.2
             "BHARTIARTL" -> 1410.0 to 0.4
@@ -274,8 +316,7 @@ class MarketRepositoryImpl @Inject constructor(
             "SHIB" -> 0.0000185 to 2.90
             "ADA" -> 0.48 to 1.15
             "XRP" -> 0.52 to -0.80
-            "AVAX" -> 32.40 to 2.30
-            else -> 100.0 to 0.0
+            else -> com.example.marketintelligence.data.util.MarketPriceCatalog.getFallbackPrice(symbol) to 0.0
         }
     }
 
@@ -385,7 +426,7 @@ fun WatchlistEntity.toStockData(): StockData {
         change = 0.0,
         changePercent = this.changePercent,
         volume = "",
-        market = MarketType.IN,
+        market = com.example.marketintelligence.data.util.MarketPriceCatalog.getMarketType(this.symbol),
         instrumentToken = this.instrumentToken
     )
 }
@@ -398,7 +439,7 @@ fun WatchlistEntity.toIndexData(): IndexData {
         openPrice = this.price, // Initialize openPrice with the same value as price
         change = 0.0,
         changePercent = this.changePercent,
-        market = MarketType.IN,
+        market = com.example.marketintelligence.data.util.MarketPriceCatalog.getMarketType(this.symbol),
         instrumentToken = this.instrumentToken
     )
 }

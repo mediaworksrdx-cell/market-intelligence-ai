@@ -26,7 +26,8 @@ fun DrawScope.drawGridLayer(
     chartAreaHeight: Float,
     rightMargin: Float,
     bottomMargin: Float,
-    textMeasurer: TextMeasurer
+    textMeasurer: TextMeasurer,
+    timeframe: String = "1D"
 ) {
     val gridColor = Color(0xFF1A1A1A)
     val textColor = Color(0xFF666666)
@@ -69,14 +70,47 @@ fun DrawScope.drawGridLayer(
         )
     }
 
-    // ── Vertical grid lines (time labels) ──
+    // ── Vertical grid lines (time / date labels) ──
     val visibleCount = visibleEndIndex - visibleStartIndex
     if (visibleCount <= 0 || candles.isEmpty()) return
 
     val candleWidth = chartWidth / visibleCount
     val timeStep = maxOf(1, visibleCount / 5)
+
+    val firstRaw = candles.firstOrNull()?.openTime ?: 0L
+    val lastRaw = candles.lastOrNull()?.openTime ?: 0L
+    val firstMs = if (firstRaw in 1..99_999_999_999L) firstRaw * 1000L else firstRaw
+    val lastMs = if (lastRaw in 1..99_999_999_999L) lastRaw * 1000L else lastRaw
+    val avgCandleDurationMs = if (candles.size > 1) {
+        kotlin.math.abs(lastMs - firstMs) / (candles.size - 1).coerceAtLeast(1)
+    } else 86_400_000L
+
+    val isDailyOrHigher = timeframe.equals("1D", ignoreCase = true) ||
+        timeframe.equals("D", ignoreCase = true) ||
+        timeframe.equals("1W", ignoreCase = true) ||
+        timeframe.equals("W", ignoreCase = true) ||
+        timeframe.equals("1M", ignoreCase = true) ||
+        timeframe.equals("M", ignoreCase = true) ||
+        timeframe.contains("day", ignoreCase = true) ||
+        timeframe.contains("week", ignoreCase = true) ||
+        timeframe.contains("month", ignoreCase = true) ||
+        avgCandleDurationMs >= 20 * 3600 * 1000L
+
+    val calFirst = Calendar.getInstance().apply { timeInMillis = firstMs }
+    val calLast = Calendar.getInstance().apply { timeInMillis = lastMs }
+    val spansMultipleYears = calFirst.get(Calendar.YEAR) != calLast.get(Calendar.YEAR)
+
+    val dateFormat = if (spansMultipleYears) {
+        SimpleDateFormat("dd MMM ''yy", Locale.US)
+    } else {
+        SimpleDateFormat("dd MMM", Locale.US)
+    }
     val timeFormat = SimpleDateFormat("HH:mm", Locale.US)
-    val dateFormat = SimpleDateFormat("dd MMM", Locale.US)
+
+    val totalSpanMs = kotlin.math.abs(lastMs - firstMs)
+    val isMultiDayIntraday = !isDailyOrHigher && totalSpanMs > 24 * 3600 * 1000L
+
+    var prevDayOfYear = -1
 
     for (i in visibleStartIndex until visibleEndIndex step timeStep) {
         val localIndex = i - visibleStartIndex
@@ -91,10 +125,31 @@ fun DrawScope.drawGridLayer(
             pathEffect = PathEffect.dashPathEffect(floatArrayOf(4.dp.toPx(), 4.dp.toPx()))
         )
 
-        // Time label at bottom
+        // Time / Date label at bottom
         if (i < candles.size) {
-            val time = Date(candles[i].openTime)
-            val label = timeFormat.format(time)
+            val rawTime = candles[i].openTime
+            val timeMs = if (rawTime in 1..99_999_999_999L) rawTime * 1000L else rawTime
+            val date = Date(timeMs)
+            val currentCal = Calendar.getInstance().apply { time = date }
+            val currentDayOfYear = currentCal.get(Calendar.DAY_OF_YEAR)
+
+            val label = when {
+                isDailyOrHigher -> {
+                    dateFormat.format(date)
+                }
+                isMultiDayIntraday -> {
+                    if (prevDayOfYear != currentDayOfYear) {
+                        dateFormat.format(date)
+                    } else {
+                        timeFormat.format(date)
+                    }
+                }
+                else -> {
+                    timeFormat.format(date)
+                }
+            }
+            prevDayOfYear = currentDayOfYear
+
             val textResult = textMeasurer.measure(
                 label,
                 TextStyle(

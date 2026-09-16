@@ -46,15 +46,21 @@ class InstrumentSearchViewModel @Inject constructor(
 
     // Curated suggestions when search query is empty
     private val defaultSuggestions = listOf(
-        // Core Indices
+        // Core Indian Indices
         SearchResult("NIFTY 50", "NIFTY 50 Index", "INDEX"),
         SearchResult("BANKNIFTY", "Nifty Bank Index", "INDEX"),
         SearchResult("FINNIFTY", "Nifty Financial Services", "INDEX"),
         SearchResult("SENSEX", "BSE SENSEX", "INDEX"),
         SearchResult("MIDCPNIFTY", "NIFTY Midcap 50", "INDEX"),
-        SearchResult("NIFTY NEXT 50", "Nifty Next 50", "INDEX"),
-        SearchResult("NIFTY IT", "Nifty IT Sector", "INDEX"),
-        // Strategic Watchlist Stocks
+        // Core US Indices
+        SearchResult("SPX", "S&P 500 Index", "INDEX"),
+        SearchResult("NDX", "NASDAQ 100 Index", "INDEX"),
+        SearchResult("DJI", "Dow Jones Industrial", "INDEX"),
+        // Core UAE Indices
+        SearchResult("DFMGI", "DFM General Index", "INDEX"),
+        SearchResult("ADX", "Abu Dhabi Securities Exchange", "INDEX"),
+
+        // Indian Equities
         SearchResult("RELIANCE.NS", "Reliance Industries Ltd", "STOCK"),
         SearchResult("TCS.NS", "Tata Consultancy Services", "STOCK"),
         SearchResult("HDFCBANK.NS", "HDFC Bank Ltd", "STOCK"),
@@ -65,6 +71,23 @@ class InstrumentSearchViewModel @Inject constructor(
         SearchResult("ITC.NS", "ITC Limited", "STOCK"),
         SearchResult("SBIN.NS", "State Bank of India", "STOCK"),
         SearchResult("LT.NS", "Larsen & Toubro Ltd", "STOCK"),
+
+        // US Equities
+        SearchResult("AAPL", "Apple Inc.", "STOCK"),
+        SearchResult("NVDA", "NVIDIA Corporation", "STOCK"),
+        SearchResult("MSFT", "Microsoft Corporation", "STOCK"),
+        SearchResult("GOOGL", "Alphabet Inc.", "STOCK"),
+        SearchResult("AMZN", "Amazon.com Inc.", "STOCK"),
+        SearchResult("TSLA", "Tesla Inc.", "STOCK"),
+        SearchResult("META", "Meta Platforms Inc.", "STOCK"),
+
+        // UAE Equities
+        SearchResult("EMAAR", "Emaar Properties PJSC", "STOCK"),
+        SearchResult("DEWA", "Dubai Electricity & Water", "STOCK"),
+        SearchResult("FAB", "First Abu Dhabi Bank", "STOCK"),
+        SearchResult("ALDAR", "Aldar Properties", "STOCK"),
+        SearchResult("EMIRATESNBD", "Emirates NBD Bank", "STOCK"),
+
         // Crypto Intelligence
         SearchResult("BTC", "Bitcoin", "CRYPTO"),
         SearchResult("ETH", "Ethereum", "CRYPTO"),

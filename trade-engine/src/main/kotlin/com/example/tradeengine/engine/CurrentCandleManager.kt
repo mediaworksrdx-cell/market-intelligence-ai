@@ -11,8 +11,8 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
 class CurrentCandleManager(
-    private val symbol: String,
-    private val timeframe: String,
+    private var symbol: String = "",
+    private var timeframe: String = "1m",
     private val candleDataSource: CandleDataSource,
     private val coroutineScope: CoroutineScope
 ) {
@@ -20,30 +20,54 @@ class CurrentCandleManager(
     private val _currentCandle = MutableStateFlow<Candle?>(null)
     val currentCandle = _currentCandle.asStateFlow()
 
-    private val timeFrameMillis = timeframe.toTimeFrame().toMillis()
+    private val candlesMap = java.util.concurrent.ConcurrentHashMap<String, Candle>()
 
     init {
+        if (symbol.isNotBlank()) {
+            coroutineScope.launch {
+                _currentCandle.value = candleDataSource.getLatestCandle(symbol, timeframe)
+            }
+        }
+    }
+
+    fun setTrackedInstrument(symbol: String, timeframe: String) {
+        this.symbol = symbol
+        this.timeframe = timeframe
         coroutineScope.launch {
             _currentCandle.value = candleDataSource.getLatestCandle(symbol, timeframe)
         }
     }
 
     fun processTick(tick: Tick) {
+        processTick(tick, this.timeframe)
+    }
+
+    fun processTick(tick: Tick, overrideTimeframe: String) {
         coroutineScope.launch {
-            val candle = _currentCandle.value
+            val actualSymbol = tick.symbol.ifBlank { symbol }
+            val actualTimeframe = overrideTimeframe.ifBlank { "1m" }
+            val timeFrameMillis = actualTimeframe.toTimeFrame().toMillis()
+            val key = "${actualSymbol.uppercase()}_${actualTimeframe.uppercase()}"
+
+            var candle = candlesMap[key] ?: _currentCandle.value?.takeIf { it.symbol.equals(actualSymbol, ignoreCase = true) }
+            if (candle == null) {
+                candle = candleDataSource.getLatestCandle(actualSymbol, actualTimeframe)
+            }
 
             if (candle == null || candle.isClosed) {
                 // Create a new candle
-                val newCandle = createNewCandle(tick)
+                val newCandle = createNewCandle(tick, actualSymbol, actualTimeframe, timeFrameMillis)
                 candleDataSource.insertCandles(listOf(newCandle))
+                candlesMap[key] = newCandle
                 _currentCandle.value = newCandle
             } else {
                 // Update the current candle
                 if (tick.timestamp >= candle.closeTime) {
                     // Time to close the current candle and create a new one
-                    candleDataSource.closeCandle(candle.openTime, symbol, timeframe)
-                    val newCandle = createNewCandle(tick)
+                    candleDataSource.closeCandle(candle.openTime, actualSymbol, actualTimeframe)
+                    val newCandle = createNewCandle(tick, actualSymbol, actualTimeframe, timeFrameMillis)
                     candleDataSource.insertCandles(listOf(newCandle))
+                    candlesMap[key] = newCandle
                     _currentCandle.value = newCandle
                 } else {
                     // Update the existing candle
@@ -62,24 +86,25 @@ class CurrentCandleManager(
                         updatedCandle.close,
                         updatedCandle.volume
                     )
+                    candlesMap[key] = updatedCandle
                     _currentCandle.value = updatedCandle
                 }
             }
         }
     }
 
-    private fun createNewCandle(tick: Tick): Candle {
-        val openTime = (tick.timestamp / timeFrameMillis) * timeFrameMillis
+    private fun createNewCandle(tick: Tick, sym: String, tf: String, tfMillis: Long): Candle {
+        val openTime = (tick.timestamp / tfMillis) * tfMillis
         return Candle(
-            symbol = symbol,
-            timeframe = timeframe,
+            symbol = sym,
+            timeframe = tf,
             openTime = openTime,
             open = tick.price,
             high = tick.price,
             low = tick.price,
             close = tick.price,
             volume = tick.volume,
-            closeTime = openTime + timeFrameMillis,
+            closeTime = openTime + tfMillis,
             isClosed = false
         )
     }

@@ -50,6 +50,7 @@ dependencies {
     implementation(libs.ktor.server.core.jvm)
     implementation(libs.ktor.server.netty.jvm)
     implementation(libs.ktor.server.content.negotiation.jvm)
+    implementation(libs.ktor.server.websockets.jvm)
     implementation(libs.ktor.server.status.pages)
     implementation(libs.ktor.serialization.kotlinx.json)
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.3")

@@ -28,7 +28,8 @@ fun DrawScope.drawCrosshairLayer(
     priceMax: Double,
     chartAreaHeight: Float,
     rightMargin: Float,
-    textMeasurer: TextMeasurer
+    textMeasurer: TextMeasurer,
+    timeframe: String = "1D"
 ) {
     if (position == null) return
     val chartWidth = size.width - rightMargin
@@ -69,74 +70,40 @@ fun DrawScope.drawCrosshairLayer(
         topLeft = Offset(chartWidth + 4.dp.toPx(), clampedY - priceLabelResult.size.height / 2f)
     )
 
-    // ── OHLCV Tooltip ──
+    // ── Time / Date label on bottom axis ──
     val candleWidth = chartWidth / visibleCount
     val candleIndex = visibleStartIndex + (clampedX / candleWidth).toInt()
 
     if (candleIndex in candles.indices) {
-        val candle = candles[candleIndex]
-        val isBullish = candle.close >= candle.open
-        val tooltipColor = if (isBullish) Color(0xFF00E676) else Color(0xFFFF1744)
+        val rawTime = candles[candleIndex].openTime
+        val timeMs = if (rawTime in 1..99_999_999_999L) rawTime * 1000L else rawTime
+        val date = Date(timeMs)
 
-        val timeFormat = SimpleDateFormat("dd MMM HH:mm", Locale.US)
-        val timeStr = timeFormat.format(Date(candle.openTime))
+        val firstRaw = candles.firstOrNull()?.openTime ?: 0L
+        val lastRaw = candles.lastOrNull()?.openTime ?: 0L
+        val firstMs = if (firstRaw in 1..99_999_999_999L) firstRaw * 1000L else firstRaw
+        val lastMs = if (lastRaw in 1..99_999_999_999L) lastRaw * 1000L else lastRaw
+        val avgCandleDurationMs = if (candles.size > 1) {
+            kotlin.math.abs(lastMs - firstMs) / (candles.size - 1).coerceAtLeast(1)
+        } else 86_400_000L
 
-        val tooltipLines = listOf(
-            timeStr,
-            "O: ${formatCrosshairPrice(candle.open)}",
-            "H: ${formatCrosshairPrice(candle.high)}",
-            "L: ${formatCrosshairPrice(candle.low)}",
-            "C: ${formatCrosshairPrice(candle.close)}",
-            "V: ${formatVolume(candle.volume)}"
-        )
+        val isDailyOrHigher = timeframe.equals("1D", ignoreCase = true) ||
+            timeframe.equals("D", ignoreCase = true) ||
+            timeframe.equals("1W", ignoreCase = true) ||
+            timeframe.equals("W", ignoreCase = true) ||
+            timeframe.equals("1M", ignoreCase = true) ||
+            timeframe.equals("M", ignoreCase = true) ||
+            timeframe.contains("day", ignoreCase = true) ||
+            timeframe.contains("week", ignoreCase = true) ||
+            timeframe.contains("month", ignoreCase = true) ||
+            avgCandleDurationMs >= 20 * 3600 * 1000L
 
-        val tooltipStyle = TextStyle(
-            color = Color.White,
-            fontSize = 9.sp,
-            fontFamily = FontFamily.Monospace
-        )
-        val measuredLines = tooltipLines.map { textMeasurer.measure(it, tooltipStyle) }
-        val maxWidth = measuredLines.maxOf { it.size.width }
-        val totalHeight = measuredLines.sumOf { it.size.height }
-
-        val padding = 6.dp.toPx()
-        val tooltipWidth = maxWidth + padding * 2
-        val tooltipHeight = totalHeight + padding * 2 + (tooltipLines.size - 1) * 2.dp.toPx()
-
-        // Position tooltip near crosshair but avoid edge clipping
-        val tooltipX = if (clampedX + tooltipWidth + 16.dp.toPx() > chartWidth) {
-            clampedX - tooltipWidth - 8.dp.toPx()
+        val timeStr = if (isDailyOrHigher) {
+            SimpleDateFormat("dd MMM yyyy", Locale.US).format(date)
         } else {
-            clampedX + 8.dp.toPx()
+            SimpleDateFormat("dd MMM, HH:mm", Locale.US).format(date)
         }
-        val tooltipY = maxOf(0f, minOf(clampedY - tooltipHeight / 2, chartAreaHeight - tooltipHeight))
 
-        // Background
-        drawRect(
-            Color(0xDD111111),
-            topLeft = Offset(tooltipX, tooltipY),
-            size = Size(tooltipWidth, tooltipHeight)
-        )
-
-        // Left accent bar
-        drawRect(
-            tooltipColor,
-            topLeft = Offset(tooltipX, tooltipY),
-            size = Size(2.dp.toPx(), tooltipHeight)
-        )
-
-        // Text lines
-        var currentY = tooltipY + padding
-        for (line in measuredLines) {
-            drawText(line, topLeft = Offset(tooltipX + padding, currentY))
-            currentY += line.size.height + 2.dp.toPx()
-        }
-    }
-
-    // ── Time label on bottom axis ──
-    if (candleIndex in candles.indices) {
-        val timeFormat = SimpleDateFormat("HH:mm", Locale.US)
-        val timeStr = timeFormat.format(Date(candles[candleIndex].openTime))
         val timeLabelResult = textMeasurer.measure(
             timeStr,
             TextStyle(color = Color.White, fontSize = 8.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace)
@@ -157,7 +124,7 @@ fun DrawScope.drawCrosshairLayer(
     }
 }
 
-private fun formatCrosshairPrice(price: Double): String {
+internal fun formatCrosshairPrice(price: Double): String {
     return when {
         price >= 10000 -> "%.0f".format(price)
         price >= 100 -> "%.1f".format(price)
@@ -166,11 +133,15 @@ private fun formatCrosshairPrice(price: Double): String {
     }
 }
 
-private fun formatVolume(volume: Double): String {
+internal fun formatVolume(volume: Double): String {
     return when {
         volume >= 1_000_000_000 -> "%.2fB".format(volume / 1_000_000_000)
         volume >= 1_000_000 -> "%.2fM".format(volume / 1_000_000)
         volume >= 1_000 -> "%.1fK".format(volume / 1_000)
-        else -> "%.0f".format(volume)
+        volume >= 10 -> "%.1f".format(volume)
+        volume >= 1 -> "%.2f".format(volume)
+        volume > 0 -> "%.3f".format(volume)
+        else -> "0"
     }
 }
+

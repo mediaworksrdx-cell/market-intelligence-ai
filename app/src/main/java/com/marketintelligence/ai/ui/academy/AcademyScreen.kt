@@ -10,6 +10,7 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -19,6 +20,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -37,9 +39,9 @@ fun AcademyScreen(viewModel: AcademyViewModel = hiltViewModel()) {
 
     Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         Column(modifier = Modifier.fillMaxSize()) {
-            Column(modifier = Modifier.padding(16.dp)) {
-                Text("INTELLIGENCE MENTOR", color = MaterialTheme.colorScheme.onBackground, fontSize = 18.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 1.sp)
-                Text("Institutional Learning & Simulation", color = MaterialTheme.colorScheme.primary, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+            Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
+                Text("INTELLIGENCE MENTOR", color = MaterialTheme.colorScheme.onBackground, fontSize = 14.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 0.5.sp)
+                Text("Institutional Learning & Simulation", color = MaterialTheme.colorScheme.primary, fontSize = 8.5.sp, fontWeight = FontWeight.Bold)
             }
             
             TabRow(
@@ -61,14 +63,14 @@ fun AcademyScreen(viewModel: AcademyViewModel = hiltViewModel()) {
                     Tab(
                         selected = selectedTab == index,
                         onClick = { selectedTab = index },
-                        text = { Text(title, fontSize = 10.sp, fontWeight = FontWeight.Bold) }
+                        text = { Text(title, fontSize = 9.5.sp, fontWeight = FontWeight.Bold) }
                     )
                 }
             }
             
             Spacer(modifier = Modifier.height(4.dp))
             
-            Box(modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp)) {
+            Box(modifier = Modifier.fillMaxSize().padding(horizontal = 12.dp)) {
                 when(selectedTab) {
                     0 -> AskMentorTab(uiState, viewModel)
                     1 -> CurriculumTab(uiState.modules) { viewModel.selectModule(it) }
@@ -137,57 +139,71 @@ fun StatCard(label: String, value: String, color: Color, modifier: Modifier) {
 
 @Composable
 fun AskMentorTab(uiState: AcademyUiState, viewModel: AcademyViewModel) {
-    Column(modifier = Modifier.fillMaxSize().padding(vertical = 12.dp)) {
-        LazyColumn(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+    Column(modifier = Modifier.fillMaxSize().padding(vertical = 8.dp)) {
+        LazyColumn(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             items(uiState.chatHistory) { chat ->
                 ChatBubble(chat)
             }
         }
         
-        Spacer(Modifier.height(12.dp))
+        Spacer(Modifier.height(6.dp))
         
         // Suggested Questions
-        LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             items(uiState.suggestedQuestions) { question ->
                 Surface(
                     color = MaterialTheme.colorScheme.surfaceVariant,
-                    shape = RoundedCornerShape(16.dp),
+                    shape = RoundedCornerShape(14.dp),
                     modifier = Modifier
                         .clickable { viewModel.sendMessage(question) }
-                        .border(0.5.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(16.dp))
+                        .border(0.5.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(14.dp))
                 ) {
-                    Text(question, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 9.sp, modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp))
+                    Text(question, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 8.5.sp, modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp))
                 }
             }
         }
         
-        Spacer(Modifier.height(8.dp))
+        Spacer(Modifier.height(6.dp))
         
         Row(verticalAlignment = Alignment.CenterVertically) {
-            TextField(
+            BasicTextField(
                 value = uiState.currentInput,
                 onValueChange = { viewModel.onInputChanged(it) },
-                modifier = Modifier.weight(1f).height(56.dp), // Fixed height to 56dp
-                placeholder = { Text("Query AI Mentor...", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp) },
-                textStyle = TextStyle(color = MaterialTheme.colorScheme.onSurface, fontSize = 13.sp, fontWeight = FontWeight.Medium),
-                colors = TextFieldDefaults.colors(
-                    focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-                    unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-                    focusedIndicatorColor = MaterialTheme.colorScheme.primary,
-                    unfocusedIndicatorColor = Color.Transparent,
-                    focusedTextColor = MaterialTheme.colorScheme.onSurface,
-                    unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
-                    cursorColor = MaterialTheme.colorScheme.primary
+                modifier = Modifier
+                    .weight(1f)
+                    .height(40.dp)
+                    .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(6.dp))
+                    .padding(horizontal = 12.dp),
+                textStyle = TextStyle(
+                    color = MaterialTheme.colorScheme.onSurface,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Medium
                 ),
-                shape = RoundedCornerShape(8.dp)
+                singleLine = true,
+                cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+                decorationBox = { innerTextField ->
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.CenterStart
+                    ) {
+                        if (uiState.currentInput.isEmpty()) {
+                            Text(
+                                "Query AI Mentor...",
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                fontSize = 10.sp
+                            )
+                        }
+                        innerTextField()
+                    }
+                }
             )
-            Spacer(Modifier.width(8.dp))
+            Spacer(Modifier.width(6.dp))
             IconButton(
                 onClick = { viewModel.sendMessage() },
-                modifier = Modifier.size(56.dp).background(MaterialTheme.colorScheme.primary, CircleShape) // Match button size to field
+                modifier = Modifier.size(40.dp).background(MaterialTheme.colorScheme.primary, CircleShape)
             ) {
-                if (uiState.isLoading) CircularProgressIndicator(Modifier.size(18.dp), color = MaterialTheme.colorScheme.onPrimary, strokeWidth = 2.dp)
-                else Icon(Icons.Default.Send, null, tint = MaterialTheme.colorScheme.onPrimary, modifier = Modifier.size(18.dp))
+                if (uiState.isLoading) CircularProgressIndicator(Modifier.size(16.dp), color = MaterialTheme.colorScheme.onPrimary, strokeWidth = 2.dp)
+                else Icon(Icons.Default.Send, null, tint = MaterialTheme.colorScheme.onPrimary, modifier = Modifier.size(15.dp))
             }
         }
     }

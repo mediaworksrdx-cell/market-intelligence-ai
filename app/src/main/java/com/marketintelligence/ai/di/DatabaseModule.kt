@@ -37,8 +37,9 @@ object DatabaseModule {
                 // Pre-populate default strategic stocks
                 db.execSQL("INSERT INTO watchlist (symbol, name, type, price, changePercent, instrumentToken) VALUES ('RELIANCE.NS', 'Reliance Industries', 'STOCK', 2950.0, 1.0, 738561)")
                 db.execSQL("INSERT INTO watchlist (symbol, name, type, price, changePercent, instrumentToken) VALUES ('HDFCBANK.NS', 'HDFC Bank', 'STOCK', 1550.0, -0.6, 341249)")
-                db.execSQL("INSERT INTO watchlist (symbol, name, type, price, changePercent, instrumentToken) VALUES ('INFY.NS', 'Infosys', 'STOCK', 1450.0, 1.0, 408065)")
-                db.execSQL("INSERT INTO watchlist (symbol, name, type, price, changePercent, instrumentToken) VALUES ('TCS.NS', 'Tata Consultancy', 'STOCK', 4000.0, 0.5, 2953213)")
+                db.execSQL("INSERT INTO watchlist (symbol, name, type, price, changePercent, instrumentToken) VALUES ('TCS.NS', 'Tata Consultancy', 'STOCK', 2200.0, -2.48, 2953217)")
+                db.execSQL("INSERT INTO watchlist (symbol, name, type, price, changePercent, instrumentToken) VALUES ('ICICIBANK.NS', 'ICICI Bank', 'STOCK', 1120.0, 1.35, 1270529)")
+                db.execSQL("INSERT INTO watchlist (symbol, name, type, price, changePercent, instrumentToken) VALUES ('SBIN.NS', 'State Bank of India', 'STOCK', 825.0, 0.86, 779521)")
 
                 // Pre-populate top 6 default cryptos (BTC, ETH, DOGE, SOL, BNB, SHIB)
                 db.execSQL("INSERT INTO watchlist (symbol, name, type, price, changePercent, instrumentToken) VALUES ('BTC', 'Bitcoin', 'CRYPTO', 67450.0, 2.14, 0)")

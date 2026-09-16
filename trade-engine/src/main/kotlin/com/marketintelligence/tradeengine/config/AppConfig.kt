@@ -35,7 +35,7 @@ object AppConfig {
     val accessToken: String = properties.getProperty("ZERODHA_ACCESS_TOKEN", System.getenv("ZERODHA_ACCESS_TOKEN") ?: "")
 
     // --- CoinGecko API Credentials --- //
-    val coingeckoApiKey: String = properties.getProperty("COINGECKO_API_KEY", System.getenv("COINGECKO_API_KEY") ?: "CG-wK7stPKegcs4THjjBviunLwy")
+    val coingeckoApiKey: String = properties.getProperty("COINGECKO_API_KEY", System.getenv("COINGECKO_API_KEY") ?: "CG-TDEGaehYzYVRpRvSnWr77Ybp")
 
     // --- Massive / Polygon API Credentials --- //
     val massiveApiKey: String = properties.getProperty("MASSIVE_API_KEY", System.getenv("MASSIVE_API_KEY") ?: "Lcz6VOZUXzeoxZghYy3V3FfgATTdpyvm")
@@ -49,7 +49,13 @@ object AppConfig {
         738561L to "RELIANCE.NS",
         341249L to "HDFCBANK.NS",
         408065L to "INFY.NS",
-        2953213L to "TCS.NS"
+        2953217L to "TCS.NS",
+        1270529L to "ICICIBANK.NS",
+        779521L to "SBIN.NS",
+        2714625L to "BHARTIARTL.NS",
+        424961L to "ITC.NS",
+        2939649L to "LT.NS",
+        884737L to "TATAMOTORS.NS"
     )
 
     val instrumentTokens = symbolMap.keys.toList()

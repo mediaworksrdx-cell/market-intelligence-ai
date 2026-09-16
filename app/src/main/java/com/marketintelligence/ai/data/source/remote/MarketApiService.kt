@@ -23,6 +23,9 @@ interface MarketApiService {
     @GET("live-prices")
     suspend fun getLivePrices(): List<LivePrice>
 
+    @GET("crypto-prices")
+    suspend fun getCryptoPrices(): List<com.marketintelligence.ai.domain.model.CryptoData>
+
     @GET("search")
     suspend fun search(@Query("query") query: String): List<SearchResult>
 

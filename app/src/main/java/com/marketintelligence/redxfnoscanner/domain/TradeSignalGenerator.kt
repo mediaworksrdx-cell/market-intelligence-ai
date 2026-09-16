@@ -18,14 +18,15 @@ class TradeSignalGenerator {
         val position = Position(legs = listOf(Leg(option, 1)))
         val riskMetrics = riskManager.calculateRiskMetrics(position)
 
+        val entry = if (option.lastTradedPrice > 0.0) option.lastTradedPrice else 100.0
         return TradeSignal(
             strategy = strategy,
             position = position,
             riskMetrics = riskMetrics,
-            confidenceScore = 0.85, // Example value
-            entryPrice = 100.0, // Example value
-            target = 120.0, // Example value
-            stopLoss = 90.0 // Example value
+            confidenceScore = 0.85,
+            entryPrice = entry,
+            target = entry * 1.20,
+            stopLoss = entry * 0.90
         )
     }
 }

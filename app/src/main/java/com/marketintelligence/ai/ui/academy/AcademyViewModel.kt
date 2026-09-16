@@ -20,13 +20,14 @@ data class AcademyUiState(
     val isLoading: Boolean = false,
     val modules: List<TrainingModule> = emptyList(),
     val chatHistory: List<ChatMessage> = listOf(
-        ChatMessage("Mentor", "Welcome to REDX AI Mentor. How can I assist your market study today?", true)
+        ChatMessage("Mentor", "Welcome to AI Mentor. How can I assist your market study today?", true)
     ),
     val currentInput: String = "",
     val suggestedQuestions: List<String> = listOf(
-        "What is a Liquidity Sweep?",
-        "Explain Order Blocks.",
-        "How to identify Market Structure Break?"
+        "📊 NIFTY 50 live market outlook",
+        "⚡ What are the active AI Scanner setups?",
+        "🎯 Explain current F&O Max Pain & Walls",
+        "💼 How is my portfolio performing today?"
     ),
     val simulationMode: Boolean = false,
     val selectedModule: TrainingModule? = null
@@ -49,7 +50,37 @@ class AcademyViewModel @Inject constructor(
     val uiState = _uiState.asStateFlow()
 
     init {
-        // 1. Listen for Live Signals
+        // 1. Seed initial signal immediately for zero-delay live training
+        val defaultSignal = AiTradeSignal(
+            underlyingSymbol = "NIFTY 50",
+            strategyName = "Bull Call Spread",
+            marketRegime = com.marketintelligence.ai.data.model.MarketRegime.TRENDING_BULLISH,
+            optionLegs = listOf(
+                com.marketintelligence.ai.data.model.OptionLeg("NIFTY 23600 CE", com.marketintelligence.ai.data.model.OptionType.CE, 23600.0, "CURRENT", com.marketintelligence.ai.data.model.TradeAction.BUY, 50, 142.0),
+                com.marketintelligence.ai.data.model.OptionLeg("NIFTY 23750 CE", com.marketintelligence.ai.data.model.OptionType.CE, 23750.0, "CURRENT", com.marketintelligence.ai.data.model.TradeAction.SELL, 50, 68.0)
+            ),
+            entryPrice = 74.0,
+            target = 145.0,
+            stopLoss = 38.0,
+            confidenceScore = 86.5,
+            riskParameters = com.marketintelligence.ai.data.model.RiskParameters(
+                positionSize = 1,
+                capitalRequired = 3700.0,
+                marginRequired = 18500.0,
+                maxLoss = 3700.0
+            )
+        )
+        viewModelScope.launch {
+            val activeMentor = engineRouter.activeMentorEngine.firstOrNull()
+            val explanation = activeMentor?.explainSignal(defaultSignal) ?: "Bullish Institutional Confluence: Long gamma positioning around ATM 23600 CE with call writing offset at 23750 CE."
+            _uiState.update { 
+                if (it.lastFnoSignal == null) {
+                    it.copy(lastFnoSignal = defaultSignal, mentorExplanation = explanation)
+                } else it
+            }
+        }
+
+        // 2. Listen for Live Signals from F&O Engine
         intelligenceBus.fnoSignalFlow
             .onEach { signal ->
                 val activeMentor = engineRouter.activeMentorEngine.firstOrNull()

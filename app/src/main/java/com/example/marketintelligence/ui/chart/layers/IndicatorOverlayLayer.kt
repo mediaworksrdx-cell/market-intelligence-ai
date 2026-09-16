@@ -9,6 +9,8 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.unit.dp
 import com.example.marketintelligence.domain.chart.*
 
+import com.example.tradeengine.models.Candle
+
 /**
  * Draws overlay-type indicators directly on the price chart.
  * Handles SMA, EMA, Bollinger Bands, VWAP, Supertrend, Ichimoku.
@@ -16,6 +18,7 @@ import com.example.marketintelligence.domain.chart.*
 fun DrawScope.drawIndicatorOverlayLayer(
     indicators: List<IndicatorConfig>,
     indicatorResults: Map<IndicatorType, Any>,
+    candles: List<Candle> = emptyList(),
     visibleStartIndex: Int,
     visibleEndIndex: Int,
     priceMin: Double,
@@ -32,22 +35,26 @@ fun DrawScope.drawIndicatorOverlayLayer(
 
     for (config in indicators) {
         if (!config.enabled || !config.type.isOverlay) continue
-        val result = indicatorResults[config.type] ?: continue
+        val result = indicatorResults[config.type]
+            ?: computeOverlayOnTheFly(config, candles)
+            ?: continue
+
+        val baseColor = Color((config.color and 0xFFFFFFFFL).toInt())
 
         when (config.type) {
             IndicatorType.SMA, IndicatorType.EMA, IndicatorType.VWAP -> {
                 @Suppress("UNCHECKED_CAST")
                 val values = result as? List<Double?> ?: continue
-                drawIndicatorLine(values, visibleStartIndex, visibleEndIndex, candleWidth, priceMin, priceRange, chartAreaHeight, Color(config.color))
+                drawIndicatorLine(values, visibleStartIndex, visibleEndIndex, candleWidth, priceMin, priceRange, chartAreaHeight, baseColor, strokeWidth = 1.8f)
             }
             IndicatorType.BOLLINGER_BANDS -> {
                 val bbResult = result as? BollingerResult ?: continue
-                val bandColor = Color(config.color)
-                drawIndicatorLine(bbResult.upper, visibleStartIndex, visibleEndIndex, candleWidth, priceMin, priceRange, chartAreaHeight, bandColor.copy(alpha = 0.6f))
-                drawIndicatorLine(bbResult.middle, visibleStartIndex, visibleEndIndex, candleWidth, priceMin, priceRange, chartAreaHeight, bandColor)
-                drawIndicatorLine(bbResult.lower, visibleStartIndex, visibleEndIndex, candleWidth, priceMin, priceRange, chartAreaHeight, bandColor.copy(alpha = 0.6f))
+                val bandColor = baseColor
+                drawIndicatorLine(bbResult.upper, visibleStartIndex, visibleEndIndex, candleWidth, priceMin, priceRange, chartAreaHeight, bandColor.copy(alpha = 0.7f), strokeWidth = 1.2f)
+                drawIndicatorLine(bbResult.middle, visibleStartIndex, visibleEndIndex, candleWidth, priceMin, priceRange, chartAreaHeight, bandColor, strokeWidth = 1.6f)
+                drawIndicatorLine(bbResult.lower, visibleStartIndex, visibleEndIndex, candleWidth, priceMin, priceRange, chartAreaHeight, bandColor.copy(alpha = 0.7f), strokeWidth = 1.2f)
                 // Fill between bands
-                drawBandFill(bbResult.upper, bbResult.lower, visibleStartIndex, visibleEndIndex, candleWidth, priceMin, priceRange, chartAreaHeight, bandColor.copy(alpha = 0.06f))
+                drawBandFill(bbResult.upper, bbResult.lower, visibleStartIndex, visibleEndIndex, candleWidth, priceMin, priceRange, chartAreaHeight, bandColor.copy(alpha = 0.08f))
             }
             IndicatorType.SUPERTREND -> {
                 val stResult = result as? SupertrendResult ?: continue
@@ -55,17 +62,30 @@ fun DrawScope.drawIndicatorOverlayLayer(
             }
             IndicatorType.ICHIMOKU -> {
                 val ichResult = result as? IchimokuResult ?: continue
-                val teal = Color(config.color)
-                drawIndicatorLine(ichResult.tenkanSen, visibleStartIndex, visibleEndIndex, candleWidth, priceMin, priceRange, chartAreaHeight, Color(0xFF2196F3), strokeWidth = 1f)
-                drawIndicatorLine(ichResult.kijunSen, visibleStartIndex, visibleEndIndex, candleWidth, priceMin, priceRange, chartAreaHeight, Color(0xFFFF5722), strokeWidth = 1f)
-                drawIndicatorLine(ichResult.chikouSpan, visibleStartIndex, visibleEndIndex, candleWidth, priceMin, priceRange, chartAreaHeight, Color(0xFF4CAF50).copy(alpha = 0.5f), strokeWidth = 1f)
+                val teal = baseColor
+                drawIndicatorLine(ichResult.tenkanSen, visibleStartIndex, visibleEndIndex, candleWidth, priceMin, priceRange, chartAreaHeight, Color(0xFF2196F3), strokeWidth = 1.2f)
+                drawIndicatorLine(ichResult.kijunSen, visibleStartIndex, visibleEndIndex, candleWidth, priceMin, priceRange, chartAreaHeight, Color(0xFFFF5722), strokeWidth = 1.2f)
+                drawIndicatorLine(ichResult.chikouSpan, visibleStartIndex, visibleEndIndex, candleWidth, priceMin, priceRange, chartAreaHeight, Color(0xFF4CAF50).copy(alpha = 0.6f), strokeWidth = 1.2f)
                 // Cloud fill
-                drawBandFill(ichResult.senkouSpanA, ichResult.senkouSpanB, visibleStartIndex, visibleEndIndex, candleWidth, priceMin, priceRange, chartAreaHeight, teal.copy(alpha = 0.08f))
-                drawIndicatorLine(ichResult.senkouSpanA, visibleStartIndex, visibleEndIndex, candleWidth, priceMin, priceRange, chartAreaHeight, Color(0xFF00E676).copy(alpha = 0.5f), strokeWidth = 1f)
-                drawIndicatorLine(ichResult.senkouSpanB, visibleStartIndex, visibleEndIndex, candleWidth, priceMin, priceRange, chartAreaHeight, Color(0xFFFF1744).copy(alpha = 0.5f), strokeWidth = 1f)
+                drawBandFill(ichResult.senkouSpanA, ichResult.senkouSpanB, visibleStartIndex, visibleEndIndex, candleWidth, priceMin, priceRange, chartAreaHeight, teal.copy(alpha = 0.12f))
+                drawIndicatorLine(ichResult.senkouSpanA, visibleStartIndex, visibleEndIndex, candleWidth, priceMin, priceRange, chartAreaHeight, Color(0xFF00E676).copy(alpha = 0.6f), strokeWidth = 1.2f)
+                drawIndicatorLine(ichResult.senkouSpanB, visibleStartIndex, visibleEndIndex, candleWidth, priceMin, priceRange, chartAreaHeight, Color(0xFFFF1744).copy(alpha = 0.6f), strokeWidth = 1.2f)
             }
             else -> {}
         }
+    }
+}
+
+private fun computeOverlayOnTheFly(config: IndicatorConfig, candles: List<Candle>): Any? {
+    if (candles.isEmpty()) return null
+    return when (config.type) {
+        IndicatorType.SMA -> IndicatorCalculator.calculateSMA(candles, config.period)
+        IndicatorType.EMA -> IndicatorCalculator.calculateEMA(candles, config.period)
+        IndicatorType.BOLLINGER_BANDS -> IndicatorCalculator.calculateBollingerBands(candles, config.period, config.multiplier)
+        IndicatorType.VWAP -> IndicatorCalculator.calculateVWAP(candles)
+        IndicatorType.SUPERTREND -> IndicatorCalculator.calculateSupertrend(candles, config.period, config.multiplier)
+        IndicatorType.ICHIMOKU -> IndicatorCalculator.calculateIchimoku(candles, config.period, config.secondaryPeriod)
+        else -> null
     }
 }
 
@@ -130,16 +150,14 @@ private fun DrawScope.drawSupertrendLine(
         val x = localIndex * candleWidth + candleWidth / 2f
         val y = chartHeight - ((value - priceMin) / priceRange * chartHeight).toFloat()
 
-        if (currentIsBullish != direction && pathStarted) {
-            // Direction changed — draw current path and start new one
+        if (currentIsBullish != null && currentIsBullish != direction) {
+            // Direction changed — draw previous segment
             val color = if (currentIsBullish == true) bullColor else bearColor
             drawPath(currentPath, color, style = Stroke(width = 2.dp.toPx()))
             currentPath = Path()
             currentPath.moveTo(x, y)
-        }
-
-        if (!pathStarted || currentIsBullish != direction) {
-            if (!pathStarted) currentPath.moveTo(x, y)
+        } else if (!pathStarted) {
+            currentPath.moveTo(x, y)
             pathStarted = true
         } else {
             currentPath.lineTo(x, y)

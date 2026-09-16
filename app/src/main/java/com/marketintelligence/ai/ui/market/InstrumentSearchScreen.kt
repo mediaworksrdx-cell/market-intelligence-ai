@@ -10,6 +10,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
@@ -21,6 +22,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -57,66 +60,84 @@ fun InstrumentSearchScreen(
                 .padding(innerPadding)
                 .background(MaterialTheme.colorScheme.background)
         ) {
-            // Dynamic Status & Error Banner
+            // Dynamic Sync Progress (Non-intrusive)
             Box(modifier = Modifier.fillMaxWidth().animateContentSize()) {
-                when (syncStatus) {
-                    is SyncStatus.Syncing -> {
-                        Column {
-                            LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
-                            Text(
-                                "Synchronizing instruments from Kite...",
-                                modifier = Modifier.fillMaxWidth().padding(4.dp),
-                                fontSize = 10.sp,
-                                textAlign = TextAlign.Center,
-                                color = MaterialTheme.colorScheme.primary
-                            )
-                        }
+                if (syncStatus is SyncStatus.Syncing) {
+                    Column {
+                        LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                        Text(
+                            "Synchronizing instruments from Kite...",
+                            modifier = Modifier.fillMaxWidth().padding(4.dp),
+                            fontSize = 10.sp,
+                            textAlign = TextAlign.Center,
+                            color = MaterialTheme.colorScheme.primary
+                        )
                     }
-                    is SyncStatus.Error -> {
-                        Surface(
-                            color = MaterialTheme.colorScheme.errorContainer,
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Text(
-                                text = "Sync Notice: ${(syncStatus as SyncStatus.Error).message}",
-                                color = MaterialTheme.colorScheme.onErrorContainer,
-                                modifier = Modifier.padding(12.dp),
-                                fontSize = 12.sp,
-                                textAlign = TextAlign.Center,
-                                fontWeight = FontWeight.Medium
-                            )
-                        }
-                    }
-                    else -> {}
                 }
             }
 
-            // Search input field
-            OutlinedTextField(
+            // Search input field (Vertically centered, modern institutional design)
+            BasicTextField(
                 value = searchQuery,
                 onValueChange = viewModel::onQueryChanged,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
-                placeholder = { 
-                    Text("Search symbols (NIFTY, RELIANCE, BTC...)", fontSize = 13.sp) 
-                },
-                leadingIcon = { 
-                    Icon(Icons.Default.Search, contentDescription = "Search", tint = MaterialTheme.colorScheme.primary) 
-                },
-                trailingIcon = {
-                    if (searchQuery.isNotEmpty()) {
-                        IconButton(onClick = { viewModel.onQueryChanged("") }) {
-                            Icon(Icons.Default.Close, contentDescription = "Clear", tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                    .padding(horizontal = 16.dp, vertical = 8.dp)
+                    .height(44.dp)
+                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f), RoundedCornerShape(12.dp))
+                    .border(
+                        0.8.dp,
+                        MaterialTheme.colorScheme.outline.copy(alpha = 0.35f),
+                        RoundedCornerShape(12.dp)
+                    )
+                    .padding(horizontal = 12.dp),
+                textStyle = TextStyle(
+                    color = MaterialTheme.colorScheme.onSurface,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Medium
+                ),
+                singleLine = true,
+                cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+                decorationBox = { innerTextField ->
+                    Row(
+                        modifier = Modifier.fillMaxSize(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            Icons.Default.Search,
+                            contentDescription = "Search",
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Box(
+                            modifier = Modifier.weight(1f),
+                            contentAlignment = Alignment.CenterStart
+                        ) {
+                            if (searchQuery.isEmpty()) {
+                                Text(
+                                    "Search symbols (NIFTY, RELIANCE, BTC...)",
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.65f),
+                                    fontSize = 12.5.sp
+                                )
+                            }
+                            innerTextField()
+                        }
+                        if (searchQuery.isNotEmpty()) {
+                            IconButton(
+                                onClick = { viewModel.onQueryChanged("") },
+                                modifier = Modifier.size(24.dp)
+                            ) {
+                                Icon(
+                                    Icons.Default.Close,
+                                    contentDescription = "Clear",
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            }
                         }
                     }
-                },
-                shape = RoundedCornerShape(12.dp),
-                singleLine = true,
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = MaterialTheme.colorScheme.primary,
-                    unfocusedBorderColor = MaterialTheme.colorScheme.outline
-                )
+                }
             )
 
             // Category filter chips

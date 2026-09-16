@@ -90,9 +90,10 @@ class CryptoEngineTest {
 
         val bullishFvg = fvgs.find { it.direction == FVGDirection.BULLISH }
         assertNotNull("Bullish FVG should be detected", bullishFvg)
-        assertEquals(120.0, bullishFvg!!.top, 0.01)
-        assertEquals(110.0, bullishFvg.bottom, 0.01)
-        assertTrue("FVG quality score should be calculated", bullishFvg.qualityScore.total > 0)
+        val fvg = bullishFvg!!
+        assertEquals(120.0, fvg.top, 0.01)
+        assertEquals(110.0, fvg.bottom, 0.01)
+        assertTrue("FVG quality score should be calculated", fvg.qualityScore.total > 0)
     }
 
     @Test

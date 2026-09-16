@@ -33,6 +33,14 @@ enum class IndicatorType(val label: String, val isOverlay: Boolean) {
 }
 
 /**
+ * Cursor navigation mode for the chart.
+ */
+enum class CursorMode(val label: String) {
+    CROSSHAIR("Crosshair"),
+    HAND("Hand")
+}
+
+/**
  * Drawing tool types for chart annotations.
  */
 enum class DrawingToolType(val label: String) {
@@ -180,7 +188,7 @@ data class FnoOverlayLevels(
     val callWallGex: Double? = null,
     val putWallGex: Double? = null,
     val totalNetGex: Double? = null,
-    val enabled: Boolean = true
+    val enabled: Boolean = false
 )
 
 data class StrategyPayoffOverlay(
@@ -191,7 +199,7 @@ data class StrategyPayoffOverlay(
     val maxProfit: Double? = null,
     val maxLoss: Double? = null,
     val targetPrice: Double? = null,
-    val enabled: Boolean = true
+    val enabled: Boolean = false
 )
 
 data class VolumeProfileBucket(

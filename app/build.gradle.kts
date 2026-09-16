@@ -135,6 +135,9 @@ dependencies {
     implementation("io.ktor:ktor-client-content-negotiation:2.3.10")
     implementation("io.ktor:ktor-serialization-kotlinx-json:2.3.10")
 
+    testImplementation("junit:junit:4.13.2")
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.8.0")
+
     constraints {
         implementation("org.jetbrains.kotlinx:kotlinx-serialization-core:1.6.3") {
             because("Ensure all serialization libraries are on the same version")

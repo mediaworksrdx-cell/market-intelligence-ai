@@ -57,7 +57,7 @@ fun DrawScope.drawIndicatorPanelLayer(
         val labelResult = textMeasurer.measure(
             label,
             TextStyle(
-                color = Color(config.color),
+                color = Color((config.color and 0xFFFFFFFFL).toInt()),
                 fontSize = 9.sp,
                 fontWeight = FontWeight.Bold,
                 fontFamily = FontFamily.Monospace
@@ -69,7 +69,7 @@ fun DrawScope.drawIndicatorPanelLayer(
             IndicatorType.RSI -> {
                 @Suppress("UNCHECKED_CAST")
                 val values = result as? List<Double?> ?: return@forEachIndexed
-                drawRSIPanel(values, visibleStartIndex, visibleEndIndex, candleWidth, currentPanelTop, singlePanelHeight, chartWidth, Color(config.color), textMeasurer)
+                drawRSIPanel(values, visibleStartIndex, visibleEndIndex, candleWidth, currentPanelTop, singlePanelHeight, chartWidth, Color((config.color and 0xFFFFFFFFL).toInt()), textMeasurer)
             }
             IndicatorType.MACD -> {
                 val macdResult = result as? MACDResult ?: return@forEachIndexed
@@ -82,7 +82,7 @@ fun DrawScope.drawIndicatorPanelLayer(
             IndicatorType.ATR -> {
                 @Suppress("UNCHECKED_CAST")
                 val values = result as? List<Double?> ?: return@forEachIndexed
-                drawGenericLinePanel(values, visibleStartIndex, visibleEndIndex, candleWidth, currentPanelTop, singlePanelHeight, chartWidth, Color(config.color))
+                drawGenericLinePanel(values, visibleStartIndex, visibleEndIndex, candleWidth, currentPanelTop, singlePanelHeight, chartWidth, Color((config.color and 0xFFFFFFFFL).toInt()))
             }
             IndicatorType.CVD -> {
                 val cvdResult = result as? CvdResult ?: return@forEachIndexed
@@ -150,7 +150,7 @@ private fun DrawScope.drawCvdPanel(
     }
 
     // CVD Cumulative Line
-    val cvdColor = Color(config.color)
+    val cvdColor = Color((config.color and 0xFFFFFFFFL).toInt())
     val path = Path()
     var started = false
     for (i in startIndex until minOf(endIndex, result.cvdLine.size)) {
@@ -279,8 +279,8 @@ private fun DrawScope.drawMACDPanel(
     }
 
     // MACD and Signal lines
-    drawPanelLine(result.macdLine, startIndex, endIndex, candleWidth, drawTop, drawHeight, minVal, range, Color(config.color))
-    drawPanelLine(result.signalLine, startIndex, endIndex, candleWidth, drawTop, drawHeight, minVal, range, Color(config.tertiaryColor))
+    drawPanelLine(result.macdLine, startIndex, endIndex, candleWidth, drawTop, drawHeight, minVal, range, Color((config.color and 0xFFFFFFFFL).toInt()))
+    drawPanelLine(result.signalLine, startIndex, endIndex, candleWidth, drawTop, drawHeight, minVal, range, Color((config.tertiaryColor and 0xFFFFFFFFL).toInt()))
 }
 
 private fun DrawScope.drawStochasticPanel(
@@ -306,8 +306,8 @@ private fun DrawScope.drawStochasticPanel(
     drawLine(Color(0xFF00E676).copy(alpha = 0.3f), Offset(0f, y20), Offset(chartWidth, y20), strokeWidth = 0.5.dp.toPx(), pathEffect = dashEffect)
 
     // %K and %D lines
-    drawPanelLine(result.kLine, startIndex, endIndex, candleWidth, drawTop, drawHeight, 0.0, 100.0, Color(config.color))
-    drawPanelLine(result.dLine, startIndex, endIndex, candleWidth, drawTop, drawHeight, 0.0, 100.0, Color(config.secondaryColor))
+    drawPanelLine(result.kLine, startIndex, endIndex, candleWidth, drawTop, drawHeight, 0.0, 100.0, Color((config.color and 0xFFFFFFFFL).toInt()))
+    drawPanelLine(result.dLine, startIndex, endIndex, candleWidth, drawTop, drawHeight, 0.0, 100.0, Color((config.secondaryColor and 0xFFFFFFFFL).toInt()))
 }
 
 private fun DrawScope.drawGenericLinePanel(

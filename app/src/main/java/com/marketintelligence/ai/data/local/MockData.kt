@@ -5,38 +5,65 @@ import com.marketintelligence.ai.domain.model.*
 object MockData {
 
     val INDICES_IN = listOf(
-        IndexData("NIFTY 50", "NIFTY 50", 22500.0, 22350.0, 150.0, 0.67, MarketType.IN, 256265L),
-        IndexData("BANKNIFTY", "BANK NIFTY", 48000.0, 47500.0, 500.0, 1.04, MarketType.IN, 260105L),
+        IndexData("NIFTY 50", "NIFTY 50", 23600.0, 23500.0, 100.0, 0.42, MarketType.IN, 256265L),
+        IndexData("BANKNIFTY", "BANK NIFTY", 50400.0, 50100.0, 300.0, 0.60, MarketType.IN, 260105L),
         IndexData("FINNIFTY", "FIN NIFTY", 21500.0, 21400.0, 100.0, 0.47, MarketType.IN, 257801L),
-        IndexData("SENSEX", "SENSEX", 74000.0, 73550.0, 450.0, 0.61, MarketType.IN, 265L),
-        IndexData("MIDCPNIFTY", "NIFTY MIDCAP 50", 12250.0, 12150.0, 100.0, 0.85, MarketType.IN, 257033L),
-        IndexData("NIFTY NEXT 50", "NIFTY NEXT 50", 68500.0, 68150.0, 350.0, 0.52, MarketType.IN, 256521L),
-        IndexData("NIFTY IT", "NIFTY IT SECTOR", 35600.0, 35720.0, -120.0, -0.35, MarketType.IN, 257289L)
+        IndexData("SENSEX", "SENSEX", 77200.0, 76800.0, 400.0, 0.52, MarketType.IN, 265L),
+        IndexData("MIDCPNIFTY", "NIFTY Midcap 50", 12250.0, 12200.0, 50.0, 0.41, MarketType.IN, 288009L)
     )
 
     val WATCHLIST_INITIAL = listOf(
-        StockData("RELIANCE.NS", "Reliance Industries", 2950.0, 2920.0, 30.0, 1.0, "5M", MarketType.IN, 738561L),
-        StockData("HDFCBANK.NS", "HDFC Bank", 1550.0, 1560.0, -10.0, -0.6, "8M", MarketType.IN, 341249L),
-        StockData("INFY.NS", "Infosys", 1450.0, 1435.0, 15.0, 1.0, "4M", MarketType.IN, 408065L),
-        StockData("TCS.NS", "Tata Consultancy", 4000.0, 3980.0, 20.0, 0.5, "3M", MarketType.IN, 2953213L),
+        StockData("RELIANCE.NS", "Reliance Industries", 1300.0, 1285.0, 15.0, 1.17, "5M", MarketType.IN, 738561L),
+        StockData("HDFCBANK.NS", "HDFC Bank", 1720.0, 1710.0, 10.0, 0.58, "8M", MarketType.IN, 341249L),
+        StockData("TCS.NS", "Tata Consultancy", 4100.0, 4060.0, 40.0, 0.99, "3M", MarketType.IN, 2953217L),
         StockData("ICICIBANK.NS", "ICICI Bank", 1120.0, 1105.0, 15.0, 1.35, "6M", MarketType.IN, 1270529L),
-        StockData("BHARTIARTL.NS", "Bharti Airtel", 1410.0, 1404.0, 6.0, 0.43, "3M", MarketType.IN, 2714625L),
-        StockData("TATAMOTORS.NS", "Tata Motors", 980.0, 983.0, -3.0, -0.31, "7M", MarketType.IN, 884737L),
-        StockData("ITC.NS", "ITC Limited", 435.0, 434.0, 1.0, 0.23, "9M", MarketType.IN, 424961L),
-        StockData("SBIN.NS", "State Bank of India", 825.0, 818.0, 7.0, 0.86, "8M", MarketType.IN, 779521L),
+        StockData("SBIN.NS", "State Bank of India", 830.0, 822.0, 8.0, 0.97, "8M", MarketType.IN, 779521L),
+        StockData("INFY.NS", "Infosys Ltd", 1850.0, 1835.0, 15.0, 0.82, "4M", MarketType.IN, 408065L),
+        StockData("BHARTIARTL.NS", "Bharti Airtel", 1410.0, 1395.0, 15.0, 1.08, "2M", MarketType.IN, 2714625L),
+        StockData("TATAMOTORS.NS", "Tata Motors", 980.0, 970.0, 10.0, 1.03, "5M", MarketType.IN, 884737L),
+        StockData("ITC.NS", "ITC Limited", 435.0, 432.0, 3.0, 0.69, "7M", MarketType.IN, 424961L),
         StockData("LT.NS", "Larsen & Toubro", 3540.0, 3510.0, 30.0, 0.85, "2M", MarketType.IN, 2939649L)
     )
 
+    val INDICES_US = listOf(
+        IndexData("SPX", "S&P 500 Index", 5500.0, 5470.0, 30.0, 0.55, MarketType.US, null),
+        IndexData("NDX", "NASDAQ 100", 19200.0, 19050.0, 150.0, 0.79, MarketType.US, null),
+        IndexData("DJI", "Dow Jones Industrial", 39500.0, 39350.0, 150.0, 0.38, MarketType.US, null)
+    )
+
+    val WATCHLIST_US = listOf(
+        StockData("AAPL", "Apple Inc.", 225.0, 222.5, 2.5, 1.12, "45M", MarketType.US, null),
+        StockData("NVDA", "NVIDIA Corporation", 118.0, 115.0, 3.0, 2.61, "60M", MarketType.US, null),
+        StockData("MSFT", "Microsoft Corporation", 440.0, 436.0, 4.0, 0.92, "20M", MarketType.US, null),
+        StockData("GOOGL", "Alphabet Inc.", 175.0, 173.0, 2.0, 1.16, "25M", MarketType.US, null),
+        StockData("AMZN", "Amazon.com Inc.", 185.0, 183.0, 2.0, 1.09, "30M", MarketType.US, null),
+        StockData("TSLA", "Tesla Inc.", 210.0, 204.0, 6.0, 2.94, "50M", MarketType.US, null),
+        StockData("META", "Meta Platforms Inc.", 500.0, 492.0, 8.0, 1.63, "15M", MarketType.US, null)
+    )
+
+    val INDICES_UAE = listOf(
+        IndexData("DFMGI", "DFM General Index", 4850.0, 4820.0, 30.0, 0.62, MarketType.UAE, null),
+        IndexData("ADX", "Abu Dhabi Securities Exchange", 9250.0, 9200.0, 50.0, 0.54, MarketType.UAE, null)
+    )
+
+    val WATCHLIST_UAE = listOf(
+        StockData("EMAAR", "Emaar Properties PJSC", 8.45, 8.35, 0.10, 1.20, "12M", MarketType.UAE, null),
+        StockData("DEWA", "Dubai Electricity & Water", 2.48, 2.46, 0.02, 0.81, "8M", MarketType.UAE, null),
+        StockData("FAB", "First Abu Dhabi Bank", 13.10, 13.00, 0.10, 0.77, "5M", MarketType.UAE, null),
+        StockData("ALDAR", "Aldar Properties", 5.60, 5.52, 0.08, 1.45, "6M", MarketType.UAE, null),
+        StockData("EMIRATESNBD", "Emirates NBD Bank", 17.80, 17.65, 0.15, 0.85, "3M", MarketType.UAE, null)
+    )
+
     val CRYPTO_INITIAL = listOf(
-        CryptoData(id = "bitcoin", symbol = "BTC", name = "Bitcoin", price = 67450.0, changePercent = 2.14, marketCap = 1_320_000_000_000L),
-        CryptoData(id = "ethereum", symbol = "ETH", name = "Ethereum", price = 3520.0, changePercent = 1.62, marketCap = 422_000_000_000L),
-        CryptoData(id = "dogecoin", symbol = "DOGE", name = "Dogecoin", price = 0.125, changePercent = 3.85, marketCap = 18_200_000_000L),
-        CryptoData(id = "solana", symbol = "SOL", name = "Solana", price = 148.50, changePercent = 4.21, marketCap = 68_500_000_000L),
-        CryptoData(id = "binancecoin", symbol = "BNB", name = "BNB", price = 585.0, changePercent = -0.45, marketCap = 87_000_000_000L),
-        CryptoData(id = "shiba-inu", symbol = "SHIB", name = "Shiba Inu", price = 0.0000185, changePercent = 2.90, marketCap = 10_900_000_000L),
-        CryptoData(id = "cardano", symbol = "ADA", name = "Cardano", price = 0.48, changePercent = 1.15, marketCap = 17_100_000_000L),
-        CryptoData(id = "ripple", symbol = "XRP", name = "XRP", price = 0.52, changePercent = -0.80, marketCap = 29_000_000_000L),
-        CryptoData(id = "avalanche-2", symbol = "AVAX", name = "Avalanche", price = 32.40, changePercent = 2.30, marketCap = 12_800_000_000L)
+        CryptoData(id = "bitcoin", symbol = "BTC", name = "Bitcoin", price = 78800.0, changePercent = -0.55, marketCap = 1_580_000_000_000L),
+        CryptoData(id = "ethereum", symbol = "ETH", name = "Ethereum", price = 2495.0, changePercent = -0.15, marketCap = 304_000_000_000L),
+        CryptoData(id = "dogecoin", symbol = "DOGE", name = "Dogecoin", price = 0.090, changePercent = -0.85, marketCap = 14_000_000_000L),
+        CryptoData(id = "solana", symbol = "SOL", name = "Solana", price = 103.50, changePercent = -0.40, marketCap = 60_500_000_000L),
+        CryptoData(id = "binancecoin", symbol = "BNB", name = "BNB", price = 754.0, changePercent = 1.65, marketCap = 100_000_000_000L),
+        CryptoData(id = "shiba-inu", symbol = "SHIB", name = "Shiba Inu", price = 0.0000185, changePercent = 0.50, marketCap = 10_900_000_000L),
+        CryptoData(id = "ripple", symbol = "XRP", name = "XRP", price = 0.55, changePercent = 1.10, marketCap = 31_000_000_000L),
+        CryptoData(id = "cardano", symbol = "ADA", name = "Cardano", price = 0.48, changePercent = 0.85, marketCap = 17_000_000_000L),
+        CryptoData(id = "avalanche-2", symbol = "AVAX", name = "Avalanche", price = 32.40, changePercent = 1.75, marketCap = 13_000_000_000L)
     )
 
     val PORTFOLIO_INITIAL = listOf(

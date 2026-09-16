@@ -8,6 +8,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -20,6 +21,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -78,211 +80,218 @@ fun PortfolioScreen(
         else uiState.holdings.filter { it.symbol.contains(uiState.searchQuery, ignoreCase = true) }
     }
 
-    Column(
+    LazyColumn(
         modifier = Modifier
             .fillMaxSize()
             .background(colors.background)
-            .padding(16.dp)
+            .padding(horizontal = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp),
+        contentPadding = PaddingValues(top = 8.dp, bottom = 24.dp)
     ) {
         // Top Header
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column {
-                Text(
-                    "PORTFOLIO INTELLIGENCE",
-                    color = colors.onBackground,
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.ExtraBold,
-                    letterSpacing = 0.5.sp
-                )
-                Text(
-                    "REAL-TIME VALUATION & RISK ENGINE",
-                    color = colors.onSurfaceVariant.copy(alpha = 0.7f),
-                    fontSize = 9.sp,
-                    fontWeight = FontWeight.Bold
-                )
+        item {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column {
+                    Text(
+                        "PORTFOLIO INTELLIGENCE",
+                        color = colors.onBackground,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        letterSpacing = 0.5.sp
+                    )
+                    Text(
+                        "REAL-TIME VALUATION & RISK ENGINE",
+                        color = colors.onSurfaceVariant.copy(alpha = 0.7f),
+                        fontSize = 8.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
             }
         }
-
-        Spacer(modifier = Modifier.height(14.dp))
 
         // Search & Add Bar
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            TextField(
-                value = uiState.searchQuery,
-                onValueChange = { viewModel.onSearchQueryChanged(it) },
-                modifier = Modifier
-                    .weight(1f)
-                    .height(50.dp),
-                placeholder = {
-                    Text(
-                        "Search Holdings or Enter Ticker...",
-                        color = colors.onSurfaceVariant.copy(alpha = 0.6f),
-                        fontSize = 11.sp
-                    )
-                },
-                textStyle = TextStyle(
-                    color = colors.onSurface,
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.SemiBold
-                ),
-                leadingIcon = {
-                    Icon(
-                        Icons.Default.Search,
-                        contentDescription = "Search",
-                        tint = colors.onSurfaceVariant,
-                        modifier = Modifier.size(16.dp)
-                    )
-                },
-                trailingIcon = {
-                    if (uiState.searchQuery.isNotEmpty()) {
-                        IconButton(
-                            onClick = { viewModel.onSearchQueryChanged("") },
-                            modifier = Modifier.size(24.dp)
+        item {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                BasicTextField(
+                    value = uiState.searchQuery,
+                    onValueChange = { viewModel.onSearchQueryChanged(it) },
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(40.dp)
+                        .background(colors.surfaceVariant, RoundedCornerShape(8.dp))
+                        .padding(horizontal = 10.dp),
+                    textStyle = TextStyle(
+                        color = colors.onSurface,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold
+                    ),
+                    singleLine = true,
+                    cursorBrush = SolidColor(colors.primary),
+                    decorationBox = { innerTextField ->
+                        Row(
+                            modifier = Modifier.fillMaxSize(),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
                             Icon(
-                                Icons.Default.Close,
-                                contentDescription = "Clear",
+                                Icons.Default.Search,
+                                contentDescription = "Search",
                                 tint = colors.onSurfaceVariant,
-                                modifier = Modifier.size(14.dp)
+                                modifier = Modifier.size(15.dp)
                             )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Box(
+                                modifier = Modifier.weight(1f),
+                                contentAlignment = Alignment.CenterStart
+                            ) {
+                                if (uiState.searchQuery.isEmpty()) {
+                                    Text(
+                                        "Search Holdings or Enter Ticker...",
+                                        color = colors.onSurfaceVariant.copy(alpha = 0.6f),
+                                        fontSize = 11.sp
+                                    )
+                                }
+                                innerTextField()
+                            }
+                            if (uiState.searchQuery.isNotEmpty()) {
+                                IconButton(
+                                    onClick = { viewModel.onSearchQueryChanged("") },
+                                    modifier = Modifier.size(22.dp)
+                                ) {
+                                    Icon(
+                                        Icons.Default.Close,
+                                        contentDescription = "Clear",
+                                        tint = colors.onSurfaceVariant,
+                                        modifier = Modifier.size(13.dp)
+                                    )
+                                }
+                            }
                         }
                     }
-                },
-                colors = TextFieldDefaults.colors(
-                    focusedContainerColor = colors.surfaceVariant,
-                    unfocusedContainerColor = colors.surfaceVariant,
-                    focusedIndicatorColor = Color.Transparent,
-                    unfocusedIndicatorColor = Color.Transparent,
-                    focusedTextColor = colors.onSurface,
-                    unfocusedTextColor = colors.onSurface,
-                    cursorColor = colors.primary
-                ),
-                shape = RoundedCornerShape(8.dp),
-                singleLine = true
-            )
-            Spacer(modifier = Modifier.width(8.dp))
-            Button(
-                onClick = { viewModel.showAddDialog(uiState.searchQuery) },
-                modifier = Modifier.size(50.dp),
-                shape = RoundedCornerShape(8.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = colors.primary),
-                contentPadding = PaddingValues(0.dp)
-            ) {
-                Icon(
-                    Icons.Default.Add,
-                    contentDescription = "Add Position",
-                    tint = colors.onPrimary,
-                    modifier = Modifier.size(22.dp)
                 )
+                Spacer(modifier = Modifier.width(6.dp))
+                Button(
+                    onClick = { viewModel.showAddDialog(uiState.searchQuery) },
+                    modifier = Modifier.size(40.dp),
+                    shape = RoundedCornerShape(8.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = colors.primary),
+                    contentPadding = PaddingValues(0.dp)
+                ) {
+                    Icon(
+                        Icons.Default.Add,
+                        contentDescription = "Add Position",
+                        tint = colors.onPrimary,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
             }
         }
 
-        Spacer(modifier = Modifier.height(14.dp))
-
         // Total Portfolio Value Summary Card
-        Card(
-            colors = CardDefaults.cardColors(containerColor = colors.surface),
-            shape = RoundedCornerShape(12.dp),
-            modifier = Modifier
-                .fillMaxWidth()
-                .border(0.5.dp, colors.outline.copy(alpha = 0.4f), RoundedCornerShape(12.dp))
-        ) {
-            Column(modifier = Modifier.padding(16.dp)) {
-                Text(
-                    "TOTAL PORTFOLIO VALUE",
-                    color = colors.onSurfaceVariant,
-                    fontSize = 9.sp,
-                    fontWeight = FontWeight.Bold,
-                    letterSpacing = 0.5.sp
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    "₹${"%,.2f".format(uiState.totalCurrentValue)}",
-                    color = colors.onSurface,
-                    fontSize = 26.sp,
-                    fontWeight = FontWeight.ExtraBold,
-                    fontFamily = FontFamily.Monospace
-                )
+        item {
+            Card(
+                colors = CardDefaults.cardColors(containerColor = colors.surface),
+                shape = RoundedCornerShape(10.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .border(0.5.dp, colors.outline.copy(alpha = 0.4f), RoundedCornerShape(10.dp))
+            ) {
+                Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
+                    Text(
+                        "TOTAL PORTFOLIO VALUE",
+                        color = colors.onSurfaceVariant,
+                        fontSize = 8.sp,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 0.5.sp
+                    )
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        "₹${"%,.2f".format(uiState.totalCurrentValue)}",
+                        color = colors.onSurface,
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        fontFamily = FontFamily.Monospace
+                    )
 
-                Spacer(modifier = Modifier.height(14.dp))
-                HorizontalDivider(color = colors.outline.copy(alpha = 0.2f), thickness = 0.5.dp)
-                Spacer(modifier = Modifier.height(12.dp))
+                    Spacer(modifier = Modifier.height(6.dp))
+                    HorizontalDivider(color = colors.outline.copy(alpha = 0.2f), thickness = 0.5.dp)
+                    Spacer(modifier = Modifier.height(6.dp))
 
-                Row(modifier = Modifier.fillMaxWidth()) {
-                    // Invested Column
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            "INVESTED",
-                            color = colors.onSurfaceVariant,
-                            fontSize = 8.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Spacer(modifier = Modifier.height(2.dp))
-                        Text(
-                            "₹${"%,.2f".format(uiState.totalInvestedValue)}",
-                            color = colors.onSurface,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 11.sp,
-                            fontFamily = FontFamily.Monospace
-                        )
-                    }
+                    Row(modifier = Modifier.fillMaxWidth()) {
+                        // Invested Column
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                "INVESTED",
+                                color = colors.onSurfaceVariant,
+                                fontSize = 7.5.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                "₹${"%,.2f".format(uiState.totalInvestedValue)}",
+                                color = colors.onSurface,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 10.sp,
+                                fontFamily = FontFamily.Monospace
+                            )
+                        }
 
-                    // Total P&L Column
-                    Column(modifier = Modifier.weight(1.1f)) {
-                        Text(
-                            "TOTAL P&L",
-                            color = colors.onSurfaceVariant,
-                            fontSize = 8.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Spacer(modifier = Modifier.height(2.dp))
-                        val totalColor = if (uiState.totalPnl >= 0) AppGreen else AppRed
-                        val totalPrefix = if (uiState.totalPnl >= 0) "+" else ""
-                        Text(
-                            "$totalPrefix₹${"%,.2f".format(uiState.totalPnl)}",
-                            color = totalColor,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 11.sp,
-                            fontFamily = FontFamily.Monospace
-                        )
-                        Text(
-                            "($totalPrefix${"%.2f".format(uiState.totalPnlPercent)}%)",
-                            color = totalColor,
-                            fontWeight = FontWeight.SemiBold,
-                            fontSize = 9.sp,
-                            fontFamily = FontFamily.Monospace
-                        )
-                    }
+                        // Total P&L Column
+                        Column(modifier = Modifier.weight(1.1f)) {
+                            Text(
+                                "TOTAL P&L",
+                                color = colors.onSurfaceVariant,
+                                fontSize = 7.5.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Spacer(modifier = Modifier.height(2.dp))
+                            val totalColor = if (uiState.totalPnl >= 0) AppGreen else AppRed
+                            val totalPrefix = if (uiState.totalPnl >= 0) "+" else ""
+                            Text(
+                                "$totalPrefix₹${"%,.2f".format(uiState.totalPnl)}",
+                                color = totalColor,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 10.sp,
+                                fontFamily = FontFamily.Monospace
+                            )
+                            Text(
+                                "($totalPrefix${"%.2f".format(uiState.totalPnlPercent)}%)",
+                                color = totalColor,
+                                fontWeight = FontWeight.SemiBold,
+                                fontSize = 8.5.sp,
+                                fontFamily = FontFamily.Monospace
+                            )
+                        }
 
-                    // Today P&L Column
-                    Column(modifier = Modifier.weight(1.1f), horizontalAlignment = Alignment.End) {
-                        Text(
-                            "TODAY'S P&L",
-                            color = colors.onSurfaceVariant,
-                            fontSize = 8.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Spacer(modifier = Modifier.height(2.dp))
-                        val todayColor = if (uiState.todayPnl >= 0) AppGreen else AppRed
-                        val todayPrefix = if (uiState.todayPnl >= 0) "+" else ""
-                        Text(
-                            "$todayPrefix₹${"%,.2f".format(uiState.todayPnl)}",
-                            color = todayColor,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 11.sp,
-                            fontFamily = FontFamily.Monospace
-                        )
-                        Text(
-                            "($todayPrefix${"%.2f".format(uiState.todayPnlPercent)}%)",
-                            color = todayColor,
-                            fontWeight = FontWeight.SemiBold,
-                            fontSize = 9.sp,
-                            fontFamily = FontFamily.Monospace
-                        )
+                        // Today P&L Column
+                        Column(modifier = Modifier.weight(1.1f), horizontalAlignment = Alignment.End) {
+                            Text(
+                                "TODAY'S P&L",
+                                color = colors.onSurfaceVariant,
+                                fontSize = 7.5.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Spacer(modifier = Modifier.height(2.dp))
+                            val todayColor = if (uiState.todayPnl >= 0) AppGreen else AppRed
+                            val todayPrefix = if (uiState.todayPnl >= 0) "+" else ""
+                            Text(
+                                "$todayPrefix₹${"%,.2f".format(uiState.todayPnl)}",
+                                color = todayColor,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 10.sp,
+                                fontFamily = FontFamily.Monospace
+                            )
+                            Text(
+                                "($todayPrefix${"%.2f".format(uiState.todayPnlPercent)}%)",
+                                color = todayColor,
+                                fontWeight = FontWeight.SemiBold,
+                                fontSize = 8.5.sp,
+                                fontFamily = FontFamily.Monospace
+                            )
+                        }
                     }
                 }
             }
@@ -290,77 +299,76 @@ fun PortfolioScreen(
 
         // Asset Allocation Breakdown Bar (Rendered when holdings exist)
         if (uiState.holdings.isNotEmpty() && uiState.totalCurrentValue > 0) {
-            Spacer(modifier = Modifier.height(14.dp))
-            PortfolioAllocationBar(
-                holdings = uiState.holdings,
-                totalValue = uiState.totalCurrentValue
-            )
+            item {
+                PortfolioAllocationBar(
+                    holdings = uiState.holdings,
+                    totalValue = uiState.totalCurrentValue
+                )
+            }
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
-
         // Holdings List Header
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                "HOLDINGS (${displayedHoldings.size})",
-                color = colors.onSurfaceVariant,
-                fontSize = 10.sp,
-                fontWeight = FontWeight.ExtraBold,
-                letterSpacing = 0.5.sp
-            )
-            if (uiState.holdings.isNotEmpty()) {
-                TextButton(
-                    onClick = { viewModel.requestLiquidateAll() },
-                    contentPadding = PaddingValues(horizontal = 6.dp, vertical = 2.dp)
-                ) {
-                    Text(
-                        "LIQUIDATE ALL",
-                        color = AppRed,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 9.sp
-                    )
+        item {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    "HOLDINGS (${displayedHoldings.size})",
+                    color = colors.onSurfaceVariant,
+                    fontSize = 9.5.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    letterSpacing = 0.5.sp
+                )
+                if (uiState.holdings.isNotEmpty()) {
+                    TextButton(
+                        onClick = { viewModel.requestLiquidateAll() },
+                        contentPadding = PaddingValues(horizontal = 4.dp, vertical = 1.dp)
+                    ) {
+                        Text(
+                            "LIQUIDATE ALL",
+                            color = AppRed,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 8.5.sp
+                        )
+                    }
                 }
             }
         }
 
-        Spacer(modifier = Modifier.height(6.dp))
-
-        // Holdings List or Empty State
+        // Holdings Items or Empty State
         if (displayedHoldings.isEmpty()) {
-            if (uiState.holdings.isEmpty()) {
-                EmptyPortfolioView(onAddClick = { viewModel.showAddDialog() })
-            } else {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 32.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        "No positions found matching '${uiState.searchQuery}'",
-                        color = colors.onSurfaceVariant,
-                        fontSize = 12.sp
-                    )
+            item {
+                if (uiState.holdings.isEmpty()) {
+                    EmptyPortfolioView(onAddClick = { viewModel.showAddDialog() })
+                } else {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 16.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            "No positions found matching '${uiState.searchQuery}'",
+                            color = colors.onSurfaceVariant,
+                            fontSize = 11.sp
+                        )
+                    }
                 }
             }
         } else {
-            LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                items(displayedHoldings, key = { it.symbol }) { item ->
-                    val weight = if (uiState.totalCurrentValue > 0) {
-                        (item.currentValue / uiState.totalCurrentValue) * 100.0
-                    } else 0.0
+            items(displayedHoldings, key = { it.symbol }) { item ->
+                val weight = if (uiState.totalCurrentValue > 0) {
+                    (item.currentValue / uiState.totalCurrentValue) * 100.0
+                } else 0.0
 
-                    HoldingItemView(
-                        item = item,
-                        weightPercent = weight,
-                        onClick = onHoldingClick,
-                        onLiquidate = { viewModel.requestLiquidateAsset(item.symbol) }
-                    )
-                }
+                HoldingItemView(
+                    item = item,
+                    weightPercent = weight,
+                    onClick = onHoldingClick,
+                    onLiquidate = { viewModel.requestLiquidateAsset(item.symbol) }
+                )
             }
         }
     }
@@ -390,29 +398,7 @@ fun PortfolioAllocationBar(holdings: List<Holding>, totalValue: Double) {
             )
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Multi-segment horizontal bar
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(8.dp)
-                    .clip(RoundedCornerShape(4.dp))
-                    .background(colors.surfaceVariant)
-            ) {
-                sorted.forEachIndexed { index, holding ->
-                    val proportion = if (totalValue > 0) (holding.currentValue / totalValue).toFloat() else 0f
-                    if (proportion > 0f) {
-                        val segColor = AllocationColors[index % AllocationColors.size]
-                        Box(
-                            modifier = Modifier
-                                .weight(proportion)
-                                .fillMaxHeight()
-                                .background(segColor)
-                        )
-                    }
-                }
-            }
 
-            Spacer(modifier = Modifier.height(8.dp))
 
             // Legend labels for top holdings
             Row(

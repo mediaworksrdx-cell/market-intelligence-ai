@@ -1,13 +1,16 @@
 package com.example.marketintelligence.ui.fno
 
+import kotlin.math.abs
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -21,6 +24,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.TextStyle
@@ -43,58 +47,82 @@ fun FnoScreen(
     var selectedTab by remember { mutableIntStateOf(0) }
     val tabs = listOf("MARKET", "ANALYTICS", "BUILDER")
 
-    Column(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background).padding(horizontal = 16.dp)) {
-        Spacer(modifier = Modifier.height(16.dp))
+    Column(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background).padding(horizontal = 12.dp)) {
+        Spacer(modifier = Modifier.height(6.dp))
         
-        Text("F&O INTELLIGENCE HUB", color = MaterialTheme.colorScheme.onBackground, fontSize = 18.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
-        Spacer(modifier = Modifier.height(12.dp))
+        Text("F&O INTELLIGENCE HUB", color = MaterialTheme.colorScheme.onBackground, fontSize = 14.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.5.sp)
+        Spacer(modifier = Modifier.height(6.dp))
 
         // Search & Add Header
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            TextField(
+            BasicTextField(
                 value = uiState.searchQuery,
                 onValueChange = { viewModel.onSearchQueryChanged(it) },
-                modifier = Modifier.weight(1f).height(52.dp),
-                placeholder = { Text("Search F&O Asset...", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp) },
-                textStyle = TextStyle(color = MaterialTheme.colorScheme.onSurface, fontSize = 13.sp, fontWeight = FontWeight.Medium),
-                leadingIcon = { Icon(Icons.Default.Search, null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(16.dp)) },
-                colors = TextFieldDefaults.colors(
-                    focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-                    unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-                    focusedIndicatorColor = Color.Transparent,
-                    unfocusedIndicatorColor = Color.Transparent,
-                    focusedTextColor = MaterialTheme.colorScheme.onSurface,
-                    unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
-                    cursorColor = MaterialTheme.colorScheme.primary
+                modifier = Modifier
+                    .weight(1f)
+                    .height(42.dp)
+                    .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(8.dp))
+                    .padding(horizontal = 12.dp),
+                textStyle = TextStyle(
+                    color = MaterialTheme.colorScheme.onSurface,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Medium
                 ),
-                shape = RoundedCornerShape(8.dp),
-                singleLine = true
+                singleLine = true,
+                cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+                decorationBox = { innerTextField ->
+                    Row(
+                        modifier = Modifier.fillMaxSize(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            Icons.Default.Search,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Box(
+                            modifier = Modifier.weight(1f),
+                            contentAlignment = Alignment.CenterStart
+                        ) {
+                            if (uiState.searchQuery.isEmpty()) {
+                                Text(
+                                    "Search F&O Asset...",
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    fontSize = 11.sp
+                                )
+                            }
+                            innerTextField()
+                        }
+                    }
+                }
             )
             Spacer(modifier = Modifier.width(8.dp))
             Button(
                 onClick = { viewModel.addAsset() },
-                modifier = Modifier.size(52.dp),
+                modifier = Modifier.size(42.dp),
                 shape = RoundedCornerShape(8.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
                 contentPadding = PaddingValues(0.dp)
             ) {
-                Icon(Icons.Default.Add, null, tint = MaterialTheme.colorScheme.onPrimary, modifier = Modifier.size(20.dp))
+                Icon(Icons.Default.Add, null, tint = MaterialTheme.colorScheme.onPrimary, modifier = Modifier.size(18.dp))
             }
         }
 
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(6.dp))
 
         // Asset Mini-Header
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
             Column {
-                Text(uiState.selectedAsset.uppercase(), color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 9.sp, fontWeight = FontWeight.ExtraBold)
+                Text(uiState.selectedAsset.uppercase(), color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 8.sp, fontWeight = FontWeight.ExtraBold)
                 Text(
                     "SPOT: ₹${"%.2f".format(uiState.spotPrice)}",
                     color = MaterialTheme.colorScheme.onBackground,
-                    fontSize = 18.sp,
+                    fontSize = 14.sp,
                     fontWeight = FontWeight.ExtraBold,
                     fontFamily = FontFamily.Monospace
                 )
@@ -105,16 +133,16 @@ fun FnoScreen(
                 modifier = Modifier.border(0.5.dp, if(uiState.summary.changePercent >= 0) AppGreen else AppRed, RoundedCornerShape(4.dp))
             ) {
                 Text(
-                    "${if (uiState.summary.changePercent >= 0) "+" else ""}${uiState.summary.changePercent}%",
+                    "${if (uiState.summary.changePercent >= 0) "+" else ""}${"%.2f".format(uiState.summary.changePercent)}%",
                     color = if (uiState.summary.changePercent >= 0) AppGreen else AppRed,
-                    fontSize = 10.sp,
+                    fontSize = 9.sp,
                     fontWeight = FontWeight.ExtraBold,
-                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                    modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp)
                 )
             }
         }
 
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(6.dp))
 
         TabRow(
             selectedTabIndex = selectedTab,
@@ -133,17 +161,17 @@ fun FnoScreen(
                 Tab(
                     selected = selectedTab == index,
                     onClick = { selectedTab = index },
-                    text = { Text(title, fontSize = 10.sp, fontWeight = FontWeight.Bold) }
+                    text = { Text(title, fontSize = 9.5.sp, fontWeight = FontWeight.Bold) }
                 )
             }
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(6.dp))
 
         Box(modifier = Modifier.fillMaxSize()) {
             when (selectedTab) {
                 0 -> SummaryTab(uiState)
-                1 -> OptionsStudyTab(uiState, onOpenBuildupScanner)
+                1 -> OptionsStudyTab(uiState, viewModel, onOpenBuildupScanner)
                 2 -> StrategyBuilderTab(uiState, viewModel)
             }
         }
@@ -167,7 +195,7 @@ fun SummaryTab(uiState: FnoUiState) {
                         Text(fp.expiry, color = MaterialTheme.colorScheme.onSurface, fontSize = 10.sp, fontWeight = FontWeight.Bold)
                         Text("₹${"%.2f".format(fp.ltp)}", color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold, fontSize = 11.sp, fontFamily = FontFamily.Monospace)
                         Text(
-                            "${if (fp.changePercent >= 0) "+" else ""}${fp.changePercent}%",
+                            "${if (fp.changePercent >= 0) "+" else ""}${"%.2f".format(fp.changePercent)}%",
                             color = if (fp.changePercent >= 0) AppGreen else AppRed,
                             fontSize = 10.sp,
                             fontWeight = FontWeight.Bold
@@ -179,8 +207,8 @@ fun SummaryTab(uiState: FnoUiState) {
         }
 
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            SummaryStatCard("IMPLIED VOL (IV)", "${uiState.summary.iv}%", Modifier.weight(1f))
-            SummaryStatCard("PUT-CALL RATIO", "${uiState.summary.pcr}", Modifier.weight(1f))
+            SummaryStatCard("IMPLIED VOL (IV)", "${"%.1f".format(uiState.summary.iv)}%", Modifier.weight(1f))
+            SummaryStatCard("PUT-CALL RATIO", "%.2f".format(uiState.summary.pcr), Modifier.weight(1f))
         }
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             SummaryStatCard("MAX PAIN", "₹${uiState.summary.maxPain.toInt()}", Modifier.weight(1f))
@@ -227,38 +255,51 @@ fun SummaryStatCard(label: String, value: String, modifier: Modifier) {
 }
 
 @Composable
-fun OptionsStudyTab(uiState: FnoUiState, onOpenBuildupScanner: () -> Unit) {
-    var viewMode by remember { mutableStateOf("OI") } // "OI", "GREEKS", "PAIN", "IV"
+fun OptionsStudyTab(uiState: FnoUiState, viewModel: FnoViewModel, onOpenBuildupScanner: () -> Unit) {
+    var viewMode by remember { mutableStateOf("BUILDUP") } // "BUILDUP", "OI", "GREEKS", "GEX", "PAIN", "IV"
 
     Column(modifier = Modifier.fillMaxSize()) {
-        // Updated Buildup Scanner Card - Large and Clickable
+        // Buildup Scanner Quick Header Banner
         Card(
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
             shape = RoundedCornerShape(12.dp),
             modifier = Modifier
                 .fillMaxWidth()
-                .height(80.dp) // Bigger Height
                 .clickable { onOpenBuildupScanner() }
                 .border(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.5f), RoundedCornerShape(12.dp))
         ) {
-            Row(modifier = Modifier.fillMaxSize().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+            Row(modifier = Modifier.fillMaxWidth().padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
                 Column(modifier = Modifier.weight(1f)) {
-                    Text("BUILDUP SCANNER", color = MaterialTheme.colorScheme.onSurface, fontSize = 14.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 1.sp)
-                    Text("Institutional Derivatives Positioning Analyzer", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text("FNO BUILDUP SCANNER", color = MaterialTheme.colorScheme.onSurface, fontSize = 13.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 0.5.sp)
+                        Spacer(Modifier.width(6.dp))
+                        Surface(
+                            color = AppGreen.copy(0.15f),
+                            shape = RoundedCornerShape(4.dp)
+                        ) {
+                            Text("LIVE", color = AppGreen, fontSize = 7.5.sp, fontWeight = FontWeight.ExtraBold, modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp))
+                        }
+                    }
+                    Text("Screening Long Buildup, Short Buildup, Short Covering & Unwinding", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 9.sp, fontWeight = FontWeight.Medium)
                 }
-                Surface(color = MaterialTheme.colorScheme.primary.copy(0.1f), shape = CircleShape) {
-                    Icon(Icons.Default.Analytics, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(8.dp).size(24.dp))
+                Surface(color = MaterialTheme.colorScheme.primary.copy(0.12f), shape = CircleShape) {
+                    Icon(Icons.Default.Analytics, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(8.dp).size(20.dp))
                 }
             }
         }
 
-        Spacer(Modifier.height(16.dp))
+        Spacer(Modifier.height(10.dp))
 
         // Toggle View
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-            Text("ADVANCED CHAIN", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 10.sp, fontWeight = FontWeight.Bold)
-            Row(modifier = Modifier.background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(4.dp)).padding(2.dp)) {
-                listOf("OI", "GREEKS", "GEX", "PAIN", "IV").forEach { mode ->
+            Text("DERIVATIVES ANALYTICS", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 9.sp, fontWeight = FontWeight.ExtraBold)
+            Row(
+                modifier = Modifier
+                    .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(4.dp))
+                    .padding(2.dp)
+                    .horizontalScroll(rememberScrollState())
+            ) {
+                listOf("BUILDUP", "OI", "GREEKS", "GEX", "PAIN", "IV").forEach { mode ->
                     val isSelected = viewMode == mode
                     Box(
                         modifier = Modifier
@@ -272,9 +313,14 @@ fun OptionsStudyTab(uiState: FnoUiState, onOpenBuildupScanner: () -> Unit) {
             }
         }
 
-        Spacer(Modifier.height(12.dp))
+        Spacer(Modifier.height(8.dp))
 
-        if (viewMode == "GEX") {
+        if (viewMode == "BUILDUP") {
+            BuildupDetailScreen(
+                viewModel = viewModel,
+                onNavigateBack = { viewMode = "OI" }
+            )
+        } else if (viewMode == "GEX") {
             GexAnalyticsView(
                 profile = uiState.gexProfile,
                 spotPrice = uiState.spotPrice
@@ -311,40 +357,232 @@ fun OptionsStudyTab(uiState: FnoUiState, onOpenBuildupScanner: () -> Unit) {
                 }
             }
 
-            LazyColumn(modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 60.dp)) {
-                uiState.optionChain?.let { chain ->
+            val listState = rememberLazyListState()
+            val chain = uiState.optionChain
+            val currentStrike = chain?.strikes?.minByOrNull { kotlin.math.abs(it.strike - uiState.spotPrice) }?.strike
+
+            LaunchedEffect(currentStrike) {
+                if (currentStrike != null && chain != null) {
+                    val atmIndex = chain.strikes.indexOfFirst { it.strike == currentStrike }
+                    if (atmIndex >= 0) {
+                        val scrollTarget = (atmIndex - 4).coerceAtLeast(0)
+                        listState.animateScrollToItem(scrollTarget)
+                    }
+                }
+            }
+
+            LazyColumn(
+                state = listState,
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(bottom = 60.dp)
+            ) {
+                if (chain != null) {
                     val maxOI = chain.strikes.maxOf { maxOf(it.callOI, it.putOI) }.coerceAtLeast(1.0)
                     items(chain.strikes) { strike ->
+                        val isCurrentStrike = strike.strike == currentStrike
                         val isITMCall = strike.strike < uiState.spotPrice
                         val isITMPut = strike.strike > uiState.spotPrice
-                        
-                        Box(modifier = Modifier.fillMaxWidth().background(if(isITMCall || isITMPut) MaterialTheme.colorScheme.surfaceVariant.copy(alpha=0.3f) else Color.Transparent)) {
+
+                        val rowModifier = if (isCurrentStrike) {
+                            Modifier
+                                .fillMaxWidth()
+                                .background(
+                                    color = Color.White.copy(alpha = 0.08f),
+                                    shape = RoundedCornerShape(4.dp)
+                                )
+                                .border(
+                                    width = 0.8.dp,
+                                    color = Color.White.copy(alpha = 0.25f),
+                                    shape = RoundedCornerShape(4.dp)
+                                )
+                        } else {
+                            Modifier.fillMaxWidth()
+                        }
+
+                        Box(modifier = rowModifier) {
                             Row(
-                                modifier = Modifier.fillMaxWidth().padding(vertical = 10.dp, horizontal = 4.dp),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 8.dp, horizontal = 4.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 if (viewMode == "OI") {
-                                    Box(modifier = Modifier.weight(1f)) {
-                                        Box(modifier = Modifier.fillMaxWidth( (strike.callOI / maxOI).toFloat() ).height(14.dp).background(AppRed.copy(0.15f), RoundedCornerShape(2.dp)))
-                                        Text("${(strike.callOI / 1000).toInt()}k", color = MaterialTheme.colorScheme.onSurface, fontSize = 10.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(start = 2.dp), fontFamily = FontFamily.Monospace)
+                                    // CALL OI
+                                    Box(
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .then(
+                                                if (isITMCall && !isCurrentStrike) Modifier.background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.25f), RoundedCornerShape(2.dp))
+                                                else Modifier
+                                            )
+                                    ) {
+                                        Box(
+                                            modifier = Modifier
+                                                .fillMaxWidth((strike.callOI / maxOI).toFloat().coerceIn(0f, 1f))
+                                                .height(14.dp)
+                                                .background(AppRed.copy(if (isCurrentStrike) 0.30f else 0.15f), RoundedCornerShape(2.dp))
+                                        )
+                                        Text(
+                                            "${(strike.callOI / 1000).toInt()}k",
+                                            color = MaterialTheme.colorScheme.onSurface,
+                                            fontSize = 10.sp,
+                                            fontWeight = if (isCurrentStrike) FontWeight.ExtraBold else FontWeight.Bold,
+                                            modifier = Modifier.padding(start = 2.dp),
+                                            fontFamily = FontFamily.Monospace
+                                        )
                                     }
-                                    Text("${strike.callLTP.toInt()}", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 10.sp, modifier = Modifier.weight(0.6f), textAlign = androidx.compose.ui.text.style.TextAlign.Center, fontFamily = FontFamily.Monospace)
-                                    Text("₹${strike.strike.toInt()}", color = MaterialTheme.colorScheme.onSurface, fontSize = 10.sp, fontWeight = FontWeight.ExtraBold, modifier = Modifier.weight(1f), textAlign = androidx.compose.ui.text.style.TextAlign.Center, fontFamily = FontFamily.Monospace)
-                                    Text("${strike.putLTP.toInt()}", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 10.sp, modifier = Modifier.weight(0.6f), textAlign = androidx.compose.ui.text.style.TextAlign.Center, fontFamily = FontFamily.Monospace)
-                                    Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.CenterEnd) {
-                                        Box(modifier = Modifier.fillMaxWidth( (strike.putOI / maxOI).toFloat() ).height(14.dp).background(AppGreen.copy(0.15f), RoundedCornerShape(2.dp)))
-                                        Text("${(strike.putOI / 1000).toInt()}k", color = MaterialTheme.colorScheme.onSurface, fontSize = 10.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(end = 2.dp), fontFamily = FontFamily.Monospace)
+                                    // CALL LTP
+                                    Text(
+                                        "${strike.callLTP.toInt()}",
+                                        color = if (isCurrentStrike) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
+                                        fontSize = 10.sp,
+                                        fontWeight = if (isCurrentStrike) FontWeight.Bold else FontWeight.Normal,
+                                        modifier = Modifier.weight(0.6f),
+                                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                                        fontFamily = FontFamily.Monospace
+                                    )
+                                    // STRIKE (CURRENT / ATM HIGHLIGHTED - SIMPLE OVERLAY)
+                                    Column(
+                                        modifier = Modifier.weight(1f),
+                                        horizontalAlignment = Alignment.CenterHorizontally,
+                                        verticalArrangement = Arrangement.Center
+                                    ) {
+                                        Text(
+                                            "₹${strike.strike.toInt()}",
+                                            color = if (isCurrentStrike) Color.White else MaterialTheme.colorScheme.onSurface,
+                                            fontSize = 10.sp,
+                                            fontWeight = if (isCurrentStrike) FontWeight.Black else FontWeight.ExtraBold,
+                                            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                                            fontFamily = FontFamily.Monospace
+                                        )
+                                        if (isCurrentStrike) {
+                                            Text(
+                                                "ATM",
+                                                color = Color(0xFF00E5FF),
+                                                fontSize = 7.sp,
+                                                fontWeight = FontWeight.ExtraBold,
+                                                fontFamily = FontFamily.Monospace,
+                                                letterSpacing = 0.5.sp
+                                            )
+                                        }
+                                    }
+                                    // PUT LTP
+                                    Text(
+                                        "${strike.putLTP.toInt()}",
+                                        color = if (isCurrentStrike) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
+                                        fontSize = 10.sp,
+                                        fontWeight = if (isCurrentStrike) FontWeight.Bold else FontWeight.Normal,
+                                        modifier = Modifier.weight(0.6f),
+                                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                                        fontFamily = FontFamily.Monospace
+                                    )
+                                    // PUT OI
+                                    Box(
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .then(
+                                                if (isITMPut && !isCurrentStrike) Modifier.background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.25f), RoundedCornerShape(2.dp))
+                                                else Modifier
+                                            ),
+                                        contentAlignment = Alignment.CenterEnd
+                                    ) {
+                                        Box(
+                                            modifier = Modifier
+                                                .fillMaxWidth((strike.putOI / maxOI).toFloat().coerceIn(0f, 1f))
+                                                .height(14.dp)
+                                                .background(AppGreen.copy(if (isCurrentStrike) 0.30f else 0.15f), RoundedCornerShape(2.dp))
+                                        )
+                                        Text(
+                                            "${(strike.putOI / 1000).toInt()}k",
+                                            color = MaterialTheme.colorScheme.onSurface,
+                                            fontSize = 10.sp,
+                                            fontWeight = if (isCurrentStrike) FontWeight.ExtraBold else FontWeight.Bold,
+                                            modifier = Modifier.padding(end = 2.dp),
+                                            fontFamily = FontFamily.Monospace
+                                        )
                                     }
                                 } else {
-                                    Text("%.2f".format(strike.callGreeks.delta), color = Color.Cyan, fontSize = 10.sp, modifier = Modifier.weight(1f), fontFamily = FontFamily.Monospace)
-                                    Text("%.1f".format(strike.callGreeks.theta), color = Color.Magenta, fontSize = 10.sp, modifier = Modifier.weight(1f), textAlign = androidx.compose.ui.text.style.TextAlign.Center, fontFamily = FontFamily.Monospace)
-                                    Text("₹${strike.strike.toInt()}", color = MaterialTheme.colorScheme.onSurface, fontSize = 10.sp, fontWeight = FontWeight.ExtraBold, modifier = Modifier.weight(1f), textAlign = androidx.compose.ui.text.style.TextAlign.Center, fontFamily = FontFamily.Monospace)
-                                    Text("%.1f".format(strike.putGreeks.theta), color = Color.Magenta, fontSize = 10.sp, modifier = Modifier.weight(1f), textAlign = androidx.compose.ui.text.style.TextAlign.Center, fontFamily = FontFamily.Monospace)
-                                    Text("%.2f".format(strike.putGreeks.delta), color = Color.Cyan, fontSize = 10.sp, modifier = Modifier.weight(1f), textAlign = androidx.compose.ui.text.style.TextAlign.End, fontFamily = FontFamily.Monospace)
+                                    // GREEKS VIEW
+                                    // CALL DELTA
+                                    Text(
+                                        "%.2f".format(strike.callGreeks.delta),
+                                        color = Color.Cyan,
+                                        fontSize = 10.sp,
+                                        fontWeight = if (isCurrentStrike) FontWeight.ExtraBold else FontWeight.Normal,
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .then(
+                                                if (isITMCall && !isCurrentStrike) Modifier.background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.25f), RoundedCornerShape(2.dp))
+                                                else Modifier
+                                            ),
+                                        fontFamily = FontFamily.Monospace
+                                    )
+                                    // CALL THETA
+                                    Text(
+                                        "%.1f".format(strike.callGreeks.theta),
+                                        color = Color.Magenta,
+                                        fontSize = 10.sp,
+                                        fontWeight = if (isCurrentStrike) FontWeight.ExtraBold else FontWeight.Normal,
+                                        modifier = Modifier.weight(1f),
+                                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                                        fontFamily = FontFamily.Monospace
+                                    )
+                                    // STRIKE (CURRENT / ATM HIGHLIGHTED - SIMPLE OVERLAY)
+                                    Column(
+                                        modifier = Modifier.weight(1f),
+                                        horizontalAlignment = Alignment.CenterHorizontally,
+                                        verticalArrangement = Arrangement.Center
+                                    ) {
+                                        Text(
+                                            "₹${strike.strike.toInt()}",
+                                            color = if (isCurrentStrike) Color.White else MaterialTheme.colorScheme.onSurface,
+                                            fontSize = 10.sp,
+                                            fontWeight = if (isCurrentStrike) FontWeight.Black else FontWeight.ExtraBold,
+                                            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                                            fontFamily = FontFamily.Monospace
+                                        )
+                                        if (isCurrentStrike) {
+                                            Text(
+                                                "ATM",
+                                                color = Color(0xFF00E5FF),
+                                                fontSize = 7.sp,
+                                                fontWeight = FontWeight.ExtraBold,
+                                                fontFamily = FontFamily.Monospace,
+                                                letterSpacing = 0.5.sp
+                                            )
+                                        }
+                                    }
+                                    // PUT THETA
+                                    Text(
+                                        "%.1f".format(strike.putGreeks.theta),
+                                        color = Color.Magenta,
+                                        fontSize = 10.sp,
+                                        fontWeight = if (isCurrentStrike) FontWeight.ExtraBold else FontWeight.Normal,
+                                        modifier = Modifier.weight(1f),
+                                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                                        fontFamily = FontFamily.Monospace
+                                    )
+                                    // PUT DELTA
+                                    Text(
+                                        "%.2f".format(strike.putGreeks.delta),
+                                        color = Color.Cyan,
+                                        fontSize = 10.sp,
+                                        fontWeight = if (isCurrentStrike) FontWeight.ExtraBold else FontWeight.Normal,
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .then(
+                                                if (isITMPut && !isCurrentStrike) Modifier.background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.25f), RoundedCornerShape(2.dp))
+                                                else Modifier
+                                            ),
+                                        textAlign = androidx.compose.ui.text.style.TextAlign.End,
+                                        fontFamily = FontFamily.Monospace
+                                    )
                                 }
                             }
                         }
-                        Divider(color = MaterialTheme.colorScheme.outline, thickness = 0.5.dp)
+                        if (!isCurrentStrike) {
+                            Divider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f), thickness = 0.5.dp)
+                        }
                     }
                 }
             }
@@ -361,9 +599,176 @@ fun StrategyBuilderTab(uiState: FnoUiState, viewModel: FnoViewModel) {
 
     Column(modifier = Modifier.fillMaxSize().verticalScroll(scrollState)) {
         Text("INSTITUTIONAL STRATEGY BUILDER", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 10.sp, fontWeight = FontWeight.Bold)
-        Spacer(Modifier.height(16.dp))
+        Spacer(Modifier.height(12.dp))
+
+        // --- LIVE STRATEGY P&L & GREEKS BANNER ---
+        if (uiState.activeLegs.isNotEmpty()) {
+            val pnlColor = if (uiState.totalStrategyPnl >= 0.0) AppGreen else AppRed
+            val pnlSign = if (uiState.totalStrategyPnl >= 0.0) "+" else ""
+            Surface(
+                color = MaterialTheme.colorScheme.surface,
+                shape = RoundedCornerShape(10.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .border(1.dp, pnlColor.copy(alpha = 0.5f), RoundedCornerShape(10.dp))
+            ) {
+                Column(modifier = Modifier.padding(12.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Box(
+                                modifier = Modifier
+                                    .size(8.dp)
+                                    .clip(CircleShape)
+                                    .background(AppGreen)
+                            )
+                            Text(
+                                "LIVE STRATEGY VALUE",
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                fontSize = 9.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                letterSpacing = 0.5.sp
+                            )
+                        }
+                        Surface(
+                            color = pnlColor.copy(alpha = 0.15f),
+                            shape = RoundedCornerShape(4.dp),
+                            modifier = Modifier.border(0.5.dp, pnlColor.copy(alpha = 0.5f), RoundedCornerShape(4.dp))
+                        ) {
+                            Text(
+                                "$pnlSign₹${"%.1f".format(uiState.totalStrategyPnl)} ($pnlSign${"%.2f".format(uiState.totalStrategyPnlPct)}%)",
+                                color = pnlColor,
+                                fontSize = 11.5.sp,
+                                fontWeight = FontWeight.Black,
+                                fontFamily = FontFamily.Monospace,
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                            )
+                        }
+                    }
+
+                    Spacer(Modifier.height(8.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Column {
+                            Text("NET PREMIUM", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 8.sp, fontWeight = FontWeight.Bold)
+                            val isDebit = uiState.netPremium >= 0.0
+                            Text(
+                                "${if (isDebit) "Debit: ₹" else "Credit: ₹"}${"%.1f".format(abs(uiState.netPremium))}",
+                                color = MaterialTheme.colorScheme.onSurface,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                fontFamily = FontFamily.Monospace
+                            )
+                        }
+                        Column {
+                            Text("CURRENT VALUE", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 8.sp, fontWeight = FontWeight.Bold)
+                            Text(
+                                "₹${"%.1f".format(uiState.currentStrategyValue)}",
+                                color = MaterialTheme.colorScheme.onSurface,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                fontFamily = FontFamily.Monospace
+                            )
+                        }
+                        Column {
+                            Text("UNDERLYING", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 8.sp, fontWeight = FontWeight.Bold)
+                            Text(
+                                "₹${"%.2f".format(uiState.spotPrice)}",
+                                color = MaterialTheme.colorScheme.primary,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                fontFamily = FontFamily.Monospace
+                            )
+                        }
+                    }
+
+                    // Greeks strip
+                    Spacer(Modifier.height(8.dp))
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f), RoundedCornerShape(6.dp))
+                            .padding(horizontal = 8.dp, vertical = 4.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text("Δ: %.2f".format(uiState.strategyGreeks.delta), color = Color.Cyan, fontSize = 9.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace)
+                        Text("Γ: %.4f".format(uiState.strategyGreeks.gamma), color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 9.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace)
+                        Text("Θ: %.1f/d".format(uiState.strategyGreeks.theta), color = Color.Magenta, fontSize = 9.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace)
+                        Text("V: %.1f".format(uiState.strategyGreeks.vega), color = AppGreen, fontSize = 9.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace)
+                    }
+                }
+            }
+            Spacer(Modifier.height(12.dp))
+        }
+
+        // 0. Active Editing Indicator Banner (if editing an existing saved strategy)
+        if (uiState.editingStrategyId != null) {
+            Surface(
+                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
+                shape = RoundedCornerShape(8.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .border(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.5f), RoundedCornerShape(8.dp))
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Icon(Icons.Default.Edit, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(16.dp))
+                        Text(
+                            text = "EDITING SAVED STRATEGY",
+                            color = MaterialTheme.colorScheme.primary,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.ExtraBold
+                        )
+                    }
+                    Surface(
+                        color = MaterialTheme.colorScheme.surfaceVariant,
+                        shape = RoundedCornerShape(4.dp),
+                        modifier = Modifier
+                            .clickable { viewModel.cancelEditMode() }
+                            .padding(horizontal = 8.dp, vertical = 4.dp)
+                    ) {
+                        Text("Cancel / New", color = MaterialTheme.colorScheme.onSurface, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+            Spacer(Modifier.height(12.dp))
+        }
+
+        // 1. Custom Strategy Name Input Field
+        OutlinedTextField(
+            value = uiState.customStrategyName,
+            onValueChange = { viewModel.onCustomStrategyNameChanged(it) },
+            label = { Text("Strategy Name", fontSize = 10.sp) },
+            placeholder = { Text("e.g. NIFTY Bull Call Spread", fontSize = 11.sp) },
+            modifier = Modifier.fillMaxWidth(),
+            singleLine = true,
+            textStyle = TextStyle(
+                color = MaterialTheme.colorScheme.onSurface,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Bold
+            ),
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedBorderColor = MaterialTheme.colorScheme.primary,
+                unfocusedBorderColor = MaterialTheme.colorScheme.outline
+            ),
+            shape = RoundedCornerShape(8.dp)
+        )
+
+        Spacer(Modifier.height(12.dp))
         
-        // 1. Category & Strategy Selection
+        // 2. Category & Strategy Architecture Selection Dropdowns
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             // Category Dropdown
             Box(modifier = Modifier.weight(1f)) {
@@ -371,7 +776,7 @@ fun StrategyBuilderTab(uiState: FnoUiState, viewModel: FnoViewModel) {
                     onClick = { isCategoryDropdownExpanded = true },
                     colors = CardDefaults.outlinedCardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
                     border = BorderStroke(0.5.dp, MaterialTheme.colorScheme.outline),
-                    modifier = Modifier.fillMaxWidth().height(48.dp)
+                    modifier = Modifier.fillMaxWidth().height(46.dp)
                 ) {
                     Row(modifier = Modifier.fillMaxSize().padding(horizontal = 12.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
                         Text(uiState.selectedCategory.name, color = MaterialTheme.colorScheme.onSurface, fontSize = 11.sp, fontWeight = FontWeight.Bold)
@@ -395,16 +800,16 @@ fun StrategyBuilderTab(uiState: FnoUiState, viewModel: FnoViewModel) {
                 }
             }
 
-            // Strategy Dropdown
+            // Strategy Architecture Dropdown
             Box(modifier = Modifier.weight(1.5f)) {
                 OutlinedCard(
                     onClick = { isStrategyDropdownExpanded = true },
                     colors = CardDefaults.outlinedCardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
                     border = BorderStroke(0.5.dp, MaterialTheme.colorScheme.outline),
-                    modifier = Modifier.fillMaxWidth().height(48.dp)
+                    modifier = Modifier.fillMaxWidth().height(46.dp)
                 ) {
                     Row(modifier = Modifier.fillMaxSize().padding(horizontal = 12.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text(uiState.selectedStrategy?.name ?: "SELECT ARCHITECTURE", color = MaterialTheme.colorScheme.onSurface, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                        Text(uiState.selectedStrategyName.ifBlank { "SELECT ARCHITECTURE" }, color = MaterialTheme.colorScheme.onSurface, fontSize = 11.sp, fontWeight = FontWeight.Bold)
                         Icon(Icons.Default.ArrowDropDown, null, tint = MaterialTheme.colorScheme.primary)
                     }
                 }
@@ -428,97 +833,277 @@ fun StrategyBuilderTab(uiState: FnoUiState, viewModel: FnoViewModel) {
 
         Spacer(Modifier.height(16.dp))
         
-        // 2. Asset Display (from Main Header) & Leg Management
+        // 3. Strategy Legs Management (Add more legs, modify strike, remove leg)
         if (uiState.activeLegs.isNotEmpty()) {
-            Text("STRATEGY LEGS", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                Text("STRATEGY LEGS (${uiState.activeLegs.size})", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                Text("EDITABLE", color = MaterialTheme.colorScheme.primary, fontSize = 8.sp, fontWeight = FontWeight.ExtraBold)
+            }
             Spacer(Modifier.height(8.dp))
             uiState.activeLegs.forEach { leg ->
-                StrategyLegRow(leg, onUpdate = { viewModel.updateLeg(leg.id, it) }, onRemove = { viewModel.removeLeg(leg.id) })
+                StrategyLegRow(
+                    leg = leg,
+                    onShiftStrike = { delta -> viewModel.shiftLegStrike(leg.id, delta) },
+                    onToggleType = { viewModel.toggleLegType(leg.id) },
+                    onToggleInstrument = { viewModel.toggleLegInstrument(leg.id) },
+                    onRemove = { viewModel.removeLeg(leg.id) }
+                )
                 Spacer(Modifier.height(4.dp))
             }
             
+            Spacer(Modifier.height(4.dp))
             Button(
                 onClick = { viewModel.addLeg("CALL", "BUY", uiState.spotPrice) },
-                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.outline),
-                modifier = Modifier.fillMaxWidth().height(32.dp),
-                shape = RoundedCornerShape(4.dp)
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+                modifier = Modifier.fillMaxWidth().height(34.dp),
+                shape = RoundedCornerShape(6.dp),
+                border = BorderStroke(0.5.dp, MaterialTheme.colorScheme.primary)
             ) {
                 Icon(Icons.Default.Add, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(14.dp))
                 Spacer(Modifier.width(4.dp))
-                Text("ADD CUSTOM LEG", color = MaterialTheme.colorScheme.primary, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                Text("ADD CUSTOM LEG", color = MaterialTheme.colorScheme.primary, fontSize = 9.5.sp, fontWeight = FontWeight.Bold)
             }
         }
 
-        // 3. Analytics & Build Buttons
-        Spacer(Modifier.height(24.dp))
+        // 4. Action Buttons (ANALYZE & SAVE / UPDATE)
+        Spacer(Modifier.height(20.dp))
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Button(
                 onClick = { viewModel.analyzeStrategy() },
                 modifier = Modifier.weight(1f).height(44.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
-                shape = RoundedCornerShape(8.dp)
+                shape = RoundedCornerShape(8.dp),
+                enabled = uiState.activeLegs.isNotEmpty()
             ) {
-                Text("ANALYZE", color = MaterialTheme.colorScheme.onPrimary, fontWeight = FontWeight.Bold)
+                Icon(Icons.Default.Analytics, contentDescription = null, modifier = Modifier.size(16.dp))
+                Spacer(Modifier.width(6.dp))
+                Text("ANALYZE", color = MaterialTheme.colorScheme.onPrimary, fontWeight = FontWeight.Bold, fontSize = 12.sp)
             }
             Button(
                 onClick = { viewModel.saveStrategy() },
                 modifier = Modifier.weight(1f).height(44.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
                 shape = RoundedCornerShape(8.dp),
-                border = BorderStroke(0.5.dp, MaterialTheme.colorScheme.primary)
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary),
+                enabled = uiState.activeLegs.isNotEmpty()
             ) {
-                Text("BUILD & SAVE", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
+                Icon(Icons.Default.Bookmark, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(16.dp))
+                Spacer(Modifier.width(6.dp))
+                Text(
+                    if (uiState.editingStrategyId != null) "UPDATE STRATEGY" else "SAVE STRATEGY",
+                    color = MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 11.sp
+                )
             }
         }
 
-        // 4. Payoff Metrics & Visualization
-        if (uiState.selectedStrategy != null) {
+        // 5. Payoff Metrics & Visualization (Rendered ONLY after clicking ANALYZE)
+        Spacer(Modifier.height(16.dp))
+        if (uiState.isStrategyAnalyzed && uiState.selectedStrategy != null) {
             val strategy = uiState.selectedStrategy!!
-            Spacer(Modifier.height(24.dp))
             Card(
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                 shape = RoundedCornerShape(12.dp),
                 modifier = Modifier.fillMaxWidth().border(0.5.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(12.dp))
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
-                    Text(strategy.name.uppercase(), color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.ExtraBold, fontSize = 14.sp)
-                    Spacer(Modifier.height(16.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            strategy.name.uppercase(),
+                            color = MaterialTheme.colorScheme.primary,
+                            fontWeight = FontWeight.ExtraBold,
+                            fontSize = 13.sp,
+                            modifier = Modifier.weight(1f)
+                        )
+                        Surface(
+                            color = AppGreen.copy(alpha = 0.15f),
+                            shape = RoundedCornerShape(4.dp),
+                            modifier = Modifier.border(0.5.dp, AppGreen.copy(alpha = 0.5f), RoundedCornerShape(4.dp))
+                        ) {
+                            Text(
+                                "ANALYZED",
+                                color = AppGreen,
+                                fontSize = 8.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                            )
+                        }
+                    }
+                    Spacer(Modifier.height(14.dp))
                     
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                         StrategyMetric("MAX PROFIT", if(strategy.maxProfit > 1000000) "UNLIMITED" else "₹${strategy.maxProfit.toInt()}", AppGreen)
                         StrategyMetric("MAX LOSS", if(strategy.maxLoss < -1000000) "UNLIMITED" else "₹${strategy.maxLoss.toInt()}", AppRed)
                     }
-                    Spacer(Modifier.height(12.dp))
+                    Spacer(Modifier.height(10.dp))
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        StrategyMetric("BREAKEVEN", strategy.breakeven.joinToString(", ") { it.toInt().toString() }, MaterialTheme.colorScheme.onSurface)
+                        StrategyMetric("BREAKEVEN", if (strategy.breakeven.isEmpty()) "NONE" else strategy.breakeven.joinToString(", ") { it.toInt().toString() }, MaterialTheme.colorScheme.onSurface)
                         StrategyMetric("WIN PROB", "${strategy.probability}%", Color.Cyan)
                     }
+
+                    // Greeks Strip
+                    Spacer(Modifier.height(12.dp))
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f), RoundedCornerShape(6.dp))
+                            .padding(horizontal = 8.dp, vertical = 5.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text("Δ: %.2f".format(uiState.strategyGreeks.delta), color = Color.Cyan, fontSize = 9.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace)
+                        Text("Γ: %.4f".format(uiState.strategyGreeks.gamma), color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 9.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace)
+                        Text("Θ: %.1f/d".format(uiState.strategyGreeks.theta), color = Color.Magenta, fontSize = 9.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace)
+                        Text("V: %.1f".format(uiState.strategyGreeks.vega), color = AppGreen, fontSize = 9.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace)
+                    }
                     
-                    Spacer(Modifier.height(20.dp))
+                    Spacer(Modifier.height(16.dp))
                     Box(modifier = Modifier.fillMaxWidth().height(160.dp)) {
                         AdvancedPayoffChart(strategy.payoffPoints, uiState.spotPrice)
                     }
                 }
             }
+        } else if (uiState.activeLegs.isNotEmpty()) {
+            Card(
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)),
+                shape = RoundedCornerShape(10.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .border(0.5.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.6f), RoundedCornerShape(10.dp))
+            ) {
+                Row(
+                    modifier = Modifier.padding(14.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Icon(Icons.Default.Info, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            "Strategy Ready for Analysis",
+                            color = MaterialTheme.colorScheme.onSurface,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            "Tap 'ANALYZE' above to generate payoff chart, P&L profile, Greeks, and risk metrics.",
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            fontSize = 9.5.sp
+                        )
+                    }
+                }
+            }
         }
         
-        // 5. Tracked Strategies Section
+        // 6. Tracked Strategies Section (Saved Strategies with EDIT and DELETE)
         if (uiState.trackedStrategies.isNotEmpty()) {
-            Spacer(Modifier.height(32.dp))
-            Text("MY TRACKED STRATEGIES", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 10.sp, fontWeight = FontWeight.Bold)
-            Spacer(Modifier.height(12.dp))
+            Spacer(Modifier.height(28.dp))
+            Text(
+                "MY TRACKED STRATEGIES (${uiState.trackedStrategies.size})",
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                fontSize = 10.sp,
+                fontWeight = FontWeight.Bold
+            )
+            Spacer(Modifier.height(10.dp))
             uiState.trackedStrategies.forEach { saved ->
+                val isCurrent = uiState.editingStrategyId == saved.id
                 Card(
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+                    colors = CardDefaults.cardColors(
+                        containerColor = if (isCurrent) MaterialTheme.colorScheme.primary.copy(alpha = 0.12f) else MaterialTheme.colorScheme.surfaceVariant
+                    ),
                     shape = RoundedCornerShape(8.dp),
-                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp).border(0.5.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(8.dp))
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 4.dp)
+                        .border(
+                            if (isCurrent) 1.dp else 0.5.dp,
+                            if (isCurrent) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline,
+                            RoundedCornerShape(8.dp)
+                        )
                 ) {
-                    Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
-                        Column {
-                            Text(saved.name, color = MaterialTheme.colorScheme.onSurface, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                            Text("Active until Expiry", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 9.sp)
+                    Row(
+                        modifier = Modifier.padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                Text(saved.name, color = MaterialTheme.colorScheme.onSurface, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                if (isCurrent) {
+                                    Surface(
+                                        color = MaterialTheme.colorScheme.primary,
+                                        shape = RoundedCornerShape(3.dp)
+                                    ) {
+                                        Text(
+                                            "ACTIVE",
+                                            color = MaterialTheme.colorScheme.onPrimary,
+                                            fontSize = 7.5.sp,
+                                            fontWeight = FontWeight.Black,
+                                            modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp)
+                                        )
+                                    }
+                                }
+                            }
+                            Spacer(Modifier.height(3.dp))
+                            Text(
+                                text = saved.legs.joinToString(" • "),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                fontSize = 8.5.sp,
+                                maxLines = 2,
+                                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                            )
+                            Spacer(Modifier.height(2.dp))
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                                Text("POP: ${saved.probability}%", color = Color.Cyan, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                                Text(
+                                    "Max P/L: ₹${if (saved.maxProfit > 1000000) "∞" else saved.maxProfit.toInt().toString()} / ₹${if (saved.maxLoss < -1000000) "∞" else saved.maxLoss.toInt().toString()}",
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    fontSize = 9.sp
+                                )
+                                if (saved.rawLegs.isNotEmpty()) {
+                                    val savedPnl = saved.rawLegs.sumOf { it.pnl }
+                                    val savedPnlColor = if (savedPnl >= 0.0) AppGreen else AppRed
+                                    val savedPnlSign = if (savedPnl >= 0.0) "+" else ""
+                                    Text(
+                                        "Live: $savedPnlSign₹${"%.1f".format(savedPnl)}",
+                                        color = savedPnlColor,
+                                        fontSize = 9.sp,
+                                        fontWeight = FontWeight.ExtraBold,
+                                        fontFamily = FontFamily.Monospace
+                                    )
+                                }
+                            }
                         }
-                        Text("${saved.probability}% POP", color = MaterialTheme.colorScheme.primary, fontSize = 12.sp, fontWeight = FontWeight.ExtraBold)
+
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                            // EDIT BUTTON: Loads into builder to add more legs, re-analyze, re-save
+                            IconButton(
+                                onClick = { viewModel.editTrackedStrategy(saved) },
+                                modifier = Modifier.size(32.dp)
+                            ) {
+                                Icon(
+                                    Icons.Default.Edit,
+                                    contentDescription = "Edit Strategy",
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                            // DELETE BUTTON
+                            IconButton(
+                                onClick = { viewModel.deleteTrackedStrategy(saved.id) },
+                                modifier = Modifier.size(32.dp)
+                            ) {
+                                Icon(
+                                    Icons.Default.Delete,
+                                    contentDescription = "Delete Strategy",
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                        }
                     }
                 }
             }
@@ -529,39 +1114,152 @@ fun StrategyBuilderTab(uiState: FnoUiState, viewModel: FnoViewModel) {
 }
 
 @Composable
-fun StrategyLegRow(leg: StrategyLeg, onUpdate: (Double) -> Unit, onRemove: () -> Unit) {
+fun StrategyLegRow(
+    leg: StrategyLeg,
+    onShiftStrike: (Int) -> Unit,
+    onToggleType: () -> Unit,
+    onToggleInstrument: () -> Unit,
+    onRemove: () -> Unit
+) {
+    val legPnlColor = if (leg.pnl >= 0.0) AppGreen else AppRed
+    val legPnlSign = if (leg.pnl >= 0.0) "+" else ""
     Surface(
         color = MaterialTheme.colorScheme.surfaceVariant,
-        shape = RoundedCornerShape(6.dp),
-        modifier = Modifier.fillMaxWidth().border(0.5.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(6.dp))
+        shape = RoundedCornerShape(8.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .border(0.5.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(8.dp))
     ) {
-        Row(modifier = Modifier.padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
-            val ratioText = if (leg.qty > 50) "${leg.qty / 50}x " else ""
-            Text(
-                "$ratioText${leg.type} ${leg.instrument}", 
-                color = if(leg.type == "BUY") AppGreen else AppRed, 
-                fontSize = 10.sp, 
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.width(76.dp)
-            )
-            
-            // Editable Strike & Expiry
-            Text(
-                "STRIKE:", 
-                color = MaterialTheme.colorScheme.onSurfaceVariant, 
-                fontSize = 8.sp, 
-                modifier = Modifier.padding(horizontal = 4.dp)
-            )
-            Text(
-                "${leg.strike.toInt()} (${leg.expiry})",
-                color = MaterialTheme.colorScheme.onSurface,
-                fontSize = 11.sp,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.weight(1f)
-            )
+        Column(modifier = Modifier.padding(8.dp)) {
+            // Top Row: Type & Instrument chips + Strike Stepper + Remove
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    // BUY / SELL Chip (Clickable to toggle)
+                    Surface(
+                        color = (if (leg.type == "BUY") AppGreen else AppRed).copy(alpha = 0.18f),
+                        shape = RoundedCornerShape(4.dp),
+                        modifier = Modifier
+                            .clickable { onToggleType() }
+                            .border(0.5.dp, if (leg.type == "BUY") AppGreen else AppRed, RoundedCornerShape(4.dp))
+                    ) {
+                        Text(
+                            leg.type,
+                            color = if (leg.type == "BUY") AppGreen else AppRed,
+                            fontSize = 9.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                        )
+                    }
 
-            IconButton(onClick = onRemove, modifier = Modifier.size(20.dp)) {
-                Icon(Icons.Default.Close, null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(14.dp))
+                    // Instrument Chip (CALL / PUT / FUT)
+                    Surface(
+                        color = MaterialTheme.colorScheme.surface,
+                        shape = RoundedCornerShape(4.dp),
+                        modifier = Modifier
+                            .clickable { onToggleInstrument() }
+                            .border(0.5.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(4.dp))
+                    ) {
+                        Text(
+                            leg.instrument,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            fontSize = 9.sp,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                        )
+                    }
+
+                    if (leg.qty > 50) {
+                        Text(
+                            "${leg.qty / 50}x",
+                            color = MaterialTheme.colorScheme.primary,
+                            fontSize = 9.sp,
+                            fontWeight = FontWeight.ExtraBold
+                        )
+                    }
+                }
+
+                // Interactive Strike Stepper: [-] STRIKE [+]
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Surface(
+                        color = MaterialTheme.colorScheme.surface,
+                        shape = RoundedCornerShape(4.dp),
+                        modifier = Modifier
+                            .size(24.dp)
+                            .clickable { onShiftStrike(-1) }
+                            .border(0.5.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(4.dp))
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Text("-", color = MaterialTheme.colorScheme.primary, fontSize = 14.sp, fontWeight = FontWeight.Black)
+                        }
+                    }
+
+                    Text(
+                        "${leg.strike.toInt()}",
+                        color = MaterialTheme.colorScheme.onSurface,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        fontFamily = FontFamily.Monospace,
+                        modifier = Modifier.padding(horizontal = 4.dp)
+                    )
+
+                    Surface(
+                        color = MaterialTheme.colorScheme.surface,
+                        shape = RoundedCornerShape(4.dp),
+                        modifier = Modifier
+                            .size(24.dp)
+                            .clickable { onShiftStrike(1) }
+                            .border(0.5.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(4.dp))
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Text("+", color = MaterialTheme.colorScheme.primary, fontSize = 14.sp, fontWeight = FontWeight.Black)
+                        }
+                    }
+
+                    Spacer(Modifier.width(4.dp))
+                    IconButton(onClick = onRemove, modifier = Modifier.size(20.dp)) {
+                        Icon(Icons.Default.Close, null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(14.dp))
+                    }
+                }
+            }
+
+            Spacer(Modifier.height(6.dp))
+
+            // Bottom Row: Entry vs LTP & Live Leg PnL
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.5f), RoundedCornerShape(4.dp))
+                    .padding(horizontal = 6.dp, vertical = 3.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        "Entry: ₹${"%.1f".format(leg.entryPrice)}",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontSize = 9.sp,
+                        fontFamily = FontFamily.Monospace
+                    )
+                    Text(
+                        "LTP: ₹${"%.1f".format(leg.currentPrice)}",
+                        color = MaterialTheme.colorScheme.onSurface,
+                        fontSize = 9.sp,
+                        fontWeight = FontWeight.Bold,
+                        fontFamily = FontFamily.Monospace
+                    )
+                }
+
+                Text(
+                    "$legPnlSign₹${"%.1f".format(leg.pnl)} ($legPnlSign${"%.1f".format(leg.pnlPercent)}%)",
+                    color = legPnlColor,
+                    fontSize = 9.5.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    fontFamily = FontFamily.Monospace
+                )
             }
         }
     }

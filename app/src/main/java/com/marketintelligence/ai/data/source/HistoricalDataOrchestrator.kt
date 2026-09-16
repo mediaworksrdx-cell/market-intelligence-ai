@@ -20,22 +20,40 @@ class HistoricalDataOrchestrator(
      * @param to The end time (exclusive) of the historical data range in Unix timestamp (milliseconds).
      * @param type The type of instrument (e.g., "STOCK", "CRYPTO").
      */
-    suspend fun fetchAndStoreHistoricalData(symbol: String, timeframe: String, from: Long, to: Long, type: String) {
-        withContext(Dispatchers.IO) {
+    suspend fun fetchAndStoreHistoricalData(symbol: String, timeframe: String, from: Long, to: Long, type: String): List<Candle> {
+        return withContext(Dispatchers.IO) {
             // Step 1: Fetch candles from REST API
-            val remoteCandles = marketApiService.getCandles(symbol, timeframe, from, to, type)
+            val remoteCandles = try {
+                marketApiService.getCandles(symbol, timeframe, from, to, type)
+            } catch (e: Exception) {
+                emptyList()
+            }
 
             if (remoteCandles.isNotEmpty()) {
-                // Step 2: Validate candles (basic validation)
-                val validCandles = validateCandles(remoteCandles)
-
-                // Step 3 & 4: Remove duplicates and Save in database
-                // The DAO's `OnConflictStrategy.REPLACE` handles duplicates automatically based on the primary key.
-                candleRepository.insertCandles(validCandles)
+                val duration = when (timeframe.lowercase()) {
+                    "1m" -> 60_000L
+                    "5m" -> 300_000L
+                    "15m" -> 900_000L
+                    "30m" -> 1800_000L
+                    "1h", "60m" -> 3600_000L
+                    "4h" -> 14400_000L
+                    "1d", "day" -> 86400_000L
+                    "1w", "week" -> 7 * 86400_000L
+                    "1m", "month" -> 30 * 86400_000L
+                    else -> 86400_000L
+                }
+                val mappedCandles = remoteCandles.map { c ->
+                    val resolvedCloseTime = if (c.closeTime > c.openTime) c.closeTime else c.openTime + duration
+                    c.copy(symbol = symbol, timeframe = timeframe, closeTime = resolvedCloseTime)
+                }
+                val validCandles = validateCandles(mappedCandles)
+                try {
+                    candleRepository.insertCandles(validCandles)
+                } catch (_: Exception) {}
+                validCandles
+            } else {
+                emptyList()
             }
-            // Step 6: Gap filling can be implemented here by analyzing the returned candles
-            // and fetching missing ranges if necessary. This can be complex, so for now we assume
-            // the API returns continuous data for the requested range.
         }
     }
 
@@ -45,7 +63,7 @@ class HistoricalDataOrchestrator(
     private fun validateCandles(candles: List<Candle>): List<Candle> {
         // Filter out candles with invalid data, like non-positive prices or volumes.
         return candles.filter {
-            it.open > 0 && it.high > 0 && it.low > 0 && it.close > 0 && it.volume >= 0 && it.openTime > 0 && it.closeTime > 0 && it.openTime < it.closeTime
+            it.open > 0 && it.high > 0 && it.low > 0 && it.close > 0 && it.volume >= 0 && it.openTime > 0
         }
     }
 

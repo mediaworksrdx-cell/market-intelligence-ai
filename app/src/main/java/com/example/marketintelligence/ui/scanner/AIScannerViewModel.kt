@@ -9,6 +9,7 @@ import com.example.marketintelligence.domain.repository.MarketRepository
 import com.example.marketintelligence.domain.repository.SettingsRepository
 import com.example.marketintelligence.domain.usecase.ScanStockUseCase
 // import com.example.redxaiscanner.background.AnalysisWorker // CRASH: Worker has DI issues
+import com.example.marketintelligence.data.util.MarketPriceCatalog
 import com.example.redxaiscanner.engine.*
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -16,8 +17,10 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import java.math.BigDecimal
+import java.math.RoundingMode
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
+
 
 data class AIScannerUiState(
     val selectedMarket: MarketType = MarketType.IN,
@@ -35,6 +38,7 @@ class AIScannerViewModel @Inject constructor(
     private val scanStockUseCase: ScanStockUseCase,
     private val settingsRepository: SettingsRepository,
     private val marketRepository: MarketRepository,
+    private val intelligenceBus: com.example.marketintelligence.domain.engine.LiveIntelligenceBus,
     @ApplicationContext private val context: Context
 ) : ViewModel() {
 
@@ -92,7 +96,7 @@ class AIScannerViewModel @Inject constructor(
             for (symbol in symbols) {
                 try {
                     val analysis = scanStockUseCase(symbol, "1H")
-                    if (analysis != null) {
+                    if (analysis != null && !analysis.entryZone.isNullOrBlank()) {
                         results.add(mapToTradeSetup(analysis))
                     } else {
                         results.add(generateMockTradeSetup(symbol, "1H"))
@@ -105,6 +109,19 @@ class AIScannerViewModel @Inject constructor(
                 isAutoScanning = false, 
                 autoScanResults = results
             ) }
+            val signalInfos = results.map { setup ->
+                com.example.marketintelligence.domain.engine.ScannerSignalInfo(
+                    symbol = setup.underlyingSignal.underlyingSignal.symbol,
+                    timeframe = "1H",
+                    bias = setup.underlyingSignal.underlyingSignal.higherTimeframeBias.name,
+                    entryPrice = setup.entryPrice.toDouble(),
+                    stopLoss = setup.stopLossPrice.toDouble(),
+                    target = setup.takeProfit1.toDouble(),
+                    rationale = setup.explanation.title,
+                    confidence = setup.underlyingSignal.confidenceScore
+                )
+            }
+            intelligenceBus.updateScannerSignals(signalInfos)
         }
     }
 
@@ -138,7 +155,7 @@ class AIScannerViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 val analysis = scanStockUseCase(symbol, _uiState.value.selectedTimeframe)
-                val setup = if (analysis != null) {
+                val setup = if (analysis != null && !analysis.entryZone.isNullOrBlank()) {
                     mapToTradeSetup(analysis)
                 } else {
                     generateMockTradeSetup(symbol, _uiState.value.selectedTimeframe)
@@ -149,6 +166,17 @@ class AIScannerViewModel @Inject constructor(
                         s.underlyingSignal.underlyingSignal.symbol.equals(symbol, ignoreCase = true)
                     }.take(4)
                 ) }
+                val signalInfo = com.example.marketintelligence.domain.engine.ScannerSignalInfo(
+                    symbol = symbol,
+                    timeframe = _uiState.value.selectedTimeframe,
+                    bias = setup.underlyingSignal.underlyingSignal.higherTimeframeBias.name,
+                    entryPrice = setup.entryPrice.toDouble(),
+                    stopLoss = setup.stopLossPrice.toDouble(),
+                    target = setup.takeProfit1.toDouble(),
+                    rationale = setup.explanation.title,
+                    confidence = setup.underlyingSignal.confidenceScore
+                )
+                intelligenceBus.updateScannerSignals(listOf(signalInfo) + intelligenceBus.scannerSignals.value.filterNot { it.symbol == symbol })
             } catch (e: Exception) {
                 val mockSetup = generateMockTradeSetup(symbol, _uiState.value.selectedTimeframe)
                 _uiState.update { it.copy(
@@ -157,27 +185,45 @@ class AIScannerViewModel @Inject constructor(
                         s.underlyingSignal.underlyingSignal.symbol.equals(symbol, ignoreCase = true)
                     }.take(4)
                 ) }
+                val signalInfo = com.example.marketintelligence.domain.engine.ScannerSignalInfo(
+                    symbol = symbol,
+                    timeframe = _uiState.value.selectedTimeframe,
+                    bias = mockSetup.underlyingSignal.underlyingSignal.higherTimeframeBias.name,
+                    entryPrice = mockSetup.entryPrice.toDouble(),
+                    stopLoss = mockSetup.stopLossPrice.toDouble(),
+                    target = mockSetup.takeProfit1.toDouble(),
+                    rationale = mockSetup.explanation.title,
+                    confidence = mockSetup.underlyingSignal.confidenceScore
+                )
+                intelligenceBus.updateScannerSignals(listOf(signalInfo) + intelligenceBus.scannerSignals.value.filterNot { it.symbol == symbol })
             }
         }
     }
 
-    private fun safeBigDecimal(value: String?, default: String = "0"): BigDecimal {
-        if (value.isNullOrBlank()) return BigDecimal(default)
+    private fun safeBigDecimal(value: String?, default: BigDecimal): BigDecimal {
+        if (value.isNullOrBlank()) return default
         val match = Regex("""[0-9]+(\.[0-9]+)?""").find(value.replace(",", ""))?.value
         return try {
-            if (match != null) BigDecimal(match) else BigDecimal(default)
+            if (match != null) BigDecimal(match) else default
         } catch (e: Exception) {
-            BigDecimal(default)
+            default
         }
     }
 
     private fun mapToTradeSetup(analysis: AIAnalysisResult): TradeSetup {
+        val fallbackPrice = MarketPriceCatalog.getFallbackPrice(analysis.symbol)
+        val dec = if (fallbackPrice < 1.0) 6 else 2
+        val defaultEntry = BigDecimal.valueOf(fallbackPrice).setScale(dec, RoundingMode.HALF_UP)
+        val defaultSl = BigDecimal.valueOf(fallbackPrice * 0.992).setScale(dec, RoundingMode.HALF_UP)
+        val defaultTp1 = BigDecimal.valueOf(fallbackPrice * 1.016).setScale(dec, RoundingMode.HALF_UP)
+        val defaultTp2 = BigDecimal.valueOf(fallbackPrice * 1.032).setScale(dec, RoundingMode.HALF_UP)
+
         return TradeSetup(
-            entryPrice = safeBigDecimal(analysis.entryZone?.split("-")?.firstOrNull()?.trim(), "22500.00"),
-            stopLossPrice = safeBigDecimal(analysis.stopLoss?.toString(), "22420.00"),
-            takeProfit1 = safeBigDecimal(analysis.target?.getOrNull(0), "22650.00"),
-            takeProfit2 = safeBigDecimal(analysis.target?.getOrNull(1), "22800.00"),
-            riskToRewardRatio = if (analysis.rrRatio.isNotBlank()) analysis.rrRatio else "1:2.5",
+            entryPrice = safeBigDecimal(analysis.entryZone?.split("-")?.firstOrNull()?.trim(), defaultEntry),
+            stopLossPrice = safeBigDecimal(analysis.stopLoss?.toString(), defaultSl),
+            takeProfit1 = safeBigDecimal(analysis.target?.getOrNull(0), defaultTp1),
+            takeProfit2 = safeBigDecimal(analysis.target?.getOrNull(1), defaultTp2),
+            riskToRewardRatio = if (analysis.rrRatio.isNotBlank() && analysis.rrRatio != "-") analysis.rrRatio else "1:2.5",
             underlyingSignal = ScoredSignal(
                 confidenceScore = if (analysis.confidence > 0) analysis.confidence else 75,
                 scoreBreakdown = mapOf(
@@ -212,12 +258,19 @@ class AIScannerViewModel @Inject constructor(
         )
     }
 
-    private fun generateMockTradeSetup(symbol: String, timeframe: String): TradeSetup {
+    private suspend fun generateMockTradeSetup(symbol: String, timeframe: String): TradeSetup {
+        val basePrice = MarketPriceCatalog.resolveBasePrice(symbol, marketRepository)
+        val dec = if (basePrice < 1.0) 6 else 2
+        val entry = BigDecimal.valueOf(basePrice).setScale(dec, RoundingMode.HALF_UP)
+        val sl = BigDecimal.valueOf(basePrice * 0.992).setScale(dec, RoundingMode.HALF_UP)
+        val tp1 = BigDecimal.valueOf(basePrice * 1.016).setScale(dec, RoundingMode.HALF_UP)
+        val tp2 = BigDecimal.valueOf(basePrice * 1.032).setScale(dec, RoundingMode.HALF_UP)
+
         return TradeSetup(
-            entryPrice = BigDecimal("22500.00"),
-            stopLossPrice = BigDecimal("22420.00"),
-            takeProfit1 = BigDecimal("22650.00"),
-            takeProfit2 = BigDecimal("22800.00"),
+            entryPrice = entry,
+            stopLossPrice = sl,
+            takeProfit1 = tp1,
+            takeProfit2 = tp2,
             riskToRewardRatio = "1:3.2",
             underlyingSignal = ScoredSignal(
                 confidenceScore = 89,
@@ -238,3 +291,4 @@ class AIScannerViewModel @Inject constructor(
         )
     }
 }
+

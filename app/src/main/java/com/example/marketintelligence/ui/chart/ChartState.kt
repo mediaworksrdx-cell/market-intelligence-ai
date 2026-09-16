@@ -14,6 +14,8 @@ data class ChartState(
     val drawings: List<DrawingData> = emptyList(),
     val activeDrawingTool: DrawingToolType = DrawingToolType.NONE,
     val currentDrawing: DrawingData? = null,
+    val selectedDrawingId: String? = null,
+    val cursorMode: CursorMode = CursorMode.HAND,
     val showVolume: Boolean = true,
     val showGrid: Boolean = true,
 
@@ -23,9 +25,9 @@ data class ChartState(
     val volumeProfile: VolumeProfileData? = null,
     val smcAnalysis: SmcAnalysis? = null,
     val showVolumeProfile: Boolean = true,
-    val showFnoOverlay: Boolean = true,
+    val showFnoOverlay: Boolean = false,
     val showSmcOverlay: Boolean = true,
-    val showStrategyOverlay: Boolean = true,
+    val showStrategyOverlay: Boolean = false,
 
     // Computed indicator data (cached for performance)
     val indicatorResults: Map<IndicatorType, Any> = emptyMap()

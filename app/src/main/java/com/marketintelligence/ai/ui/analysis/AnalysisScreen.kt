@@ -45,13 +45,20 @@ fun AnalysisScreen(
     marketViewModel: MarketViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val marketUiState by marketViewModel.uiState.collectAsState()
     val activeChartEngine by viewModel.activeChartEngine.collectAsState()
     var isFullScreen by remember { mutableStateOf(false) }
 
     val scrollState = rememberScrollState()
     val timeframes = listOf("1m", "5m", "15m", "1H", "4H", "1D", "1W")
 
-    val liveInstrumentData by remember(uiState.symbol) {
+    DisposableEffect(Unit) {
+        marketViewModel.startListeningForLivePrices()
+        marketViewModel.startPollingCryptoPrices()
+        onDispose {}
+    }
+
+    val liveInstrumentData by remember(uiState.symbol, marketUiState) {
         derivedStateOf {
             marketViewModel.getSelectedInstrumentData(uiState.symbol)
         }
@@ -86,7 +93,8 @@ fun AnalysisScreen(
                             timeframe = uiState.selectedTimeframe,
                             candles = uiState.candles,
                             chartStyle = uiState.chartStyle,
-                            indicatorConfig = uiState.indicatorConfig
+                            indicatorConfig = uiState.indicatorConfig,
+                            currentPrice = liveInstrumentData?.price ?: (if (uiState.currentPrice > 0.0) uiState.currentPrice else uiState.candles.lastOrNull()?.close)
                         )
                     }
 
@@ -111,7 +119,10 @@ fun AnalysisScreen(
         InstitutionalHeader(
             symbol = uiState.symbol,
             liveData = liveInstrumentData,
-            sessionInfo = uiState.sessionInfo
+            sessionInfo = uiState.sessionInfo,
+            currentPrice = uiState.currentPrice,
+            priceChange = uiState.priceChange,
+            priceChangePercent = uiState.priceChangePercent
         )
 
         var timeframeExpanded by remember { mutableStateOf(false) }
@@ -268,7 +279,7 @@ fun AnalysisScreen(
             }
         }
 
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(4.dp))
 
         // 3. Indicator Toggle Chips
         IndicatorToggleBar(
@@ -282,16 +293,13 @@ fun AnalysisScreen(
             onToggleMACD = { viewModel.toggleMACD() }
         )
 
-        Spacer(modifier = Modifier.height(10.dp))
+        Spacer(modifier = Modifier.height(6.dp))
 
         // 4. Institutional Chart Display Container
         Card(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(440.dp)
-                .pointerInput(Unit) {
-                    detectTapGestures(onDoubleTap = { isFullScreen = true })
-                },
+                .height(470.dp),
             shape = RoundedCornerShape(12.dp),
             colors = CardDefaults.cardColors(containerColor = Color(0xFF0D0E12)),
             elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
@@ -314,7 +322,8 @@ fun AnalysisScreen(
                         timeframe = uiState.selectedTimeframe,
                         candles = uiState.candles,
                         chartStyle = uiState.chartStyle,
-                        indicatorConfig = uiState.indicatorConfig
+                        indicatorConfig = uiState.indicatorConfig,
+                        currentPrice = liveInstrumentData?.price ?: (if (uiState.currentPrice > 0.0) uiState.currentPrice else uiState.candles.lastOrNull()?.close)
                     )
                 }
 
@@ -376,10 +385,29 @@ fun IndicatorPill(label: String, active: Boolean, activeColor: Color, onClick: (
 }
 
 @Composable
-fun InstitutionalHeader(symbol: String, liveData: StockData?, sessionInfo: MarketSessionInfo?) {
-    val price = liveData?.price ?: 0.0
-    val change = liveData?.change ?: 0.0
-    val changePercent = liveData?.changePercent ?: 0.0
+fun InstitutionalHeader(
+    symbol: String,
+    liveData: StockData?,
+    sessionInfo: MarketSessionInfo?,
+    currentPrice: Double = 0.0,
+    priceChange: Double = 0.0,
+    priceChangePercent: Double = 0.0
+) {
+    val price = when {
+        currentPrice > 0.0 -> currentPrice
+        liveData != null && liveData.price > 0.0 -> liveData.price
+        else -> 0.0
+    }
+    val change = when {
+        currentPrice > 0.0 -> priceChange
+        liveData != null && liveData.price > 0.0 -> liveData.change
+        else -> 0.0
+    }
+    val changePercent = when {
+        currentPrice > 0.0 -> priceChangePercent
+        liveData != null && liveData.price > 0.0 -> liveData.changePercent
+        else -> 0.0
+    }
     val isPositive = change >= 0
 
     Column(modifier = Modifier.padding(top = 16.dp)) {
@@ -392,18 +420,18 @@ fun InstitutionalHeader(symbol: String, liveData: StockData?, sessionInfo: Marke
                 Text(
                     text = symbol.uppercase(),
                     color = MaterialTheme.colorScheme.onBackground,
-                    fontSize = 24.sp,
+                    fontSize = 18.sp,
                     fontWeight = FontWeight.ExtraBold,
                     fontFamily = FontFamily.Monospace
                 )
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     val sessionColor = if (sessionInfo?.isLiveTrading == true) AppGreen else Color(0xFFFFB74D)
-                    Box(modifier = Modifier.size(6.dp).background(sessionColor, RoundedCornerShape(3.dp)))
-                    Spacer(Modifier.width(6.dp))
+                    Box(modifier = Modifier.size(5.dp).background(sessionColor, RoundedCornerShape(2.5.dp)))
+                    Spacer(Modifier.width(4.dp))
                     Text(
                         text = sessionInfo?.sessionLabel ?: "LIVE TRADING",
                         color = sessionColor,
-                        fontSize = 9.sp,
+                        fontSize = 8.5.sp,
                         fontWeight = FontWeight.Bold,
                         fontFamily = FontFamily.Monospace
                     )
@@ -411,11 +439,21 @@ fun InstitutionalHeader(symbol: String, liveData: StockData?, sessionInfo: Marke
             }
 
             Column(horizontalAlignment = Alignment.End) {
-                Text("%.2f".format(price), color = MaterialTheme.colorScheme.onBackground, fontSize = 20.sp, fontWeight = FontWeight.ExtraBold, fontFamily = FontFamily.Monospace)
-                Text("${if(isPositive) "+" else ""}${"%.2f".format(change)} (${if(isPositive) "+" else ""}${"%.2f".format(changePercent)}%)", color = if(isPositive) AppGreen else AppRed, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                val formattedPrice = when {
+                    price <= 0.0 -> "0.00"
+                    price < 0.001 -> String.format(java.util.Locale.US, "%.7f", price)
+                    price < 1.0 -> String.format(java.util.Locale.US, "%.4f", price)
+                    else -> String.format(java.util.Locale.US, "%,.2f", price)
+                }
+                val formattedChange = when {
+                    kotlin.math.abs(change) < 0.001 -> String.format(java.util.Locale.US, "%.7f", change)
+                    else -> String.format(java.util.Locale.US, "%.2f", change)
+                }
+                Text(formattedPrice, color = MaterialTheme.colorScheme.onBackground, fontSize = 18.sp, fontWeight = FontWeight.ExtraBold, fontFamily = FontFamily.Monospace)
+                Text("${if(isPositive) "+" else ""}$formattedChange (${if(isPositive) "+" else ""}${"%.2f".format(changePercent)}%)", color = if(isPositive) AppGreen else AppRed, fontSize = 10.5.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace)
             }
         }
 
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(8.dp))
     }
 }

@@ -1,10 +1,8 @@
 package com.marketintelligence.ai.ui.composable
 
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.gestures.rememberTransformableState
-import androidx.compose.foundation.gestures.transformable
+import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -20,43 +18,41 @@ fun CandleStickChart(
     candles: List<Candle>,
     modifier: Modifier = Modifier
 ) {
-    var pan by remember { mutableStateOf(0f) }
-    var zoom by remember { mutableStateOf(1f) }
+    var zoom by remember { mutableFloatStateOf(1f) }
+    var scrollOffsetFromRight by remember { mutableFloatStateOf(0f) }
     var crosshairPosition by remember { mutableStateOf<Offset?>(null) }
 
-    val transformableState = rememberTransformableState { zoomChange, panChange, _ ->
-        zoom = (zoom * zoomChange).coerceIn(0.1f, 5f)
-        pan = (pan + panChange.x)
-    }
-
     Canvas(modifier = modifier
-        .transformable(state = transformableState)
-        .pointerInput(Unit) {
-            detectDragGestures(
-                onDrag = { change, dragAmount ->
-                    pan += dragAmount.x
-                    change.consume()
+        .pointerInput(candles.size) {
+            detectTransformGestures { _, panAmount, zoomAmount, _ ->
+                zoom = (zoom * zoomAmount).coerceIn(0.15f, 6f)
+                val candleWidth = 10.dp.toPx() * zoom
+                val vCount = (size.width / candleWidth).roundToInt().coerceIn(8, candles.size.coerceAtLeast(8))
+                val mScroll = (candles.size - vCount).coerceAtLeast(0).toFloat()
+                if (candleWidth > 0f) {
+                    scrollOffsetFromRight = (scrollOffsetFromRight + panAmount.x / candleWidth).coerceIn(0f, mScroll)
                 }
-            )
+                if (panAmount.getDistance() > 1.5f || kotlin.math.abs(zoomAmount - 1f) > 0.02f) {
+                    crosshairPosition = null
+                }
+            }
         }
         .pointerInput(Unit) {
             detectTapGestures(
-                onPress = { offset -> crosshairPosition = offset },
-                onTap = { crosshairPosition = null }
+                onTap = { offset -> crosshairPosition = if (crosshairPosition != null) null else offset },
+                onLongPress = { offset -> crosshairPosition = offset }
             )
         }
     ) { 
         if (candles.isEmpty()) return@Canvas
 
         val candleWidthWithZoom = 10.dp.toPx() * zoom
+        val visibleCandleCount = (size.width / candleWidthWithZoom).roundToInt().coerceIn(8, candles.size.coerceAtLeast(8))
+        val maxScroll = (candles.size - visibleCandleCount).coerceAtLeast(0).toFloat()
+        val clampedScroll = scrollOffsetFromRight.coerceIn(0f, maxScroll)
 
-        // Adjust pan to stay within bounds
-        val maxPan = (candles.size * candleWidthWithZoom - size.width).coerceAtLeast(0f)
-        pan = pan.coerceIn(-maxPan, 0f)
-
-        val visibleCandleCount = (size.width / candleWidthWithZoom).roundToInt()
-        val startIndex = ((pan / candleWidthWithZoom) * -1).toInt().coerceIn(0, candles.size - 1)
-        val endIndex = (startIndex + visibleCandleCount).coerceAtMost(candles.size)
+        val endIndex = (candles.size - clampedScroll.roundToInt()).coerceIn(visibleCandleCount.coerceAtMost(candles.size), candles.size)
+        val startIndex = (endIndex - visibleCandleCount).coerceAtLeast(0)
         
         val visibleCandles = candles.subList(startIndex, endIndex)
 
@@ -69,7 +65,7 @@ fun CandleStickChart(
         val candleWidth = size.width / visibleCandleCount
 
         visibleCandles.forEachIndexed { index, candle ->
-            val xOffset = index * candleWidth + (pan % candleWidth)
+            val xOffset = index * candleWidth
 
             drawCandle(
                 candle = candle,

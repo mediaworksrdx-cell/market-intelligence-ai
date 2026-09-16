@@ -60,7 +60,7 @@ fun MainScreen() {
         Scaffold(
             topBar = {
                 TopAppBar(
-                    title = { Text("REDX AI Mentor") },
+                    title = { Text("AI Mentor") },
                     navigationIcon = {
                         IconButton(onClick = {
                             scope.launch {

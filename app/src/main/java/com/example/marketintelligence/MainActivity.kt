@@ -268,7 +268,9 @@ fun MainScreen(mainViewModel: MainViewModel) {
                     })
                  }
                 composable(Screen.Settings.route) { SettingsScreen() }
-                composable(Screen.BuildupDetail.route) { BuildupDetailScreen() }
+                composable(Screen.BuildupDetail.route) { 
+                    BuildupDetailScreen(onNavigateBack = { navController.popBackStack() }) 
+                }
                 composable(
                     route = Screen.Analysis.route,
                     arguments = listOf(

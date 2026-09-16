@@ -22,7 +22,8 @@ class ProprietaryChartEngine @Inject constructor() : ChartEngine {
 
         AdvancedCandleStickChart(
             chartState = chartState,
-            modifier = Modifier.fillMaxSize()
+            modifier = Modifier.fillMaxSize(),
+            timeframe = timeframe
         )
     }
 }

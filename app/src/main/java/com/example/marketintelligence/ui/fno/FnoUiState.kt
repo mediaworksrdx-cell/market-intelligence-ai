@@ -25,11 +25,33 @@ data class FnoUiState(
     val activeLegs: List<StrategyLeg> = emptyList(),
     val predefinedStrategies: List<OptionStrategy> = emptyList(),
     val selectedStrategy: OptionStrategy? = null,
+    val selectedStrategyName: String = "",
+    val customStrategyName: String = "",
+    val isStrategyAnalyzed: Boolean = false,
+    val editingStrategyId: String? = null,
     val selectedCategory: StrategyCategory = StrategyCategory.BULLISH,
     val trackedStrategies: List<OptionStrategy> = emptyList(), // Saved strategies
     val ivSimulation: Double = 0.0, // Shift in %
     val timeSimulation: Int = 0, // Days from today
-    val strategyGreeks: Greeks = Greeks(0.0, 0.0, 0.0, 0.0)
+    val strategyGreeks: Greeks = Greeks(0.0, 0.0, 0.0, 0.0),
+    val totalStrategyPnl: Double = 0.0,
+    val totalStrategyPnlPct: Double = 0.0,
+    val netPremium: Double = 0.0,
+    val currentStrategyValue: Double = 0.0,
+    val strikeStep: Double = 50.0,
+    val isLiveConnected: Boolean = true,
+
+    // 4. Buildup Scanner
+    val buildupStocks: List<FnoBuildupStock> = emptyList(),
+    val buildupFilter: BuildupType? = null,
+    val buildupAssetTypeFilter: AssetTypeFilter = AssetTypeFilter.ALL,
+    val buildupSectorFilter: String = "ALL",
+    val buildupSortOrder: BuildupSortOrder = BuildupSortOrder.OI_GAINERS,
+    val buildupSearchQuery: String = "",
+    val longBuildupCount: Int = 0,
+    val shortBuildupCount: Int = 0,
+    val shortCoveringCount: Int = 0,
+    val longUnwindingCount: Int = 0
 )
 
 enum class StrategyCategory {

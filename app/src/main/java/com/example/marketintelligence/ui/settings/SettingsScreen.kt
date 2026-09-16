@@ -47,9 +47,9 @@ fun SettingsScreen(
         
         SettingsSection(title = "MARKET SELECTION") {
             MarketToggle(
-                selectedMarket = marketUiState.selectedMarket,
+                selectedMarket = uiState.selectedMarket,
                 onMarketSelected = { market: MarketType -> 
-                    marketViewModel.onMarketSelected(market) 
+                    viewModel.setMarket(market) 
                 }
             )
         }

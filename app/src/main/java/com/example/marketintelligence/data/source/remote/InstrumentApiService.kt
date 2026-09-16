@@ -15,4 +15,8 @@ interface InstrumentApiService {
     @GET("instruments")
     @Streaming
     suspend fun downloadInstruments(): Response<ResponseBody>
+
+    @GET("https://api.kite.trade/instruments")
+    @Streaming
+    suspend fun downloadInstrumentsFromKite(): Response<ResponseBody>
 }

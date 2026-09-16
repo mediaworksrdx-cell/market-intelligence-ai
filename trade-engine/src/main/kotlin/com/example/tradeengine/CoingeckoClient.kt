@@ -77,7 +77,8 @@ object CoingeckoClient {
     suspend fun getMarketsData(vsCurrency: String): List<CryptoData> {
         awaitRateLimit()
         val encodedVs = java.net.URLEncoder.encode(vsCurrency, "UTF-8")
-        val url = "https://api.coingecko.com/api/v3/coins/markets?vs_currency=$encodedVs&order=market_cap_desc&per_page=100&page=1&sparkline=false"
+        val ids = "bitcoin,ethereum,solana,binancecoin,ripple,dogecoin"
+        val url = "https://api.coingecko.com/api/v3/coins/markets?vs_currency=$encodedVs&ids=$ids&order=market_cap_desc&per_page=100&page=1&sparkline=false"
         return client.get(url) {
             attachAuth()
         }.body()
