@@ -43,8 +43,8 @@ fun DrawScope.drawCrosshairLayer(
     val dashEffect = PathEffect.dashPathEffect(floatArrayOf(4.dp.toPx(), 4.dp.toPx()))
 
     // Clamp position to chart area
-    val clampedX = position.x.coerceIn(0f, chartWidth)
-    val clampedY = position.y.coerceIn(0f, chartAreaHeight)
+    val clampedX = position.x.coerceIn(0f, maxOf(0f, chartWidth))
+    val clampedY = position.y.coerceIn(0f, maxOf(0f, chartAreaHeight))
 
     // ── Crosshair lines ──
     drawLine(crosshairColor, Offset(clampedX, 0f), Offset(clampedX, chartAreaHeight), strokeWidth = 0.8.dp.toPx(), pathEffect = dashEffect)
@@ -110,7 +110,7 @@ fun DrawScope.drawCrosshairLayer(
         )
         val timeLabelBgWidth = timeLabelResult.size.width + 8.dp.toPx()
         val timeLabelBgHeight = timeLabelResult.size.height + 4.dp.toPx()
-        val timeLabelX = (clampedX - timeLabelBgWidth / 2).coerceIn(0f, chartWidth - timeLabelBgWidth)
+        val timeLabelX = (clampedX - timeLabelBgWidth / 2).coerceIn(0f, maxOf(0f, chartWidth - timeLabelBgWidth))
 
         drawRect(
             Color(0xFF333333),

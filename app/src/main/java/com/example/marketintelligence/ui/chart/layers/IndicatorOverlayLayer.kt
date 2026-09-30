@@ -35,9 +35,8 @@ fun DrawScope.drawIndicatorOverlayLayer(
 
     for (config in indicators) {
         if (!config.enabled || !config.type.isOverlay) continue
-        val result = indicatorResults[config.type]
-            ?: computeOverlayOnTheFly(config, candles)
-            ?: continue
+        // Skip drawing if results aren't pre-computed to avoid blocking the main UI thread.
+        val result = indicatorResults[config.type] ?: continue
 
         val baseColor = Color((config.color and 0xFFFFFFFFL).toInt())
 
@@ -73,19 +72,6 @@ fun DrawScope.drawIndicatorOverlayLayer(
             }
             else -> {}
         }
-    }
-}
-
-private fun computeOverlayOnTheFly(config: IndicatorConfig, candles: List<Candle>): Any? {
-    if (candles.isEmpty()) return null
-    return when (config.type) {
-        IndicatorType.SMA -> IndicatorCalculator.calculateSMA(candles, config.period)
-        IndicatorType.EMA -> IndicatorCalculator.calculateEMA(candles, config.period)
-        IndicatorType.BOLLINGER_BANDS -> IndicatorCalculator.calculateBollingerBands(candles, config.period, config.multiplier)
-        IndicatorType.VWAP -> IndicatorCalculator.calculateVWAP(candles)
-        IndicatorType.SUPERTREND -> IndicatorCalculator.calculateSupertrend(candles, config.period, config.multiplier)
-        IndicatorType.ICHIMOKU -> IndicatorCalculator.calculateIchimoku(candles, config.period, config.secondaryPeriod)
-        else -> null
     }
 }
 

@@ -316,120 +316,155 @@ class FnoViewModel @Inject constructor(
         return "$day$month$year"
     }
 
+    fun getLotSize(symbol: String): Int {
+        val s = symbol.uppercase()
+        return when {
+            s.contains("BANKNIFTY") -> 15
+            s.contains("NIFTY") && !s.contains("BANK") && !s.contains("FIN") -> 25
+            s.contains("FINNIFTY") -> 40
+            s.contains("SENSEX") -> 10
+            s.contains("RELIANCE") -> 250
+            s.contains("HDFCBANK") -> 550
+            s.contains("TCS") -> 175
+            s.contains("ICICIBANK") -> 700
+            s.contains("SBIN") -> 750
+            s.contains("INFY") -> 400
+            s.contains("SPX") || s.contains("DFMGI") -> 1
+            else -> 50
+        }
+    }
+
+    fun getStrikeStepForSymbol(symbol: String, spot: Double): Double {
+        val s = symbol.uppercase()
+        return when {
+            s.contains("BANKNIFTY") || s.contains("SENSEX") -> 100.0
+            s.contains("NIFTY") || s.contains("FINNIFTY") -> 50.0
+            s.contains("TCS") -> 50.0
+            s.contains("RELIANCE") || s.contains("INFY") || s.contains("ICICIBANK") -> 20.0
+            s.contains("SBIN") || s.contains("HDFCBANK") -> 10.0
+            spot > 5000 -> 100.0
+            spot > 2000 -> 50.0
+            spot > 1000 -> 20.0
+            spot > 500 -> 10.0
+            else -> 5.0
+        }
+    }
+
     fun selectPredefinedStrategy(strategyName: String) {
         val spot = _uiState.value.spotPrice
         val nearExpiry = getUpcomingExpiry(0)
         val nextExpiry = getUpcomingMonthlyExpiry(1)
         val step = _uiState.value.strikeStep
+        val lot = getLotSize(_uiState.value.selectedAsset)
         
         val legs = when(strategyName) {
             // --- BULLISH STRATEGIES ---
             "Long Call" -> listOf(
-                createLeg("BUY", "CALL", spot, nearExpiry)
+                createLeg("BUY", "CALL", spot, nearExpiry, qty = lot)
             )
             "Bull Call Spread" -> listOf(
-                createLeg("BUY", "CALL", spot, nearExpiry),
-                createLeg("SELL", "CALL", spot + (step * 2), nearExpiry)
+                createLeg("BUY", "CALL", spot, nearExpiry, qty = lot),
+                createLeg("SELL", "CALL", spot + (step * 2), nearExpiry, qty = lot)
             )
             "Bull Put Spread" -> listOf(
-                createLeg("SELL", "PUT", spot, nearExpiry),
-                createLeg("BUY", "PUT", spot - (step * 2), nearExpiry)
+                createLeg("SELL", "PUT", spot, nearExpiry, qty = lot),
+                createLeg("BUY", "PUT", spot - (step * 2), nearExpiry, qty = lot)
             )
             "Covered Call" -> listOf(
-                createLeg("BUY", "FUT", 0.0, nearExpiry),
-                createLeg("SELL", "CALL", spot + (step * 2), nearExpiry)
+                createLeg("BUY", "FUT", 0.0, nearExpiry, qty = lot),
+                createLeg("SELL", "CALL", spot + (step * 2), nearExpiry, qty = lot)
             )
             "Call Ratio Backspread" -> listOf(
-                createLeg("SELL", "CALL", spot, nearExpiry, qty = 50),
-                createLeg("BUY", "CALL", spot + (step * 2), nearExpiry, qty = 100)
+                createLeg("SELL", "CALL", spot, nearExpiry, qty = lot),
+                createLeg("BUY", "CALL", spot + (step * 2), nearExpiry, qty = lot * 2)
             )
             "Bull Calendar Spread" -> listOf(
-                createLeg("SELL", "CALL", spot + (step * 2), nearExpiry, qty = 50),
-                createLeg("BUY", "CALL", spot + (step * 2), nextExpiry, qty = 50)
+                createLeg("SELL", "CALL", spot + (step * 2), nearExpiry, qty = lot),
+                createLeg("BUY", "CALL", spot + (step * 2), nextExpiry, qty = lot)
             )
             "Call Diagonal Spread" -> listOf(
-                createLeg("SELL", "CALL", spot + (step * 2), nearExpiry, qty = 50),
-                createLeg("BUY", "CALL", spot - step, nextExpiry, qty = 50)
+                createLeg("SELL", "CALL", spot + (step * 2), nearExpiry, qty = lot),
+                createLeg("BUY", "CALL", spot - step, nextExpiry, qty = lot)
             )
             "Long Call Butterfly" -> listOf(
-                createLeg("BUY", "CALL", spot - (step * 2), nearExpiry, qty = 50),
-                createLeg("SELL", "CALL", spot, nearExpiry, qty = 100),
-                createLeg("BUY", "CALL", spot + (step * 2), nearExpiry, qty = 50)
+                createLeg("BUY", "CALL", spot - (step * 2), nearExpiry, qty = lot),
+                createLeg("SELL", "CALL", spot, nearExpiry, qty = lot * 2),
+                createLeg("BUY", "CALL", spot + (step * 2), nearExpiry, qty = lot)
             )
 
             // --- BEARISH STRATEGIES ---
             "Long Put" -> listOf(
-                createLeg("BUY", "PUT", spot, nearExpiry)
+                createLeg("BUY", "PUT", spot, nearExpiry, qty = lot)
             )
             "Bear Call Spread" -> listOf(
-                createLeg("SELL", "CALL", spot, nearExpiry),
-                createLeg("BUY", "CALL", spot + (step * 2), nearExpiry)
+                createLeg("SELL", "CALL", spot, nearExpiry, qty = lot),
+                createLeg("BUY", "CALL", spot + (step * 2), nearExpiry, qty = lot)
             )
             "Bear Put Spread" -> listOf(
-                createLeg("BUY", "PUT", spot, nearExpiry),
-                createLeg("SELL", "PUT", spot - (step * 2), nearExpiry)
+                createLeg("BUY", "PUT", spot, nearExpiry, qty = lot),
+                createLeg("SELL", "PUT", spot - (step * 2), nearExpiry, qty = lot)
             )
             "Protective Put" -> listOf(
-                createLeg("BUY", "FUT", 0.0, nearExpiry),
-                createLeg("BUY", "PUT", spot, nearExpiry)
+                createLeg("BUY", "FUT", 0.0, nearExpiry, qty = lot),
+                createLeg("BUY", "PUT", spot, nearExpiry, qty = lot)
             )
             "Put Ratio Backspread" -> listOf(
-                createLeg("SELL", "PUT", spot, nearExpiry, qty = 50),
-                createLeg("BUY", "PUT", spot - (step * 2), nearExpiry, qty = 100)
+                createLeg("SELL", "PUT", spot, nearExpiry, qty = lot),
+                createLeg("BUY", "PUT", spot - (step * 2), nearExpiry, qty = lot * 2)
             )
             "Bear Calendar Spread" -> listOf(
-                createLeg("SELL", "PUT", spot - (step * 2), nearExpiry, qty = 50),
-                createLeg("BUY", "PUT", spot - (step * 2), nextExpiry, qty = 50)
+                createLeg("SELL", "PUT", spot - (step * 2), nearExpiry, qty = lot),
+                createLeg("BUY", "PUT", spot - (step * 2), nextExpiry, qty = lot)
             )
             "Put Diagonal Spread" -> listOf(
-                createLeg("SELL", "PUT", spot - (step * 2), nearExpiry, qty = 50),
-                createLeg("BUY", "PUT", spot + step, nextExpiry, qty = 50)
+                createLeg("SELL", "PUT", spot - (step * 2), nearExpiry, qty = lot),
+                createLeg("BUY", "PUT", spot + step, nextExpiry, qty = lot)
             )
             "Long Put Butterfly" -> listOf(
-                createLeg("BUY", "PUT", spot + (step * 2), nearExpiry, qty = 50),
-                createLeg("SELL", "PUT", spot, nearExpiry, qty = 100),
-                createLeg("BUY", "PUT", spot - (step * 2), nearExpiry, qty = 50)
+                createLeg("BUY", "PUT", spot + (step * 2), nearExpiry, qty = lot),
+                createLeg("SELL", "PUT", spot, nearExpiry, qty = lot * 2),
+                createLeg("BUY", "PUT", spot - (step * 2), nearExpiry, qty = lot)
             )
 
             // --- NEUTRAL / INCOME STRATEGIES ---
             "Short Straddle" -> listOf(
-                createLeg("SELL", "CALL", spot, nearExpiry),
-                createLeg("SELL", "PUT", spot, nearExpiry)
+                createLeg("SELL", "CALL", spot, nearExpiry, qty = lot),
+                createLeg("SELL", "PUT", spot, nearExpiry, qty = lot)
             )
             "Short Strangle" -> listOf(
-                createLeg("SELL", "CALL", spot + (step * 2), nearExpiry),
-                createLeg("SELL", "PUT", spot - (step * 2), nearExpiry)
+                createLeg("SELL", "CALL", spot + (step * 2), nearExpiry, qty = lot),
+                createLeg("SELL", "PUT", spot - (step * 2), nearExpiry, qty = lot)
             )
             "Iron Condor" -> listOf(
-                createLeg("SELL", "CALL", spot + (step * 2), nearExpiry),
-                createLeg("BUY", "CALL", spot + (step * 4), nearExpiry),
-                createLeg("SELL", "PUT", spot - (step * 2), nearExpiry),
-                createLeg("BUY", "PUT", spot - (step * 4), nearExpiry)
+                createLeg("SELL", "CALL", spot + (step * 2), nearExpiry, qty = lot),
+                createLeg("BUY", "CALL", spot + (step * 4), nearExpiry, qty = lot),
+                createLeg("SELL", "PUT", spot - (step * 2), nearExpiry, qty = lot),
+                createLeg("BUY", "PUT", spot - (step * 4), nearExpiry, qty = lot)
             )
             "Iron Butterfly" -> listOf(
-                createLeg("SELL", "CALL", spot, nearExpiry),
-                createLeg("BUY", "CALL", spot + (step * 2), nearExpiry),
-                createLeg("SELL", "PUT", spot, nearExpiry),
-                createLeg("BUY", "PUT", spot - (step * 2), nearExpiry)
+                createLeg("SELL", "CALL", spot, nearExpiry, qty = lot),
+                createLeg("BUY", "CALL", spot + (step * 2), nearExpiry, qty = lot),
+                createLeg("SELL", "PUT", spot, nearExpiry, qty = lot),
+                createLeg("BUY", "PUT", spot - (step * 2), nearExpiry, qty = lot)
             )
             "Jade Lizard" -> listOf(
-                createLeg("SELL", "PUT", spot - (step * 2), nearExpiry),
-                createLeg("SELL", "CALL", spot + (step * 2), nearExpiry),
-                createLeg("BUY", "CALL", spot + (step * 4), nearExpiry)
+                createLeg("SELL", "PUT", spot - (step * 2), nearExpiry, qty = lot),
+                createLeg("SELL", "CALL", spot + (step * 2), nearExpiry, qty = lot),
+                createLeg("BUY", "CALL", spot + (step * 4), nearExpiry, qty = lot)
             )
             "Reverse Jade Lizard" -> listOf(
-                createLeg("SELL", "CALL", spot + (step * 2), nearExpiry),
-                createLeg("SELL", "PUT", spot - (step * 2), nearExpiry),
-                createLeg("BUY", "PUT", spot - (step * 4), nearExpiry)
+                createLeg("SELL", "CALL", spot + (step * 2), nearExpiry, qty = lot),
+                createLeg("SELL", "PUT", spot - (step * 2), nearExpiry, qty = lot),
+                createLeg("BUY", "PUT", spot - (step * 4), nearExpiry, qty = lot)
             )
             "Calendar Spread" -> listOf(
-                createLeg("SELL", "CALL", spot, nearExpiry),
-                createLeg("BUY", "CALL", spot, nextExpiry)
+                createLeg("SELL", "CALL", spot, nearExpiry, qty = lot),
+                createLeg("BUY", "CALL", spot, nextExpiry, qty = lot)
             )
             "Broken Wing Butterfly" -> listOf(
-                createLeg("BUY", "CALL", spot - (step * 2), nearExpiry, qty = 50),
-                createLeg("SELL", "CALL", spot, nearExpiry, qty = 100),
-                createLeg("BUY", "CALL", spot + (step * 3), nearExpiry, qty = 50)
+                createLeg("BUY", "CALL", spot - (step * 2), nearExpiry, qty = lot),
+                createLeg("SELL", "CALL", spot, nearExpiry, qty = lot * 2),
+                createLeg("BUY", "CALL", spot + (step * 3), nearExpiry, qty = lot)
             )
 
             // --- VOLATILITY / BREAKOUT STRATEGIES ---
@@ -474,7 +509,7 @@ class FnoViewModel @Inject constructor(
         _uiState.update { it.copy(customStrategyName = name) }
     }
     
-    private fun createLeg(type: String, instrument: String, strike: Double, expiry: String, qty: Int = 50): StrategyLeg {
+    private fun createLeg(type: String, instrument: String, strike: Double, expiry: String, qty: Int = getLotSize(_uiState.value.selectedAsset)): StrategyLeg {
         val spot = _uiState.value.spotPrice
         val currentIv = (_uiState.value.summary.iv).coerceAtLeast(5.0) / 100.0
         val timeYears = 5.0 / 365.0
@@ -505,7 +540,8 @@ class FnoViewModel @Inject constructor(
     }
 
     fun addLeg(instrument: String, type: String, strike: Double) {
-        val newLeg = createLeg(type, instrument, strike, getUpcomingExpiry(0))
+        val lot = getLotSize(_uiState.value.selectedAsset)
+        val newLeg = createLeg(type, instrument, strike, getUpcomingExpiry(0), qty = lot)
         _uiState.update { it.copy(activeLegs = it.activeLegs + newLeg) }
         recalculateLivePnlAndMetrics()
     }
@@ -613,7 +649,8 @@ class FnoViewModel @Inject constructor(
     }
 
     fun updateLegQty(legId: String, newQty: Int) {
-        val validQty = max(50, newQty)
+        val lot = getLotSize(_uiState.value.selectedAsset)
+        val validQty = max(lot, newQty)
         _uiState.update { state ->
             val updated = state.activeLegs.map { leg ->
                 if (leg.id == legId) leg.copy(qty = validQty) else leg
@@ -847,17 +884,39 @@ class FnoViewModel @Inject constructor(
         }
     }
 
+    fun deleteOrClearStrategy() {
+        val editingId = _uiState.value.editingStrategyId
+        if (editingId != null) {
+            deleteTrackedStrategy(editingId)
+        }
+        _uiState.update {
+            it.copy(
+                editingStrategyId = null,
+                activeLegs = emptyList(),
+                selectedStrategy = null,
+                customStrategyName = "",
+                selectedStrategyName = "",
+                isStrategyAnalyzed = false,
+                totalStrategyPnl = 0.0,
+                totalStrategyPnlPct = 0.0,
+                netPremium = 0.0,
+                currentStrategyValue = 0.0
+            )
+        }
+    }
+
     private fun parseLegsFromStrings(legStrings: List<String>): List<StrategyLeg> {
         val spot = _uiState.value.spotPrice
         val expiry = getUpcomingExpiry(0)
+        val baseLot = getLotSize(_uiState.value.selectedAsset)
         return legStrings.mapNotNull { legStr ->
             try {
                 val parts = legStr.trim().split(" ").filter { it.isNotBlank() }
                 var idx = 0
-                var qty = 50
+                var qty = baseLot
                 if (parts[idx].endsWith("x", ignoreCase = true)) {
                     val multiplier = parts[idx].dropLast(1).toIntOrNull() ?: 1
-                    qty = multiplier * 50
+                    qty = multiplier * baseLot
                     idx++
                 }
                 val type = parts.getOrNull(idx) ?: "BUY"
@@ -891,10 +950,11 @@ class FnoViewModel @Inject constructor(
         var portfolioGamma = 0.0
         var portfolioTheta = 0.0
         var portfolioVega = 0.0
+        val baseLot = getLotSize(state.selectedAsset).toDouble()
 
         state.activeLegs.forEach { leg ->
             val multiplier = if (leg.type == "BUY") 1.0 else -1.0
-            val lotMultiplier = leg.qty / 50.0
+            val lotMultiplier = leg.qty / baseLot
             if (leg.instrument == "FUT") {
                 portfolioDelta += 1.0 * multiplier * lotMultiplier
             } else {
@@ -909,12 +969,13 @@ class FnoViewModel @Inject constructor(
                 )
                 portfolioDelta += g.delta * multiplier * lotMultiplier
                 portfolioGamma += g.gamma * multiplier * lotMultiplier
-                portfolioTheta += g.theta * multiplier * lotMultiplier * 50.0
-                portfolioVega += g.vega * multiplier * lotMultiplier * 50.0
+                portfolioTheta += g.theta * multiplier * lotMultiplier * baseLot
+                portfolioVega += g.vega * multiplier * lotMultiplier * baseLot
             }
         }
 
-        for (i in -range..range step 20) {
+        val step = max(5, (state.strikeStep / 2).toInt())
+        for (i in -range..range step step) {
             val price = spot + i
             var totalPnlExpiry = 0.0
             var totalPnlToday = 0.0
@@ -979,7 +1040,7 @@ class FnoViewModel @Inject constructor(
                 breakeven = breakevens,
                 probability = (prob * 10).toInt() / 10.0,
                 roi = if (abs(maxLossValue) > 1.0) abs(maxProfitValue / maxLossValue) * 100 else 0.0,
-                legs = state.activeLegs.map { l -> "${if (l.qty > 50) "${l.qty/50}x " else ""}${l.type} ${l.strike.toInt()} ${l.instrument}" },
+                legs = state.activeLegs.map { l -> val b = baseLot.toInt(); "${if (b > 0 && l.qty > b) "${l.qty / b}x " else ""}${l.type} ${l.strike.toInt()} ${l.instrument}" },
                 payoffPoints = expiryPoints,
                 todayPayoffPoints = todayPoints,
                 rawLegs = state.activeLegs
@@ -1001,15 +1062,17 @@ class FnoViewModel @Inject constructor(
             // 1. Get live price from LiveIntelligenceBus or fallbacks
             val liveInfo = intelligenceBus.getLivePrice(symbol)
             val spot = liveInfo?.price ?: when {
-                symbol.contains("BANKNIFTY", ignoreCase = true) -> 50400.0
-                symbol.contains("NIFTY", ignoreCase = true) -> 23600.0
-                symbol.contains("SENSEX", ignoreCase = true) -> 77200.0
-                symbol.contains("RELIANCE", ignoreCase = true) -> 1301.0
-                symbol.contains("HDFCBANK", ignoreCase = true) -> 1720.0
-                symbol.contains("TCS", ignoreCase = true) -> 3850.0
+                symbol.contains("BANKNIFTY", ignoreCase = true) -> 54259.95
+                symbol.contains("NIFTY", ignoreCase = true) -> 22716.20
+                symbol.contains("SENSEX", ignoreCase = true) -> 72529.07
+                symbol.contains("FINNIFTY", ignoreCase = true) -> 24648.50
+                symbol.contains("RELIANCE", ignoreCase = true) -> 1182.00
+                symbol.contains("HDFCBANK", ignoreCase = true) -> 722.70
+                symbol.contains("TCS", ignoreCase = true) -> 2032.40
+                symbol.contains("INFY", ignoreCase = true) -> 1015.40
                 symbol.contains("SPX", ignoreCase = true) -> 5485.88
                 symbol.contains("DFMGI", ignoreCase = true) -> 4849.37
-                else -> 23600.0
+                else -> 22716.20
             }
             val rawChangePct = liveInfo?.changePercent ?: -0.45
             val liveChangePct = round(rawChangePct * 100.0) / 100.0
@@ -1017,62 +1080,70 @@ class FnoViewModel @Inject constructor(
             val nearExpiry = getUpcomingMonthlyExpiry(0)
             val nextExpiry = getUpcomingMonthlyExpiry(1)
 
-            val strikeStep = when {
-                symbol.contains("BANKNIFTY", ignoreCase = true) || symbol.contains("SENSEX", ignoreCase = true) -> 100.0
-                symbol.contains("NIFTY", ignoreCase = true) -> 50.0
-                symbol.contains("SPX", ignoreCase = true) -> 25.0
-                spot > 10000 -> 100.0
-                spot > 2000 -> 50.0
-                spot > 500 -> 20.0
-                else -> 10.0
-            }
+            val isIndex = symbol.contains("NIFTY", ignoreCase = true) || symbol.contains("SENSEX", ignoreCase = true) || symbol.contains("SPX", ignoreCase = true) || symbol.contains("DFMGI", ignoreCase = true)
+            val strikeStep = getStrikeStepForSymbol(symbol, spot)
+            val lotSize = getLotSize(symbol)
             val baseStrike = round(spot / strikeStep) * strikeStep
+            val strikeIndices = if (isIndex) (-50..50) else (-25..25)
+            val timeYears = 5.0 / 365.0
             
-            val domainChain = OptionChain(spot, strikes = (-10..10).map { i ->
+            val domainChain = OptionChain(spot, strikes = strikeIndices.map { i ->
                 val strike = baseStrike + (i * strikeStep)
                 val dist = abs(strike - spot)
                 val callOi = max(10000.0, 180000.0 - (dist * 15.0) + (Random().nextInt(2000)))
                 val putOi = max(10000.0, 160000.0 - (dist * 12.0) + (Random().nextInt(2000)))
-                val callLtp = max(0.5, (spot - strike) + (dist * 0.08) + 120.0)
-                val putLtp = max(0.5, (strike - spot) + (dist * 0.08) + 110.0)
+                val callIv = 14.5 + (i * 0.05)
+                val putIv = 15.2 - (i * 0.05)
+                val callCalc = quantEngine.calculate(
+                    forward = spot,
+                    strike = strike,
+                    rate = 0.065,
+                    timeToExpiryYears = timeYears,
+                    volatility = callIv / 100.0,
+                    isCall = true
+                )
+                val putCalc = quantEngine.calculate(
+                    forward = spot,
+                    strike = strike,
+                    rate = 0.065,
+                    timeToExpiryYears = timeYears,
+                    volatility = putIv / 100.0,
+                    isCall = false
+                )
+                val callLtp = round(max(0.05, callCalc.price) * 100.0) / 100.0
+                val putLtp = round(max(0.05, putCalc.price) * 100.0) / 100.0
                 OptionChainData(
                     strike = strike,
                     callOI = callOi,
                     callLTP = callLtp,
                     callChange = if (liveChangePct >= 0) 8.5 else -6.2,
-                    callIV = 14.5 + (i * 0.1),
-                    callGreeks = Greeks(0.5, 0.001, -12.0, 15.0),
+                    callIV = callIv,
+                    callGreeks = Greeks(callCalc.delta, callCalc.gamma, callCalc.theta, callCalc.vega),
                     putOI = putOi,
                     putLTP = putLtp,
                     putChange = if (liveChangePct >= 0) -7.1 else 9.4,
-                    putIV = 15.2 - (i * 0.1),
-                    putGreeks = Greeks(-0.45, 0.001, -11.5, 14.8)
+                    putIV = putIv,
+                    putGreeks = Greeks(putCalc.delta, putCalc.gamma, putCalc.theta, putCalc.vega)
                 )
             })
 
-            val analyzerChainData = (-10..10).map { i ->
-                val strike = baseStrike + (i * strikeStep)
-                val dist = abs(strike - spot)
-                val callOi = max(10000, (180000 - (dist * 15.0) + (Random().nextInt(2000))).toInt())
-                val putOi = max(10000, (160000 - (dist * 12.0) + (Random().nextInt(2000))).toInt())
-                val callLtp = max(0.5, (spot - strike) + (dist * 0.08) + 120.0)
-                val putLtp = max(0.5, (strike - spot) + (dist * 0.08) + 110.0)
+            val analyzerChainData = domainChain.strikes.map { s ->
                 com.marketintelligence.redxfnoscanner.data.Option(
                     type = "CE",
-                    strikePrice = strike,
-                    openInterest = callOi,
-                    lastTradedPrice = callLtp,
+                    strikePrice = s.strike,
+                    openInterest = s.callOI.toInt(),
+                    lastTradedPrice = s.callLTP,
                     changeInOpenInterest = (Random().nextInt(1000)),
-                    priceChange = if (liveChangePct >= 0) 8.5 else -6.2,
-                    impliedVolatility = 14.5 + (i * 0.1)
+                    priceChange = s.callChange,
+                    impliedVolatility = s.callIV
                 ) to com.marketintelligence.redxfnoscanner.data.Option(
                     type = "PE",
-                    strikePrice = strike,
-                    openInterest = putOi,
-                    lastTradedPrice = putLtp,
+                    strikePrice = s.strike,
+                    openInterest = s.putOI.toInt(),
+                    lastTradedPrice = s.putLTP,
                     changeInOpenInterest = (Random().nextInt(1000)),
-                    priceChange = if (liveChangePct >= 0) -7.1 else 9.4,
-                    impliedVolatility = 15.2 - (i * 0.1)
+                    priceChange = s.putChange,
+                    impliedVolatility = s.putIV
                 )
             }
             
@@ -1128,8 +1199,8 @@ class FnoViewModel @Inject constructor(
             val leg1Type = if (pcrValue >= 1.0) com.marketintelligence.ai.data.model.OptionType.CE else com.marketintelligence.ai.data.model.OptionType.PE
             val leg2Type = leg1Type
             val legs = listOf(
-                com.marketintelligence.ai.data.model.OptionLeg("$symbol ${atmStrike.toInt()} ${leg1Type.name}", leg1Type, atmStrike, nearExpiry, com.marketintelligence.ai.data.model.TradeAction.BUY, 50, 130.0),
-                com.marketintelligence.ai.data.model.OptionLeg("$symbol ${otmStrike.toInt()} ${leg2Type.name}", leg2Type, otmStrike, nearExpiry, com.marketintelligence.ai.data.model.TradeAction.SELL, 50, 65.0)
+                com.marketintelligence.ai.data.model.OptionLeg("$symbol ${atmStrike.toInt()} ${leg1Type.name}", leg1Type, atmStrike, nearExpiry, com.marketintelligence.ai.data.model.TradeAction.BUY, lotSize, 130.0),
+                com.marketintelligence.ai.data.model.OptionLeg("$symbol ${otmStrike.toInt()} ${leg2Type.name}", leg2Type, otmStrike, nearExpiry, com.marketintelligence.ai.data.model.TradeAction.SELL, lotSize, 65.0)
             )
             val signal = com.marketintelligence.ai.data.model.AiTradeSignal(
                 underlyingSymbol = symbol,
@@ -1154,7 +1225,7 @@ class FnoViewModel @Inject constructor(
                     iv = 14.8,
                     pcr = pcrValue,
                     maxPain = maxPainValue,
-                    lotSize = 50,
+                    lotSize = lotSize,
                     trend = if(pcrValue > 1.0) "BULLISH" else "BEARISH",
                     contracts = listOf(
                         FutureContract(nearExpiry, spot + (strikeStep * 0.4), liveChangePct, "+5K", "2M", spot + (strikeStep * 0.38), strikeStep * 0.4),

@@ -43,7 +43,7 @@ class SettingsRepositoryImpl @Inject constructor(@ApplicationContext private val
 
     override val selectedMentorEngine: Flow<String> = preferencesFlow
         .map { preferences ->
-            preferences[selectedMentorEngineKey] ?: "Gemini"
+            preferences[selectedMentorEngineKey] ?: "Aarka AI"
         }
 
     override val selectedChartEngine: Flow<String> = preferencesFlow

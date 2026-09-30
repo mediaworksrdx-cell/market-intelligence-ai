@@ -20,15 +20,15 @@ private val InstitutionalDarkColorScheme = darkColorScheme(
     primary = Color(0xFF00E676),
     secondary = Color(0xFF00B0FF),
     tertiary = Color(0xFFFFD600),
-    background = Color(0xFF000000),
-    surface = Color(0xFF0A0A0A),
+    background = Color(0xFF0A1A33),
+    surface = Color(0xFF0F2549),
     onPrimary = Color.Black,
     onSecondary = Color.White,
     onTertiary = Color.Black,
     onBackground = Color.White,
     onSurface = Color.White,
-    surfaceVariant = Color(0xFF111111),
-    outline = Color(0xFF1A1A1A)
+    surfaceVariant = Color(0xFF15305C),
+    outline = Color(0xFF1C3C6E)
 )
 
 private val InstitutionalLightColorScheme = lightColorScheme(

@@ -28,4 +28,10 @@ object ApiServiceModule {
         return retrofit.create(InstrumentApiService::class.java)
     }
 
+    @Provides
+    @Singleton
+    fun provideAarkaApiService(retrofit: Retrofit): com.marketintelligence.ai.data.source.remote.AarkaApiService {
+        return retrofit.create(com.marketintelligence.ai.data.source.remote.AarkaApiService::class.java)
+    }
+
 }

@@ -12,6 +12,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -88,7 +89,7 @@ class MarketViewModel @Inject constructor(
     fun startListeningForLivePrices() {
         if (livePricesJob?.isActive == true) return
         livePricesJob = viewModelScope.launch(Dispatchers.IO) {
-            while (true) {
+            while (isActive) {
                 try {
                     val prices = marketRepository.getLivePrices()
                     updateLivePrices(prices)
@@ -108,7 +109,7 @@ class MarketViewModel @Inject constructor(
     fun startPollingCryptoPrices() {
         if (pollingJob?.isActive == true) return // Already running
         pollingJob = viewModelScope.launch(Dispatchers.IO) {
-            while (true) {
+            while (isActive) {
                 try {
                     val cryptoPrices = marketRepository.getCryptoLivePrices()
                     updateCryptoPrices(cryptoPrices)

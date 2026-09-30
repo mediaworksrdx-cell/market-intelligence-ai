@@ -30,7 +30,10 @@ data class ChartState(
     val showStrategyOverlay: Boolean = false,
 
     // Computed indicator data (cached for performance)
-    val indicatorResults: Map<IndicatorType, Any> = emptyMap()
+    val indicatorResults: Map<IndicatorType, Any> = emptyMap(),
+    
+    val drawingHistory: MutableList<List<DrawingData>> = mutableListOf(),
+    val redoStack: MutableList<List<DrawingData>> = mutableListOf()
 ) {
     val hasOverlayIndicators: Boolean
         get() = activeIndicators.any { it.type.isOverlay && it.enabled }
@@ -43,6 +46,52 @@ data class ChartState(
 
     val overlayIndicators: List<IndicatorConfig>
         get() = activeIndicators.filter { it.type.isOverlay && it.enabled }
+        
+    fun pushDrawingState() {
+        drawingHistory.add(drawings)
+        redoStack.clear()
+    }
+    
+    fun undo(): ChartState {
+        if (drawingHistory.isNotEmpty()) {
+            val current = drawings
+            redoStack.add(current)
+            val previous = drawingHistory.removeAt(drawingHistory.size - 1)
+            return copy(drawings = previous)
+        }
+        return this
+    }
+    
+    fun redo(): ChartState {
+        if (redoStack.isNotEmpty()) {
+            val current = drawings
+            drawingHistory.add(current)
+            val next = redoStack.removeAt(redoStack.size - 1)
+            return copy(drawings = next)
+        }
+        return this
+    }
+
+    companion object {
+        private const val PREFS_NAME = "ChartDrawingsPrefs"
+        
+        fun saveDrawings(context: android.content.Context, symbol: String, drawings: List<DrawingData>) {
+            val prefs = context.getSharedPreferences(PREFS_NAME, android.content.Context.MODE_PRIVATE)
+            val json = com.google.gson.Gson().toJson(drawings)
+            prefs.edit().putString(symbol, json).apply()
+        }
+
+        fun loadDrawings(context: android.content.Context, symbol: String): List<DrawingData> {
+            val prefs = context.getSharedPreferences(PREFS_NAME, android.content.Context.MODE_PRIVATE)
+            val json = prefs.getString(symbol, null) ?: return emptyList()
+            val type = object : com.google.gson.reflect.TypeToken<List<DrawingData>>() {}.type
+            return try {
+                com.google.gson.Gson().fromJson(json, type)
+            } catch (e: Exception) {
+                emptyList()
+            }
+        }
+    }
 }
 
 /**

@@ -181,7 +181,7 @@ object IndicatorCalculator {
         var prevUpperBand = 0.0
         var prevLowerBand = 0.0
         var prevSupertrend = 0.0
-        var prevDirection = true
+        var _prevDirection = true
 
         for (i in (period - 1) until candles.size) {
             val atrVal = atr[i] ?: continue
@@ -213,7 +213,7 @@ object IndicatorCalculator {
                 values[i] = supertrend
                 directions[i] = direction
                 prevSupertrend = supertrend
-                prevDirection = direction
+                _prevDirection = direction
             } else {
                 // First value
                 val direction = candles[i].close > hl2
@@ -221,7 +221,7 @@ object IndicatorCalculator {
                 values[i] = supertrend
                 directions[i] = direction
                 prevSupertrend = supertrend
-                prevDirection = direction
+                _prevDirection = direction
             }
             prevUpperBand = upperBand
             prevLowerBand = lowerBand
@@ -307,8 +307,8 @@ object IndicatorCalculator {
         val size = candles.size
         val tenkanSen = MutableList<Double?>(size) { null }
         val kijunSen = MutableList<Double?>(size) { null }
-        val senkouSpanA = MutableList<Double?>(size) { null }
-        val senkouSpanB = MutableList<Double?>(size) { null }
+        val senkouSpanA = MutableList<Double?>(size + kijunPeriod) { null }
+        val senkouSpanB = MutableList<Double?>(size + kijunPeriod) { null }
         val chikouSpan = MutableList<Double?>(size) { null }
 
         // Helper: calculate midpoint of highest high and lowest low over period
@@ -332,18 +332,14 @@ object IndicatorCalculator {
             val kijun = kijunSen[i]
             if (tenkan != null && kijun != null) {
                 val futureIndex = i + kijunPeriod
-                if (futureIndex < size) {
-                    senkouSpanA[futureIndex] = (tenkan + kijun) / 2.0
-                }
+                senkouSpanA[futureIndex] = (tenkan + kijun) / 2.0
             }
 
             // Senkou Span B: midpoint of 52-period, plotted kijunPeriod ahead
             val spanB = midpoint(i, senkouBPeriod)
             if (spanB != null) {
                 val futureIndex = i + kijunPeriod
-                if (futureIndex < size) {
-                    senkouSpanB[futureIndex] = spanB
-                }
+                senkouSpanB[futureIndex] = spanB
             }
 
             // Chikou Span: close price plotted kijunPeriod behind
@@ -479,7 +475,7 @@ object IndicatorCalculator {
         // 1. Fair Value Gaps (3-candle pattern)
         for (i in 2 until candles.size) {
             val c1 = candles[i - 2]
-            val c2 = candles[i - 1]
+            val _c2 = candles[i - 1]
             val c3 = candles[i]
 
             // Bullish FVG: c3 low > c1 high
@@ -549,5 +545,221 @@ object IndicatorCalculator {
         }
 
         return SmcAnalysis(fvgs = fvgs, sweeps = sweeps)
+    }
+
+    // ── Parabolic SAR ──
+    fun calculateParabolicSAR(
+        candles: List<Candle>,
+        step: Double = 0.02,
+        maxAf: Double = 0.20
+    ): List<Double?> {
+        if (candles.size < 2) return List(candles.size) { null }
+        val sar = MutableList<Double?>(candles.size) { null }
+
+        var isUptrend = candles[1].close > candles[0].close
+        var ep = if (isUptrend) max(candles[0].high, candles[1].high) else min(candles[0].low, candles[1].low)
+        var af = step
+        sar[1] = if (isUptrend) min(candles[0].low, candles[1].low) else max(candles[0].high, candles[1].high)
+
+        for (i in 2 until candles.size) {
+            val prevSar = sar[i - 1]!!
+            var currentSar = prevSar + af * (ep - prevSar)
+
+            if (isUptrend) {
+                currentSar = min(currentSar, min(candles[i - 1].low, candles[i - 2].low))
+                if (candles[i].low < currentSar) {
+                    isUptrend = false
+                    sar[i] = ep
+                    ep = candles[i].low
+                    af = step
+                } else {
+                    sar[i] = currentSar
+                    if (candles[i].high > ep) {
+                        ep = candles[i].high
+                        af = min(af + step, maxAf)
+                    }
+                }
+            } else {
+                currentSar = max(currentSar, max(candles[i - 1].high, candles[i - 2].high))
+                if (candles[i].high > currentSar) {
+                    isUptrend = true
+                    sar[i] = ep
+                    ep = candles[i].high
+                    af = step
+                } else {
+                    sar[i] = currentSar
+                    if (candles[i].low < ep) {
+                        ep = candles[i].low
+                        af = min(af + step, maxAf)
+                    }
+                }
+            }
+        }
+        return sar
+    }
+
+    // ── ADX (Average Directional Index) ──
+    fun calculateADX(candles: List<Candle>, period: Int = 14): AdxResult {
+        val size = candles.size
+        val plusDI = MutableList<Double?>(size) { null }
+        val minusDI = MutableList<Double?>(size) { null }
+        val adx = MutableList<Double?>(size) { null }
+        if (size <= period) return AdxResult(plusDI, minusDI, adx)
+
+        val tr = MutableList(size) { 0.0 }
+        val plusDM = MutableList(size) { 0.0 }
+        val minusDM = MutableList(size) { 0.0 }
+
+        for (i in 1 until size) {
+            val highDiff = candles[i].high - candles[i - 1].high
+            val lowDiff = candles[i - 1].low - candles[i].low
+
+            tr[i] = max(
+                candles[i].high - candles[i].low,
+                max(abs(candles[i].high - candles[i - 1].close), abs(candles[i].low - candles[i - 1].close))
+            )
+
+            plusDM[i] = if (highDiff > lowDiff && highDiff > 0) highDiff else 0.0
+            minusDM[i] = if (lowDiff > highDiff && lowDiff > 0) lowDiff else 0.0
+        }
+
+        var trSum = 0.0
+        var plusDMSum = 0.0
+        var minusDMSum = 0.0
+
+        for (i in 1..period) {
+            trSum += tr[i]
+            plusDMSum += plusDM[i]
+            minusDMSum += minusDM[i]
+        }
+
+        val dx = MutableList<Double?>(size) { null }
+
+        for (i in period until size) {
+            if (i > period) {
+                trSum = trSum - (trSum / period) + tr[i]
+                plusDMSum = plusDMSum - (plusDMSum / period) + plusDM[i]
+                minusDMSum = minusDMSum - (minusDMSum / period) + minusDM[i]
+            }
+
+            val pdi = if (trSum == 0.0) 0.0 else 100 * plusDMSum / trSum
+            val mdi = if (trSum == 0.0) 0.0 else 100 * minusDMSum / trSum
+            plusDI[i] = pdi
+            minusDI[i] = mdi
+
+            val dxVal = if (pdi + mdi == 0.0) 0.0 else 100 * abs(pdi - mdi) / (pdi + mdi)
+            dx[i] = dxVal
+        }
+
+        var dxSum = 0.0
+        var dxCount = 0
+        for (i in period until size) {
+            dxSum += dx[i]!!
+            dxCount++
+            if (dxCount == period) {
+                adx[i] = dxSum / period
+            } else if (dxCount > period) {
+                adx[i] = ((adx[i - 1]!! * (period - 1)) + dx[i]!!) / period
+            }
+        }
+
+        return AdxResult(plusDI, minusDI, adx)
+    }
+
+    // ── OBV (On-Balance Volume) ──
+    fun calculateOBV(candles: List<Candle>): List<Double?> {
+        val size = candles.size
+        if (size == 0) return emptyList()
+        val obv = MutableList<Double?>(size) { null }
+        var currentObv = 0.0
+        obv[0] = currentObv
+
+        for (i in 1 until size) {
+            if (candles[i].close > candles[i - 1].close) {
+                currentObv += candles[i].volume
+            } else if (candles[i].close < candles[i - 1].close) {
+                currentObv -= candles[i].volume
+            }
+            obv[i] = currentObv
+        }
+        return obv
+    }
+
+    // ── CCI (Commodity Channel Index) ──
+    fun calculateCCI(candles: List<Candle>, period: Int = 20): List<Double?> {
+        val size = candles.size
+        val cci = MutableList<Double?>(size) { null }
+        if (size < period) return cci
+
+        val tp = candles.map { (it.high + it.low + it.close) / 3.0 }
+
+        for (i in (period - 1) until size) {
+            var sum = 0.0
+            for (j in (i - period + 1)..i) {
+                sum += tp[j]
+            }
+            val sma = sum / period
+
+            var meanDevSum = 0.0
+            for (j in (i - period + 1)..i) {
+                meanDevSum += abs(tp[j] - sma)
+            }
+            val meanDev = meanDevSum / period
+
+            cci[i] = if (meanDev == 0.0) 0.0 else (tp[i] - sma) / (0.015 * meanDev)
+        }
+        return cci
+    }
+
+    // ── Williams %R ──
+    fun calculateWilliamsR(candles: List<Candle>, period: Int = 14): List<Double?> {
+        val size = candles.size
+        val r = MutableList<Double?>(size) { null }
+        if (size < period) return r
+
+        for (i in (period - 1) until size) {
+            var highestHigh = Double.MIN_VALUE
+            var lowestLow = Double.MAX_VALUE
+
+            for (j in (i - period + 1)..i) {
+                highestHigh = max(highestHigh, candles[j].high)
+                lowestLow = min(lowestLow, candles[j].low)
+            }
+
+            val denom = highestHigh - lowestLow
+            r[i] = if (denom == 0.0) 0.0 else (highestHigh - candles[i].close) / denom * -100.0
+        }
+        return r
+    }
+
+    // ── MFI (Money Flow Index) ──
+    fun calculateMFI(candles: List<Candle>, period: Int = 14): List<Double?> {
+        val size = candles.size
+        val mfi = MutableList<Double?>(size) { null }
+        if (size <= period) return mfi
+
+        val tp = candles.map { (it.high + it.low + it.close) / 3.0 }
+        val rmf = DoubleArray(size) { i -> tp[i] * candles[i].volume }
+
+        for (i in period until size) {
+            var posFlow = 0.0
+            var negFlow = 0.0
+
+            for (j in (i - period + 1)..i) {
+                if (tp[j] > tp[j - 1]) {
+                    posFlow += rmf[j]
+                } else if (tp[j] < tp[j - 1]) {
+                    negFlow += rmf[j]
+                }
+            }
+
+            mfi[i] = if (negFlow == 0.0) {
+                100.0
+            } else {
+                val mfr = posFlow / negFlow
+                100.0 - (100.0 / (1.0 + mfr))
+            }
+        }
+        return mfi
     }
 }

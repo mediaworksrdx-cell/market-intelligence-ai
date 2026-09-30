@@ -32,7 +32,7 @@ class SettingsRepositoryImpl @Inject constructor(@ApplicationContext private val
 
     override val selectedMentorEngine: Flow<String> = context.dataStore.data
         .map { preferences ->
-            preferences[selectedMentorEngineKey] ?: "Gemini"
+            preferences[selectedMentorEngineKey] ?: "Aarka AI"
         }
 
     override val selectedChartEngine: Flow<String> = context.dataStore.data

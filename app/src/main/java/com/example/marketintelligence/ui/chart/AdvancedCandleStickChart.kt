@@ -65,6 +65,7 @@ fun AdvancedCandleStickChart(
     onSelectDrawing: ((String?) -> Unit)? = null,
     onDeleteDrawing: ((String) -> Unit)? = null,
     onContinueDrawing: ((DrawingData) -> Unit)? = null,
+    onMoveDrawingPoint: ((String, Int, ChartPoint) -> Unit)? = null,
     onOpenIndicatorSettingsFor: ((IndicatorType) -> Unit)? = null,
     onToggleIndicator: ((IndicatorType) -> Unit)? = null
 ) {
@@ -73,34 +74,14 @@ fun AdvancedCandleStickChart(
         chartState.candles.isNotEmpty() -> chartState.candles.last().close
         else -> 0.0
     }
-    val candles = remember(chartState.candles, effectivePrice) {
-        if (chartState.candles.isNotEmpty() && effectivePrice > 0.0) {
-            val last = chartState.candles.last()
-            val now = System.currentTimeMillis()
-            val tfDuration = when (timeframe.lowercase()) {
-                "1m" -> 60_000L
-                "5m" -> 300_000L
-                "15m" -> 900_000L
-                "30m" -> 1800_000L
-                "1h", "60m" -> 3600_000L
-                "4h" -> 14400_000L
-                "1d", "day" -> 86400_000L
-                "1w", "week" -> 7 * 86400_000L
-                "1m", "month" -> 30 * 86400_000L
-                else -> 86400_000L
-            }
-            val isCurrentPeriod = (now - last.openTime) < (tfDuration * 2) && !last.isClosed
-            if (isCurrentPeriod) {
-                chartState.candles.dropLast(1) + last.copy(
-                    close = effectivePrice,
-                    high = maxOf(last.high, effectivePrice),
-                    low = minOf(last.low, effectivePrice)
-                )
-            } else {
-                chartState.candles
-            }
-        } else {
-            chartState.candles
+    val candles = remember(chartState.candles) { chartState.candles.toMutableList() }.also { list ->
+        if (list.isNotEmpty() && effectivePrice > 0.0) {
+            val last = list.last()
+            list[list.lastIndex] = last.copy(
+                close = effectivePrice,
+                high = maxOf(last.high, effectivePrice),
+                low = minOf(last.low, effectivePrice)
+            )
         }
     }
     val textMeasurer = rememberTextMeasurer()
@@ -132,7 +113,7 @@ fun AdvancedCandleStickChart(
         3 -> 0.42f
         else -> 0.50f
     }
-    val volumeHeightFraction = 0f
+    val volumeHeightFraction = 0.15f
 
     val selectedDrawing = remember(chartState.drawings, localSelectedDrawingId) {
         chartState.drawings.find { it.id == localSelectedDrawingId }
@@ -143,13 +124,21 @@ fun AdvancedCandleStickChart(
 
     var chartCanvasWidthPx by remember { mutableFloatStateOf(0f) }
 
-    val baseCount = 50f
-    val visibleCount = (baseCount / zoom).roundToInt().coerceIn(8, candles.size.coerceAtLeast(8))
-    val maxScroll = (candles.size - visibleCount).coerceAtLeast(0).toFloat()
-    val clampedScroll = scrollOffsetFromRight.coerceIn(0f, maxScroll)
+    val viewportState by remember {
+        derivedStateOf {
+            val baseCount = 50f
+            val vCount = (baseCount / zoom).roundToInt().coerceIn(8, candles.size.coerceAtLeast(8))
+            val maxScroll = (candles.size - vCount).coerceAtLeast(0).toFloat()
+            val clampedScroll = scrollOffsetFromRight.coerceIn(0f, maxScroll)
 
-    val endIndex = (candles.size - clampedScroll.roundToInt()).coerceIn(visibleCount.coerceAtMost(candles.size), candles.size)
-    val startIndex = (endIndex - visibleCount).coerceAtLeast(0)
+            val eIndex = (candles.size - clampedScroll.roundToInt()).coerceIn(vCount.coerceAtMost(candles.size), candles.size)
+            val sIndex = (eIndex - vCount).coerceAtLeast(0)
+            Triple(vCount, sIndex, eIndex)
+        }
+    }
+    val visibleCount = viewportState.first
+    val startIndex = viewportState.second
+    val endIndex = viewportState.third
 
     val activeCandle = remember(crosshairPosition, chartState.cursorMode, startIndex, visibleCount, chartCanvasWidthPx, candles) {
         if (chartState.cursorMode == CursorMode.CROSSHAIR && crosshairPosition != null && candles.isNotEmpty() && chartCanvasWidthPx > 0f) {
@@ -193,19 +182,126 @@ fun AdvancedCandleStickChart(
                     .pointerHoverIcon(if (chartState.cursorMode == CursorMode.CROSSHAIR) PointerIcon.Crosshair else PointerIcon.Hand)
                 // 1. Pan and Zoom (enabled by default so users can always scroll historical candles)
                 .pointerInput(chartState.activeDrawingTool, candles.size) {
-                    if (chartState.activeDrawingTool == DrawingToolType.NONE) {
-                        detectTransformGestures { _, panAmount, zoomAmount, _ ->
-                            zoom = (zoom * zoomAmount).coerceIn(0.15f, 6.0f)
+                    detectTransformGestures { _, panAmount, zoomAmount, _ ->
+                        zoom = (zoom * zoomAmount).coerceIn(0.15f, 6.0f)
+                        if (chartState.activeDrawingTool == DrawingToolType.NONE || zoomAmount != 1f) {
                             val rightMarginPx = with(density) { rightMarginDp.toPx() }
                             val chartWidth = size.width - rightMarginPx
                             val vCount = (50f / zoom).roundToInt().coerceIn(8, candles.size.coerceAtLeast(8))
                             val cWidth = if (vCount > 0) chartWidth / vCount else 10f
-                            val maxScroll = (candles.size - vCount).coerceAtLeast(0).toFloat()
-                            if (cWidth > 0f) {
-                                scrollOffsetFromRight = (scrollOffsetFromRight + panAmount.x / cWidth).coerceIn(0f, maxScroll)
+                            val localMaxScroll = (candles.size - vCount).coerceAtLeast(0).toFloat()
+                            if (cWidth > 0f && chartState.activeDrawingTool == DrawingToolType.NONE) {
+                                scrollOffsetFromRight = (scrollOffsetFromRight + panAmount.x / cWidth).coerceIn(0f, localMaxScroll)
                             }
                             crosshairPosition = null
                         }
+                    }
+                }
+                // 1b. Drag gestures for drawing rubber-band preview & moving anchor points
+                .pointerInput(chartState.activeDrawingTool, localSelectedDrawingId, candles.size) {
+                    if (chartState.activeDrawingTool != DrawingToolType.NONE || localSelectedDrawingId != null) {
+                        var draggedPointIndex by mutableStateOf<Int?>(null)
+                        
+                        detectDragGestures(
+                            onDragStart = { offset ->
+                                if (chartState.activeDrawingTool == DrawingToolType.NONE && localSelectedDrawingId != null) {
+                                    val drawing = chartState.drawings.find { it.id == localSelectedDrawingId }
+                                    if (drawing != null) {
+                                        val rightMarginPx = with(density) { rightMarginDp.toPx() }
+                                        val chartWidth = size.width - rightMarginPx
+                                        val panelHeight = size.height * panelHeightFraction
+                                        val bottomMarginPx = with(density) { bottomMarginDp.toPx() }
+                                        val chartAreaHeight = size.height - panelHeight - bottomMarginPx
+                                        
+                                        val vCount = (50f / zoom).roundToInt().coerceIn(8, candles.size.coerceAtLeast(8))
+                                        val localMaxScroll = (candles.size - vCount).coerceAtLeast(0).toFloat()
+                                        val localClampedScroll = scrollOffsetFromRight.coerceIn(0f, localMaxScroll)
+                                        val localEndIdx = (candles.size - localClampedScroll.roundToInt()).coerceIn(vCount.coerceAtMost(candles.size), candles.size)
+                                        val localStartIdx = (localEndIdx - vCount).coerceAtLeast(0)
+                                        val tolerancePx = with(density) { 36.dp.toPx() }
+                                        val rawMin = candles.subList(localStartIdx, localEndIdx).minOfOrNull { it.low } ?: 0.0
+                                        val rawMax = candles.subList(localStartIdx, localEndIdx).maxOfOrNull { it.high } ?: 0.0
+                                        val pricePadding = ((rawMax - rawMin) * 0.05).coerceAtLeast(0.01)
+                                        val priceMin = rawMin - pricePadding
+                                        val priceMax = rawMax + pricePadding
+                                        val priceRange = (priceMax - priceMin).takeIf { it > 0 } ?: 1.0
+
+                                        for ((index, point) in drawing.points.withIndex()) {
+                                            var low = 0
+                                            var high = candles.size - 1
+                                            var closestIdx = -1
+                                            while (low <= high) {
+                                                val mid = (low + high) / 2
+                                                val midTime = candles[mid].openTime
+                                                if (midTime == point.timestamp) { closestIdx = mid; break }
+                                                else if (midTime < point.timestamp) low = mid + 1
+                                                else high = mid - 1
+                                            }
+                                            if (closestIdx == -1) {
+                                                if (high < 0) closestIdx = 0
+                                                else if (low >= candles.size) closestIdx = candles.size - 1
+                                                else closestIdx = if ((point.timestamp - candles[high].openTime) <= (candles[low].openTime - point.timestamp)) high else low
+                                            }
+                                            
+                                            val px = (closestIdx - localStartIdx).toFloat() * (chartWidth / vCount) + (chartWidth / vCount) / 2f
+                                            val py = chartAreaHeight - ((point.price - priceMin) / priceRange * chartAreaHeight).toFloat()
+                                            
+                                            val dx = offset.x - px
+                                            val dy = offset.y - py
+                                            if (dx * dx + dy * dy <= tolerancePx * tolerancePx) {
+                                                draggedPointIndex = index
+                                                break
+                                            }
+                                        }
+                                    }
+                                }
+                            },
+                            onDrag = { change, _ ->
+                                change.consume()
+                                val rightMarginPx = with(density) { rightMarginDp.toPx() }
+                                val chartWidth = size.width - rightMarginPx
+                                val panelHeight = size.height * panelHeightFraction
+                                val bottomMarginPx = with(density) { bottomMarginDp.toPx() }
+                                val chartAreaHeight = size.height - panelHeight - bottomMarginPx
+
+                                if (candles.isNotEmpty() && chartWidth > 0 && chartAreaHeight > 0) {
+                                    val vCount = (50f / zoom).roundToInt().coerceIn(8, candles.size.coerceAtLeast(8))
+                                    val localMaxScroll = (candles.size - vCount).coerceAtLeast(0).toFloat()
+                                    val localClampedScroll = scrollOffsetFromRight.coerceIn(0f, localMaxScroll)
+                                    val localEndIdx = (candles.size - localClampedScroll.roundToInt()).coerceIn(vCount.coerceAtMost(candles.size), candles.size)
+                                    val localStartIdx = (localEndIdx - vCount).coerceAtLeast(0)
+                                    val visibleList = candles.subList(localStartIdx, localEndIdx)
+
+                                    if (visibleList.isNotEmpty()) {
+                                        val rawMin = visibleList.minOf { it.low }
+                                        val rawMax = visibleList.maxOf { it.high }
+                                        val pricePadding = ((rawMax - rawMin) * 0.05).coerceAtLeast(0.01)
+                                        val priceMin = rawMin - pricePadding
+                                        val priceMax = rawMax + pricePadding
+                                        val priceRange = (priceMax - priceMin).takeIf { it > 0 } ?: 1.0
+                                        val candleWidth = chartWidth / vCount
+                                        val relativeIdx = (change.position.x / candleWidth).toInt().coerceIn(0, visibleList.size - 1)
+                                        val candleIndex = (localStartIdx + relativeIdx).coerceIn(0, candles.size - 1)
+                                        val price = priceMax - (change.position.y / chartAreaHeight) * priceRange
+                                        val timestamp = candles.getOrNull(candleIndex)?.openTime ?: System.currentTimeMillis()
+                                        
+                                        if (chartState.activeDrawingTool != DrawingToolType.NONE) {
+                                            currentRubberBandPoint = ChartPoint(timestamp, price)
+                                        } else if (localSelectedDrawingId != null && draggedPointIndex != null) {
+                                            onMoveDrawingPoint?.invoke(localSelectedDrawingId!!, draggedPointIndex!!, ChartPoint(timestamp, price))
+                                        }
+                                    }
+                                }
+                            },
+                            onDragEnd = {
+                                currentRubberBandPoint = null
+                                draggedPointIndex = null
+                            },
+                            onDragCancel = {
+                                currentRubberBandPoint = null
+                                draggedPointIndex = null
+                            }
+                        )
                     }
                 }
                 .pointerInput(chartState.activeDrawingTool, candles.size) {
@@ -222,40 +318,42 @@ fun AdvancedCandleStickChart(
 
                             if (candles.isNotEmpty() && chartWidth > 0 && chartAreaHeight > 0) {
                                 val vCount = (50f / zoom).roundToInt().coerceIn(8, candles.size.coerceAtLeast(8))
-                                val maxScroll = (candles.size - vCount).coerceAtLeast(0).toFloat()
-                                val clampedScroll = scrollOffsetFromRight.coerceIn(0f, maxScroll)
-                                val endIdx = (candles.size - clampedScroll.roundToInt()).coerceIn(vCount.coerceAtMost(candles.size), candles.size)
-                                val startIdx = (endIdx - vCount).coerceAtLeast(0)
-                                val visibleList = candles.subList(startIdx, endIdx)
+                                val localMaxScroll = (candles.size - vCount).coerceAtLeast(0).toFloat()
+                                val localClampedScroll = scrollOffsetFromRight.coerceIn(0f, localMaxScroll)
+                                val localEndIdx = (candles.size - localClampedScroll.roundToInt()).coerceIn(vCount.coerceAtMost(candles.size), candles.size)
+                                val localStartIdx = (localEndIdx - vCount).coerceAtLeast(0)
+                                val visibleList = candles.subList(localStartIdx, localEndIdx)
 
                                 if (visibleList.isNotEmpty()) {
-                                    val priceMin = visibleList.minOf { it.low }
-                                    val priceMax = visibleList.maxOf { it.high }
+                                    val rawMin = visibleList.minOf { it.low }
+                                    val rawMax = visibleList.maxOf { it.high }
+                                    val pricePadding = ((rawMax - rawMin) * 0.05).coerceAtLeast(0.01)
+                                    val priceMin = rawMin - pricePadding
+                                    val priceMax = rawMax + pricePadding
                                     val priceRange = (priceMax - priceMin).takeIf { it > 0 } ?: 1.0
                                     val candleWidth = chartWidth / vCount
                                     val relativeIdx = (offset.x / candleWidth).toInt().coerceIn(0, visibleList.size - 1)
-                                    val candleIndex = (startIdx + relativeIdx).coerceIn(0, candles.size - 1)
+                                    val candleIndex = (localStartIdx + relativeIdx).coerceIn(0, candles.size - 1)
                                     val price = priceMax - (offset.y / chartAreaHeight) * priceRange
                                     val timestamp = candles.getOrNull(candleIndex)?.openTime ?: System.currentTimeMillis()
 
-                                    if (chartState.cursorMode == CursorMode.CROSSHAIR) {
-                                        crosshairPosition = offset
-                                    } else if (chartState.activeDrawingTool != DrawingToolType.NONE && onAddDrawingPoint != null) {
+                                    if (chartState.activeDrawingTool != DrawingToolType.NONE && onAddDrawingPoint != null) {
                                         onAddDrawingPoint(ChartPoint(timestamp, price))
                                         currentRubberBandPoint = null
+                                    } else if (chartState.cursorMode == CursorMode.CROSSHAIR) {
+                                        crosshairPosition = offset
                                     } else {
                                         // Check if user tapped near an existing drawing
                                         val candleIntervalMs = if (candles.size > 1) candles[1].openTime - candles[0].openTime else 60000L
                                         val candleStartTime = candles.firstOrNull()?.openTime ?: 0L
-                                        val tolerancePx = with(density) { 24.dp.toPx() }
+                                        val tolerancePx = with(density) { 36.dp.toPx() }
 
                                         val tappedDrawing = findTappedDrawing(
                                             tap = offset,
                                             drawings = chartState.drawings,
-                                            startIndex = startIdx,
-                                            endIndex = endIdx,
-                                            candleStartTime = candleStartTime,
-                                            candleIntervalMs = candleIntervalMs,
+                                            startIndex = localStartIdx,
+                                            endIndex = localEndIdx,
+                                            candles = candles,
                                             chartWidth = chartWidth,
                                             chartAreaHeight = chartAreaHeight,
                                             priceMin = priceMin,
@@ -273,8 +371,8 @@ fun AdvancedCandleStickChart(
                                                 tap = offset,
                                                 indicators = chartState.overlayIndicators,
                                                 indicatorResults = chartState.indicatorResults,
-                                                startIndex = startIdx,
-                                                endIndex = endIdx,
+                                                startIndex = localStartIdx,
+                                                endIndex = localEndIdx,
                                                 chartWidth = chartWidth,
                                                 chartAreaHeight = chartAreaHeight,
                                                 priceMin = priceMin,
@@ -312,14 +410,6 @@ fun AdvancedCandleStickChart(
             if (chartWidth <= 0 || chartAreaHeight <= 0) return@Canvas
 
             // ── Viewport calculation (Right-anchored by default) ──
-            val baseCount = 50f
-            val visibleCount = (baseCount / zoom).roundToInt().coerceIn(8, candles.size.coerceAtLeast(8))
-            val maxScroll = (candles.size - visibleCount).coerceAtLeast(0).toFloat()
-            val clampedScroll = scrollOffsetFromRight.coerceIn(0f, maxScroll)
-
-            val endIndex = (candles.size - clampedScroll.roundToInt()).coerceIn(visibleCount.coerceAtMost(candles.size), candles.size)
-            val startIndex = (endIndex - visibleCount).coerceAtLeast(0)
-
             val visibleCandles = candles.subList(startIndex, endIndex)
             if (visibleCandles.isEmpty()) return@Canvas
 
@@ -346,7 +436,7 @@ fun AdvancedCandleStickChart(
                             }
                         }
                         is BollingerResult -> {
-                            for (i in startIndex until minOf(endIndex, res.upper.size)) {
+                            for (i in startIndex until minOf(endIndex, res.upper.size, res.lower.size)) {
                                 res.upper[i]?.let { rawMax = maxOf(rawMax, it) }
                                 res.lower[i]?.let { rawMin = minOf(rawMin, it) }
                             }
@@ -419,6 +509,16 @@ fun AdvancedCandleStickChart(
                         textMeasurer = textMeasurer
                     )
                 }
+                
+                // ── Layer 4: Volume Bars ──
+                drawVolumeLayer(
+                    candles = candles,
+                    visibleStartIndex = startIndex,
+                    visibleEndIndex = endIndex,
+                    chartAreaHeight = chartAreaHeight,
+                    rightMargin = rightMarginPx,
+                    volumeAreaHeight = volumeAreaHeight
+                )
 
                 // ── Layer 5: Candles ──
                 drawCandleLayer(
@@ -468,8 +568,7 @@ fun AdvancedCandleStickChart(
                         priceMax = priceMax,
                         chartAreaHeight = chartAreaHeight,
                         rightMargin = rightMarginPx,
-                        candleStartTime = candleStartTime,
-                        candleIntervalMs = candleIntervalMs
+                        candles = candles
                     )
                 }
             }
@@ -724,8 +823,8 @@ fun AdvancedCandleStickChart(
                 color = Color(0xFF1E222D).copy(alpha = 0.96f),
                 border = BorderStroke(1.dp, Color(0xFF00E5FF)),
                 modifier = Modifier
-                    .align(Alignment.TopCenter)
-                    .padding(top = 42.dp)
+                    .align(Alignment.BottomCenter)
+                    .padding(bottom = 14.dp)
             ) {
                 Row(
                     modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
@@ -945,8 +1044,7 @@ private fun findTappedDrawing(
     drawings: List<DrawingData>,
     startIndex: Int,
     endIndex: Int,
-    candleStartTime: Long,
-    candleIntervalMs: Long,
+    candles: List<Candle>,
     chartWidth: Float,
     chartAreaHeight: Float,
     priceMin: Double,
@@ -954,11 +1052,37 @@ private fun findTappedDrawing(
     tolerancePx: Float
 ): DrawingData? {
     val visibleCount = endIndex - startIndex
-    if (visibleCount <= 0 || priceRange <= 0.0) return null
+    if (visibleCount <= 0 || priceRange <= 0.0 || candles.isEmpty()) return null
 
     fun tToX(t: Long): Float {
-        val candleIndex = ((t - candleStartTime) / candleIntervalMs).toFloat()
-        val localIndex = candleIndex - startIndex
+        var low = 0
+        var high = candles.size - 1
+        var closestIdx = -1
+        
+        while (low <= high) {
+            val mid = (low + high) / 2
+            val midTime = candles[mid].openTime
+            if (midTime == t) {
+                closestIdx = mid
+                break
+            } else if (midTime < t) {
+                low = mid + 1
+            } else {
+                high = mid - 1
+            }
+        }
+        
+        if (closestIdx == -1) {
+            if (high < 0) closestIdx = 0
+            else if (low >= candles.size) closestIdx = candles.size - 1
+            else {
+                val d1 = t - candles[high].openTime
+                val d2 = candles[low].openTime - t
+                closestIdx = if (d1 <= d2) high else low
+            }
+        }
+        
+        val localIndex = closestIdx - startIndex
         val candleWidth = chartWidth / visibleCount
         return localIndex * candleWidth + candleWidth / 2f
     }
@@ -1001,6 +1125,7 @@ private fun findTappedDrawing(
                 }
             }
             DrawingToolType.NONE -> {}
+            else -> {}
         }
     }
     return null

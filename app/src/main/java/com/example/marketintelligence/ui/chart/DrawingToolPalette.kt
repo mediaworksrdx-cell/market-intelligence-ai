@@ -7,6 +7,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -81,7 +82,7 @@ fun DrawingToolPalette(
                 DrawingToolButton(
                     tool = DrawingToolType.TRENDLINE,
                     label = "Trend",
-                    icon = Icons.Default.TrendingUp,
+                    icon = Icons.AutoMirrored.Filled.TrendingUp,
                     isActive = activeDrawingTool == DrawingToolType.TRENDLINE,
                     accentColor = Color(0xFF42A5F5),
                     onClick = { onToolSelected(DrawingToolType.TRENDLINE) }
@@ -95,12 +96,52 @@ fun DrawingToolPalette(
                     onClick = { onToolSelected(DrawingToolType.HORIZONTAL_LINE) }
                 )
                 DrawingToolButton(
+                    tool = DrawingToolType.VERTICAL_LINE,
+                    label = "V-Line",
+                    icon = Icons.Default.Height,
+                    isActive = activeDrawingTool == DrawingToolType.VERTICAL_LINE,
+                    accentColor = Color(0xFFFF8A65),
+                    onClick = { onToolSelected(DrawingToolType.VERTICAL_LINE) }
+                )
+            }
+
+            Spacer(Modifier.height(12.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceEvenly
+            ) {
+                DrawingToolButton(
+                    tool = DrawingToolType.RAY,
+                    label = "Ray",
+                    icon = Icons.Default.ArrowForward,
+                    isActive = activeDrawingTool == DrawingToolType.RAY,
+                    accentColor = Color(0xFFBA68C8),
+                    onClick = { onToolSelected(DrawingToolType.RAY) }
+                )
+                DrawingToolButton(
                     tool = DrawingToolType.FIBONACCI,
                     label = "Fib",
                     icon = Icons.Default.AutoGraph,
                     isActive = activeDrawingTool == DrawingToolType.FIBONACCI,
                     accentColor = Color(0xFFCE93D8),
                     onClick = { onToolSelected(DrawingToolType.FIBONACCI) }
+                )
+                DrawingToolButton(
+                    tool = DrawingToolType.FIBONACCI_EXTENSION,
+                    label = "Fib Ext",
+                    icon = Icons.Default.Insights,
+                    isActive = activeDrawingTool == DrawingToolType.FIBONACCI_EXTENSION,
+                    accentColor = Color(0xFF9575CD),
+                    onClick = { onToolSelected(DrawingToolType.FIBONACCI_EXTENSION) }
+                )
+                DrawingToolButton(
+                    tool = DrawingToolType.PITCHFORK,
+                    label = "Pitch",
+                    icon = Icons.Default.ForkRight,
+                    isActive = activeDrawingTool == DrawingToolType.PITCHFORK,
+                    accentColor = Color(0xFF7986CB),
+                    onClick = { onToolSelected(DrawingToolType.PITCHFORK) }
                 )
             }
 
@@ -126,6 +167,14 @@ fun DrawingToolPalette(
                     accentColor = Color(0xFF4FC3F7),
                     onClick = { onToolSelected(DrawingToolType.CHANNEL) }
                 )
+                DrawingToolButton(
+                    tool = DrawingToolType.TEXT_ANNOTATION,
+                    label = "Text",
+                    icon = Icons.Default.TextFields,
+                    isActive = activeDrawingTool == DrawingToolType.TEXT_ANNOTATION,
+                    accentColor = Color(0xFFFFD54F),
+                    onClick = { onToolSelected(DrawingToolType.TEXT_ANNOTATION) }
+                )
 
                 // Clear all drawings
                 Column(
@@ -134,6 +183,7 @@ fun DrawingToolPalette(
                         .clip(RoundedCornerShape(8.dp))
                         .clickable { onClearDrawings() }
                         .padding(8.dp)
+                        .width(60.dp)
                 ) {
                     Icon(
                         Icons.Default.DeleteOutline,
@@ -150,9 +200,6 @@ fun DrawingToolPalette(
                         fontWeight = FontWeight.Medium
                     )
                 }
-
-                // Spacer to balance the grid
-                Spacer(Modifier.width(60.dp))
             }
 
             Spacer(Modifier.height(8.dp))
@@ -161,6 +208,7 @@ fun DrawingToolPalette(
 }
 
 @Composable
+@Suppress("UNUSED_PARAMETER")
 private fun DrawingToolButton(
     tool: DrawingToolType,
     label: String,

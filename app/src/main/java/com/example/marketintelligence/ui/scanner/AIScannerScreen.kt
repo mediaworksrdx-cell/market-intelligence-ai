@@ -142,7 +142,7 @@ fun AutoScanTab(uiState: AIScannerUiState, viewModel: AIScannerViewModel, onView
                             }
                         }
                     }
-                    Text("Periodic updates every 2 hours", color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f), fontSize = 8.sp)
+                    Text("Manual study mode — Tap Force Scan to update", color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f), fontSize = 8.sp)
                     
                     Spacer(modifier = Modifier.height(6.dp))
                     
@@ -229,7 +229,7 @@ fun AutoScanTab(uiState: AIScannerUiState, viewModel: AIScannerViewModel, onView
         if (uiState.autoScanResults.isEmpty()) {
             item {
                 Box(modifier = Modifier.fillMaxWidth().padding(top = 24.dp), contentAlignment = Alignment.Center) {
-                    Text("No active analysis. Next study in ~2h", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 10.sp)
+                    Text("No active analysis. Tap Force Scan to begin", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 10.sp)
                 }
             }
         } else {
@@ -495,7 +495,7 @@ fun AdvancedStudyCard(setup: TradeSetup, onViewChart: (String) -> Unit) {
             Spacer(Modifier.height(12.dp))
             
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                LevelItem("ENTRY ZONE", setup.entryPrice.toPlainString(), MaterialTheme.colorScheme.onSurface)
+                LevelItem("STUDY ZONE", setup.entryPrice.toPlainString(), MaterialTheme.colorScheme.onSurface)
                 LevelItem("INVALIDATION", setup.stopLossPrice.toPlainString(), AppRed)
             }
             Spacer(Modifier.height(8.dp))

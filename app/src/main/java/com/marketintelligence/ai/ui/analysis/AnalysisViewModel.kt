@@ -30,6 +30,8 @@ data class AnalysisUiState(
     val priceChange: Double = 0.0,
     val priceChangePercent: Double = 0.0,
     val isLoading: Boolean = false,
+    val isError: Boolean = false,
+    val errorMessage: String? = null,
     val error: String? = null,
     val chartStyle: ChartStyle = ChartStyle.CANDLESTICK,
     val indicatorConfig: ChartIndicatorConfig = ChartIndicatorConfig(),
@@ -122,7 +124,9 @@ class AnalysisViewModel @Inject constructor(
 
     private fun fetchHistoricalData() {
         viewModelScope.launch {
-            _uiState.update { it.copy(isLoading = true, error = null) }
+            _uiState.update { it.copy(isLoading = true, error = null, isError = false, errorMessage = null) }
+            
+            var hasError = false
             try {
                 val to = System.currentTimeMillis()
                 val tf = _uiState.value.selectedTimeframe.trim()
@@ -154,14 +158,16 @@ class AnalysisViewModel @Inject constructor(
                         type = type
                     )
                 } catch (e: Exception) {
+                    hasError = true
                     emptyList()
                 }
-
-                val historicalCandles = if (fetchedCandles.isNotEmpty()) {
-                    fetchedCandles
-                } else {
-                    generateLocalFallbackCandles(_uiState.value.symbol, _uiState.value.selectedTimeframe)
+                
+                if (fetchedCandles.isEmpty()) {
+                    hasError = true
                 }
+
+                val historicalCandles = fetchedCandles
+                
                 val clean = _uiState.value.symbol.uppercase().removeSuffix(".NS").removeSuffix(".BO").removeSuffix("USDT").removeSuffix("-USD").trim()
                 val isCryptoAsset = type.equals("CRYPTO", ignoreCase = true) || clean in listOf("BTC", "ETH", "SOL", "BNB", "XRP", "DOGE", "SHIB", "BITCOIN", "ETHEREUM")
                 var liveCryptoSpot: Double? = null
@@ -198,90 +204,23 @@ class AnalysisViewModel @Inject constructor(
                         currentPrice = activePrice,
                         priceChange = activeChange,
                         priceChangePercent = activeChangePct,
-                        isLoading = false
+                        isLoading = false,
+                        isError = hasError,
+                        errorMessage = if (hasError) "Unable to load chart data. Please check your connection." else null
                     )
                 }
             } catch (e: Exception) {
-                val fallbackCandles = generateLocalFallbackCandles(_uiState.value.symbol, _uiState.value.selectedTimeframe)
-                _uiState.update { it.copy(candles = fallbackCandles, isLoading = false) }
+                _uiState.update { it.copy(
+                    candles = emptyList(), 
+                    isLoading = false,
+                    isError = true,
+                    errorMessage = "Unable to load chart data. Please check your connection."
+                ) }
             }
         }
     }
 
-    private fun generateLocalFallbackCandles(symbol: String, timeframe: String): List<Candle> {
-        val clean = symbol.uppercase().removeSuffix(".NS").removeSuffix(".BO").removeSuffix("USDT").removeSuffix("-USD").trim()
-        val basePrice = when {
-            clean in listOf("BTC", "BITCOIN") -> 78800.0
-            clean in listOf("ETH", "ETHEREUM") -> 2495.0
-            clean in listOf("SOL") -> 103.5
-            clean in listOf("BNB", "BINANCECOIN") -> 755.0
-            clean in listOf("DOGE", "DOGECOIN") -> 0.090
-            clean in listOf("SHIB", "SHIBA INU", "SHIBA-INU") -> 0.0000185
-            clean in listOf("NIFTY", "NIFTY 50", "NIFTY50") -> 23600.0
-            clean in listOf("BANKNIFTY") -> 50400.0
-            clean in listOf("FINNIFTY", "FIN NIFTY") -> 21500.0
-            clean in listOf("SENSEX") -> 77200.0
-            clean in listOf("RELIANCE") -> 1300.0
-            clean in listOf("HDFCBANK") -> 1720.0
-            clean in listOf("TCS") -> 4100.0
-            clean in listOf("ICICI", "ICICIBANK") -> 1120.0
-            clean in listOf("SBIN", "SBI") -> 830.0
-            clean in listOf("INFY") -> 1850.0
-            clean in listOf("SPX") -> 5500.0
-            clean in listOf("NDX") -> 19200.0
-            clean in listOf("AAPL") -> 225.0
-            clean in listOf("TSLA") -> 210.0
-            clean in listOf("NVDA") -> 118.0
-            clean in listOf("DFMGI") -> 4850.0
-            clean in listOf("ADX", "ADI") -> 9250.0
-            clean in listOf("EMAAR") -> 8.45
-            else -> 500.0
-        }
-        val now = System.currentTimeMillis()
-        val tf = timeframe.trim()
-        val isLongTerm = tf.equals("1D", ignoreCase = true) || tf.equals("1W", ignoreCase = true) || tf == "1M"
-        val count = if (isLongTerm) 750 else 120 // 750 trading days = 3 full years!
-        val intervalMs = when {
-            tf == "1m" -> 60_000L
-            tf.equals("5m", ignoreCase = true) -> 300_000L
-            tf.equals("15m", ignoreCase = true) -> 900_000L
-            tf.equals("30m", ignoreCase = true) -> 1800_000L
-            tf.equals("1h", ignoreCase = true) || tf.equals("60m", ignoreCase = true) -> 3600_000L
-            tf.equals("4h", ignoreCase = true) -> 14400_000L
-            tf.equals("1d", ignoreCase = true) -> 86400_000L
-            tf.equals("1w", ignoreCase = true) -> 7 * 86400_000L
-            tf == "1M" -> 30 * 86400_000L
-            else -> 86400_000L
-        }
-        var currentPrice = basePrice
-        val list = mutableListOf<Candle>()
-        val rnd = java.util.Random(symbol.hashCode().toLong())
-        for (i in count downTo 0) {
-            val candleTime = now - (i * intervalMs)
-            val changePct = (rnd.nextDouble() - 0.49) * 0.008
-            val open = currentPrice
-            val close = open * (1.0 + changePct)
-            val high = maxOf(open, close) * (1.0 + rnd.nextDouble() * 0.003)
-            val low = minOf(open, close) * (1.0 - rnd.nextDouble() * 0.003)
-            val vol = 1000.0 + rnd.nextDouble() * 5000.0
-            currentPrice = close
-            list.add(
-                Candle(
-                    symbol = symbol,
-                    timeframe = timeframe,
-                    openTime = candleTime,
-                    open = (open * 100).toLong() / 100.0,
-                    high = (high * 100).toLong() / 100.0,
-                    low = (low * 100).toLong() / 100.0,
-                    close = (close * 100).toLong() / 100.0,
-                    volume = (vol * 10).toLong() / 10.0,
-                    closeTime = candleTime + intervalMs,
-                    isClosed = i > 0  // Last candle (i==0) is the active live bar
-                )
-            )
-        }
-        return list
-    }
+
 
     private fun getTimeframeDurationMs(timeframe: String): Long {
         val tf = timeframe.trim()
@@ -332,7 +271,24 @@ class AnalysisViewModel @Inject constructor(
                 }
 
                 _uiState.update { currentState ->
-                    val updatedCandles = currentState.candles.toMutableList()
+                    var updatedCandles = currentState.candles.toMutableList()
+                    if (updatedCandles.isEmpty()) {
+                        val tfDuration = getTimeframeDurationMs(currentState.selectedTimeframe)
+                        val newOpenTime = (tick.timestamp / tfDuration) * tfDuration
+                        val newCloseTime = newOpenTime + tfDuration
+                        updatedCandles.add(Candle(
+                            symbol = currentState.symbol,
+                            timeframe = currentState.selectedTimeframe,
+                            openTime = newOpenTime,
+                            open = tick.price,
+                            high = tick.price,
+                            low = tick.price,
+                            close = tick.price,
+                            volume = tickVolumeDelta,
+                            closeTime = newCloseTime,
+                            isClosed = false
+                        ))
+                    }
                     if (updatedCandles.isNotEmpty()) {
                         val lastCandle = updatedCandles.last()
                         val tfDuration = getTimeframeDurationMs(currentState.selectedTimeframe)
@@ -461,6 +417,7 @@ class AnalysisViewModel @Inject constructor(
                                             // Spawn a new live candle
                                             val newOpenTime = (now / tfDuration) * tfDuration
                                             val newCloseTime = newOpenTime + tfDuration
+                                            val tickSize = 1.0
                                             curList.add(Candle(
                                                 symbol = state.symbol,
                                                 timeframe = state.selectedTimeframe,
@@ -469,16 +426,18 @@ class AnalysisViewModel @Inject constructor(
                                                 high = livePrice,
                                                 low = livePrice,
                                                 close = livePrice,
-                                                volume = 0.0,
+                                                volume = tickSize,
                                                 closeTime = newCloseTime,
                                                 isClosed = false
                                             ))
                                         } else {
                                             // Update existing live candle
+                                            val tickSize = 1.0
                                             curList[lastIdx] = last.copy(
                                                 close = livePrice,
                                                 high = maxOf(last.high, livePrice),
-                                                low = minOf(last.low, livePrice)
+                                                low = minOf(last.low, livePrice),
+                                                volume = last.volume + tickSize
                                             )
                                         }
                                     }

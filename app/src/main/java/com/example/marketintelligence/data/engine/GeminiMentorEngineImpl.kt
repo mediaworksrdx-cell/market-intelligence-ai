@@ -77,14 +77,14 @@ class GeminiMentorEngineImpl @Inject constructor(
         if (lower.contains("signal") || lower.contains("scanner") || lower.contains("scan") || lower.contains("setup") || lower.contains("breakout") || lower.contains("alert") || lower.contains("confluence")) {
             val signals = intelligenceBus.scannerSignals.value
             val signalsStr = signals.joinToString("\n\n") { s ->
-                "• **${s.symbol}** (${s.timeframe} • ${s.bias}):\n  - Entry: ₹${s.entryPrice} | SL: ₹${s.stopLoss} | Target: ₹${s.target}\n  - Confidence: ${s.confidence}%\n  - Rationale: ${s.rationale}"
+                "• **${s.symbol}** (${s.timeframe} • ${s.bias}):\n  - Study Zone: ₹${s.entryPrice} | Invalidation: ₹${s.stopLoss} | Projection: ₹${s.target}\n  - Confidence: ${s.confidence}%\n  - Rationale: ${s.rationale}"
             }
             return """
-                |⚡ **Gemini AI Scanner Confluence Signals**
+                |⚡ **Gemini AI Scanner Confluence Studies**
                 |
                 |$signalsStr
                 |
-                |🤖 *Gemini Execution Rule*: Trade strictly in alignment with higher timeframe structure. Confirm volume surge before market entry.
+                |🤖 *Gemini Study Rule*: Analyze strictly in alignment with higher timeframe structure. Confirm volume surge before drawing conclusions.
             """.trimMargin()
         }
 
@@ -103,12 +103,12 @@ class GeminiMentorEngineImpl @Inject constructor(
             return """
                 |📊 **Gemini Live Market Pulse**
                 |
-                |• **NIFTY 50**: ₹${nifty?.price ?: 23600.0} (${nifty?.changePercent ?: -0.61}%)
-                |• **SENSEX**: ₹${sensex?.price ?: 77200.0} (${sensex?.changePercent ?: -0.73}%)
-                |• **BANKNIFTY**: ₹${banknifty?.price ?: 50400.0} (${banknifty?.changePercent ?: -0.42}%)
-                |• **RELIANCE**: ₹${reliance?.price ?: 1301.0} (${reliance?.changePercent ?: -1.11}%)
-                |• **BTC / USD**: $${btc?.price ?: 79227.0} (+${btc?.changePercent ?: 1.45}%)
-                |• **ETH / USD**: $${eth?.price ?: 2480.0} (+${eth?.changePercent ?: 0.75}%)
+                |• **NIFTY 50**: ₹${nifty?.price ?: 22716.20} (${nifty?.changePercent ?: -0.28}%)
+                |• **SENSEX**: ₹${sensex?.price ?: 72529.07} (${sensex?.changePercent ?: -0.33}%)
+                |• **BANKNIFTY**: ₹${banknifty?.price ?: 54259.95} (${banknifty?.changePercent ?: -0.39}%)
+                |• **RELIANCE**: ₹${reliance?.price ?: 1182.0} (${reliance?.changePercent ?: -1.30}%)
+                |• **BTC / USD**: $${btc?.price ?: 83923.0} (+${btc?.changePercent ?: 1.45}%)
+                |• **ETH / USD**: $${eth?.price ?: 2495.0} (+${eth?.changePercent ?: 0.75}%)
                 |• **S&P 500 (SPX)**: $${spx?.price ?: 5485.88} (${spx?.changePercent ?: -0.26}%)
                 |• **DFM General (UAE)**: ${dfmgi?.price ?: 4849.37} (+${dfmgi?.changePercent ?: 0.11}%)
                 |

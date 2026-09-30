@@ -1,5 +1,6 @@
 package com.example.marketintelligence.data.util
 
+import android.util.Log
 import com.example.marketintelligence.domain.repository.MarketRepository
 
 object MarketPriceCatalog {
@@ -27,25 +28,25 @@ object MarketPriceCatalog {
             clean in listOf("AVAX", "AVALANCHE") -> 32.40
 
             // Indian Indices
-            clean in listOf("NIFTY", "NIFTY50") -> 23600.0
-            clean in listOf("BANKNIFTY", "NIFTYBANK") -> 50400.0
-            clean in listOf("FINNIFTY") -> 21500.0
-            clean in listOf("SENSEX") -> 77200.0
+            clean in listOf("NIFTY", "NIFTY50") -> 22716.20
+            clean in listOf("BANKNIFTY", "NIFTYBANK") -> 54259.95
+            clean in listOf("FINNIFTY") -> 24648.50
+            clean in listOf("SENSEX") -> 72529.07
             clean in listOf("MIDCPNIFTY") -> 12250.0
             clean in listOf("NIFTYNEXT50") -> 68500.0
             clean in listOf("NIFTYIT") -> 35600.0
 
             // Top Indian Equities
-            clean in listOf("RELIANCE") -> 1300.0
-            clean in listOf("HDFCBANK", "HDFC") -> 1720.0
-            clean in listOf("TCS") -> 4100.0
-            clean in listOf("ICICI", "ICICIBANK") -> 1120.0
-            clean in listOf("SBIN", "SBI") -> 830.0
-            clean in listOf("INFY", "INFOSYS") -> 1850.0
-            clean in listOf("BHARTIARTL", "AIRTEL") -> 1410.0
-            clean in listOf("TATAMOTORS", "TATAMTR") -> 980.0
-            clean in listOf("ITC") -> 435.0
-            clean in listOf("LT", "LARSEN") -> 3540.0
+            clean in listOf("RELIANCE") -> 1182.00
+            clean in listOf("HDFCBANK", "HDFC") -> 722.70
+            clean in listOf("TCS") -> 2032.40
+            clean in listOf("ICICI", "ICICIBANK") -> 1292.20
+            clean in listOf("SBIN", "SBI") -> 964.70
+            clean in listOf("INFY", "INFOSYS") -> 1015.40
+            clean in listOf("BHARTIARTL", "AIRTEL") -> 1771.20
+            clean in listOf("TATAMOTORS", "TATAMTR") -> 280.95
+            clean in listOf("ITC") -> 265.10
+            clean in listOf("LT", "LARSEN") -> 3749.10
             clean in listOf("AXISBANK", "AXIS") -> 1180.0
             clean in listOf("KOTAKBANK", "KOTAK") -> 1780.0
             clean in listOf("MARUTI") -> 12400.0
@@ -176,7 +177,7 @@ object MarketPriceCatalog {
             if (matched != null && matched.ltp > 0.0) {
                 return matched.ltp
             }
-        } catch (_: Exception) {}
+        } catch (e: Exception) { Log.e("MarketPriceCatalog", "Error: ${e.message}") }
 
         // 2. Try Crypto live prices
         try {
@@ -188,7 +189,7 @@ object MarketPriceCatalog {
             if (matchedCrypto != null && matchedCrypto.price > 0.0) {
                 return matchedCrypto.price
             }
-        } catch (_: Exception) {}
+        } catch (e: Exception) { Log.e("MarketPriceCatalog", "Error: ${e.message}") }
 
         // 3. Fallback to catalog
         return getFallbackPrice(symbol)

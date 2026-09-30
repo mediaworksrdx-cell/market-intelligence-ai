@@ -53,67 +53,68 @@ fun FnoScreen(
         Text("F&O INTELLIGENCE HUB", color = MaterialTheme.colorScheme.onBackground, fontSize = 14.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.5.sp)
         Spacer(modifier = Modifier.height(6.dp))
 
-        // Search & Add Header
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            BasicTextField(
-                value = uiState.searchQuery,
-                onValueChange = { viewModel.onSearchQueryChanged(it) },
-                modifier = Modifier
-                    .weight(1f)
-                    .height(42.dp)
-                    .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(8.dp))
-                    .padding(horizontal = 12.dp),
-                textStyle = TextStyle(
-                    color = MaterialTheme.colorScheme.onSurface,
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Medium
-                ),
-                singleLine = true,
-                cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
-                decorationBox = { innerTextField ->
-                    Row(
-                        modifier = Modifier.fillMaxSize(),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(
-                            Icons.Default.Search,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.size(16.dp)
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Box(
-                            modifier = Modifier.weight(1f),
-                            contentAlignment = Alignment.CenterStart
+        // Search & Add Header (Hidden when on Strategy Builder tab)
+        if (selectedTab != 2) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                BasicTextField(
+                    value = uiState.searchQuery,
+                    onValueChange = { viewModel.onSearchQueryChanged(it) },
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(42.dp)
+                        .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(8.dp))
+                        .padding(horizontal = 12.dp),
+                    textStyle = TextStyle(
+                        color = MaterialTheme.colorScheme.onSurface,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Medium
+                    ),
+                    singleLine = true,
+                    cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+                    decorationBox = { innerTextField ->
+                        Row(
+                            modifier = Modifier.fillMaxSize(),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            if (uiState.searchQuery.isEmpty()) {
-                                Text(
-                                    "Search F&O Asset...",
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    fontSize = 11.sp
-                                )
+                            Icon(
+                                Icons.Default.Search,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Box(
+                                modifier = Modifier.weight(1f),
+                                contentAlignment = Alignment.CenterStart
+                            ) {
+                                if (uiState.searchQuery.isEmpty()) {
+                                    Text(
+                                        "Search F&O Asset...",
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        fontSize = 11.sp
+                                    )
+                                }
+                                innerTextField()
                             }
-                            innerTextField()
                         }
                     }
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Button(
+                    onClick = { viewModel.addAsset() },
+                    modifier = Modifier.size(42.dp),
+                    shape = RoundedCornerShape(8.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+                    contentPadding = PaddingValues(0.dp)
+                ) {
+                    Icon(Icons.Default.Add, null, tint = MaterialTheme.colorScheme.onPrimary, modifier = Modifier.size(18.dp))
                 }
-            )
-            Spacer(modifier = Modifier.width(8.dp))
-            Button(
-                onClick = { viewModel.addAsset() },
-                modifier = Modifier.size(42.dp),
-                shape = RoundedCornerShape(8.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
-                contentPadding = PaddingValues(0.dp)
-            ) {
-                Icon(Icons.Default.Add, null, tint = MaterialTheme.colorScheme.onPrimary, modifier = Modifier.size(18.dp))
             }
+            Spacer(modifier = Modifier.height(6.dp))
         }
-
-        Spacer(modifier = Modifier.height(6.dp))
 
         // Asset Mini-Header
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
@@ -201,7 +202,7 @@ fun SummaryTab(uiState: FnoUiState) {
                             fontWeight = FontWeight.Bold
                         )
                     }
-                    if (uiState.summary.contracts.lastOrNull() != fp) Divider(color = MaterialTheme.colorScheme.outline, thickness = 0.5.dp)
+                    if (uiState.summary.contracts.lastOrNull() != fp) HorizontalDivider(color = MaterialTheme.colorScheme.outline, thickness = 0.5.dp)
                 }
             }
         }
@@ -256,7 +257,7 @@ fun SummaryStatCard(label: String, value: String, modifier: Modifier) {
 
 @Composable
 fun OptionsStudyTab(uiState: FnoUiState, viewModel: FnoViewModel, onOpenBuildupScanner: () -> Unit) {
-    var viewMode by remember { mutableStateOf("BUILDUP") } // "BUILDUP", "OI", "GREEKS", "GEX", "PAIN", "IV"
+    var viewMode by remember { mutableStateOf("OI") } // "OI", "GREEKS", "GEX", "PAIN", "IV"
 
     Column(modifier = Modifier.fillMaxSize()) {
         // Buildup Scanner Quick Header Banner
@@ -299,7 +300,7 @@ fun OptionsStudyTab(uiState: FnoUiState, viewModel: FnoViewModel, onOpenBuildupS
                     .padding(2.dp)
                     .horizontalScroll(rememberScrollState())
             ) {
-                listOf("BUILDUP", "OI", "GREEKS", "GEX", "PAIN", "IV").forEach { mode ->
+                listOf("OI", "GREEKS", "GEX", "PAIN", "IV").forEach { mode ->
                     val isSelected = viewMode == mode
                     Box(
                         modifier = Modifier
@@ -315,12 +316,7 @@ fun OptionsStudyTab(uiState: FnoUiState, viewModel: FnoViewModel, onOpenBuildupS
 
         Spacer(Modifier.height(8.dp))
 
-        if (viewMode == "BUILDUP") {
-            BuildupDetailScreen(
-                viewModel = viewModel,
-                onNavigateBack = { viewMode = "OI" }
-            )
-        } else if (viewMode == "GEX") {
+        if (viewMode == "GEX") {
             GexAnalyticsView(
                 profile = uiState.gexProfile,
                 spotPrice = uiState.spotPrice
@@ -362,7 +358,7 @@ fun OptionsStudyTab(uiState: FnoUiState, viewModel: FnoViewModel, onOpenBuildupS
             val currentStrike = chain?.strikes?.minByOrNull { kotlin.math.abs(it.strike - uiState.spotPrice) }?.strike
 
             LaunchedEffect(currentStrike) {
-                if (currentStrike != null && chain != null) {
+                if (currentStrike != null) {
                     val atmIndex = chain.strikes.indexOfFirst { it.strike == currentStrike }
                     if (atmIndex >= 0) {
                         val scrollTarget = (atmIndex - 4).coerceAtLeast(0)
@@ -432,8 +428,9 @@ fun OptionsStudyTab(uiState: FnoUiState, viewModel: FnoViewModel, onOpenBuildupS
                                         )
                                     }
                                     // CALL LTP
+                                    val callLtpStr = if (strike.callLTP >= 10.0) "${strike.callLTP.toInt()}" else "%.1f".format(strike.callLTP)
                                     Text(
-                                        "${strike.callLTP.toInt()}",
+                                        callLtpStr,
                                         color = if (isCurrentStrike) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
                                         fontSize = 10.sp,
                                         fontWeight = if (isCurrentStrike) FontWeight.Bold else FontWeight.Normal,
@@ -467,8 +464,9 @@ fun OptionsStudyTab(uiState: FnoUiState, viewModel: FnoViewModel, onOpenBuildupS
                                         }
                                     }
                                     // PUT LTP
+                                    val putLtpStr = if (strike.putLTP >= 10.0) "${strike.putLTP.toInt()}" else "%.1f".format(strike.putLTP)
                                     Text(
-                                        "${strike.putLTP.toInt()}",
+                                        putLtpStr,
                                         color = if (isCurrentStrike) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
                                         fontSize = 10.sp,
                                         fontWeight = if (isCurrentStrike) FontWeight.Bold else FontWeight.Normal,
@@ -581,7 +579,7 @@ fun OptionsStudyTab(uiState: FnoUiState, viewModel: FnoViewModel, onOpenBuildupS
                             }
                         }
                         if (!isCurrentStrike) {
-                            Divider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f), thickness = 0.5.dp)
+                            HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f), thickness = 0.5.dp)
                         }
                     }
                 }
@@ -732,41 +730,35 @@ fun StrategyBuilderTab(uiState: FnoUiState, viewModel: FnoViewModel) {
                             fontWeight = FontWeight.ExtraBold
                         )
                     }
-                    Surface(
-                        color = MaterialTheme.colorScheme.surfaceVariant,
-                        shape = RoundedCornerShape(4.dp),
-                        modifier = Modifier
-                            .clickable { viewModel.cancelEditMode() }
-                            .padding(horizontal = 8.dp, vertical = 4.dp)
-                    ) {
-                        Text("Cancel / New", color = MaterialTheme.colorScheme.onSurface, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Surface(
+                            color = MaterialTheme.colorScheme.error.copy(alpha = 0.15f),
+                            shape = RoundedCornerShape(4.dp),
+                            modifier = Modifier
+                                .clickable { viewModel.deleteOrClearStrategy() }
+                                .padding(horizontal = 8.dp, vertical = 4.dp)
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+                                Icon(Icons.Default.Delete, contentDescription = null, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(12.dp))
+                                Text("Delete", color = MaterialTheme.colorScheme.error, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                            }
+                        }
+                        Surface(
+                            color = MaterialTheme.colorScheme.surfaceVariant,
+                            shape = RoundedCornerShape(4.dp),
+                            modifier = Modifier
+                                .clickable { viewModel.cancelEditMode() }
+                                .padding(horizontal = 8.dp, vertical = 4.dp)
+                        ) {
+                            Text("Cancel / New", color = MaterialTheme.colorScheme.onSurface, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                        }
                     }
                 }
             }
             Spacer(Modifier.height(12.dp))
         }
 
-        // 1. Custom Strategy Name Input Field
-        OutlinedTextField(
-            value = uiState.customStrategyName,
-            onValueChange = { viewModel.onCustomStrategyNameChanged(it) },
-            label = { Text("Strategy Name", fontSize = 10.sp) },
-            placeholder = { Text("e.g. NIFTY Bull Call Spread", fontSize = 11.sp) },
-            modifier = Modifier.fillMaxWidth(),
-            singleLine = true,
-            textStyle = TextStyle(
-                color = MaterialTheme.colorScheme.onSurface,
-                fontSize = 12.sp,
-                fontWeight = FontWeight.Bold
-            ),
-            colors = OutlinedTextFieldDefaults.colors(
-                focusedBorderColor = MaterialTheme.colorScheme.primary,
-                unfocusedBorderColor = MaterialTheme.colorScheme.outline
-            ),
-            shape = RoundedCornerShape(8.dp)
-        )
 
-        Spacer(Modifier.height(12.dp))
         
         // 2. Category & Strategy Architecture Selection Dropdowns
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -834,15 +826,18 @@ fun StrategyBuilderTab(uiState: FnoUiState, viewModel: FnoViewModel) {
         Spacer(Modifier.height(16.dp))
         
         // 3. Strategy Legs Management (Add more legs, modify strike, remove leg)
-        if (uiState.activeLegs.isNotEmpty()) {
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                Text("STRATEGY LEGS (${uiState.activeLegs.size})", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+            Text("STRATEGY LEGS (${uiState.activeLegs.size})", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+            if (uiState.activeLegs.isNotEmpty()) {
                 Text("EDITABLE", color = MaterialTheme.colorScheme.primary, fontSize = 8.sp, fontWeight = FontWeight.ExtraBold)
             }
-            Spacer(Modifier.height(8.dp))
+        }
+        Spacer(Modifier.height(8.dp))
+        if (uiState.activeLegs.isNotEmpty()) {
             uiState.activeLegs.forEach { leg ->
                 StrategyLegRow(
                     leg = leg,
+                    lotSize = uiState.summary.lotSize,
                     onShiftStrike = { delta -> viewModel.shiftLegStrike(leg.id, delta) },
                     onToggleType = { viewModel.toggleLegType(leg.id) },
                     onToggleInstrument = { viewModel.toggleLegInstrument(leg.id) },
@@ -850,58 +845,101 @@ fun StrategyBuilderTab(uiState: FnoUiState, viewModel: FnoViewModel) {
                 )
                 Spacer(Modifier.height(4.dp))
             }
-            
-            Spacer(Modifier.height(4.dp))
-            Button(
-                onClick = { viewModel.addLeg("CALL", "BUY", uiState.spotPrice) },
-                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-                modifier = Modifier.fillMaxWidth().height(34.dp),
-                shape = RoundedCornerShape(6.dp),
-                border = BorderStroke(0.5.dp, MaterialTheme.colorScheme.primary)
+        } else {
+            Surface(
+                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                shape = RoundedCornerShape(8.dp),
+                modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
             ) {
-                Icon(Icons.Default.Add, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(14.dp))
-                Spacer(Modifier.width(4.dp))
-                Text("ADD CUSTOM LEG", color = MaterialTheme.colorScheme.primary, fontSize = 9.5.sp, fontWeight = FontWeight.Bold)
+                Column(
+                    modifier = Modifier.padding(14.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(
+                        "No legs in strategy",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Medium
+                    )
+                    Spacer(Modifier.height(2.dp))
+                    Text(
+                        "Select an architecture above or add custom legs below",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                        fontSize = 9.5.sp
+                    )
+                }
             }
         }
+        
+        Spacer(Modifier.height(4.dp))
+        Button(
+            onClick = { viewModel.addLeg("CALL", "BUY", uiState.spotPrice) },
+            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+            modifier = Modifier.fillMaxWidth().height(34.dp),
+            shape = RoundedCornerShape(6.dp),
+            border = BorderStroke(0.5.dp, MaterialTheme.colorScheme.primary)
+        ) {
+            Icon(Icons.Default.Add, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(14.dp))
+            Spacer(Modifier.width(4.dp))
+            Text("ADD CUSTOM LEG", color = MaterialTheme.colorScheme.primary, fontSize = 9.5.sp, fontWeight = FontWeight.Bold)
+        }
 
-        // 4. Action Buttons (ANALYZE & SAVE / UPDATE)
-        Spacer(Modifier.height(20.dp))
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        // 4. Action Buttons (ANALYZE, SAVE / UPDATE, DELETE)
+        Spacer(Modifier.height(16.dp))
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             Button(
                 onClick = { viewModel.analyzeStrategy() },
-                modifier = Modifier.weight(1f).height(44.dp),
+                modifier = Modifier.weight(1f).height(42.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
                 shape = RoundedCornerShape(8.dp),
+                contentPadding = PaddingValues(horizontal = 4.dp),
                 enabled = uiState.activeLegs.isNotEmpty()
             ) {
-                Icon(Icons.Default.Analytics, contentDescription = null, modifier = Modifier.size(16.dp))
-                Spacer(Modifier.width(6.dp))
-                Text("ANALYZE", color = MaterialTheme.colorScheme.onPrimary, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                Icon(Icons.Default.Analytics, contentDescription = null, modifier = Modifier.size(14.dp))
+                Spacer(Modifier.width(4.dp))
+                Text("ANALYZE", color = MaterialTheme.colorScheme.onPrimary, fontWeight = FontWeight.Bold, fontSize = 11.sp)
             }
             Button(
                 onClick = { viewModel.saveStrategy() },
-                modifier = Modifier.weight(1f).height(44.dp),
+                modifier = Modifier.weight(1.1f).height(42.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
                 shape = RoundedCornerShape(8.dp),
                 border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary),
+                contentPadding = PaddingValues(horizontal = 4.dp),
                 enabled = uiState.activeLegs.isNotEmpty()
             ) {
-                Icon(Icons.Default.Bookmark, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(16.dp))
-                Spacer(Modifier.width(6.dp))
+                Icon(Icons.Default.Bookmark, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(14.dp))
+                Spacer(Modifier.width(4.dp))
                 Text(
-                    if (uiState.editingStrategyId != null) "UPDATE STRATEGY" else "SAVE STRATEGY",
+                    if (uiState.editingStrategyId != null) "UPDATE" else "SAVE STRATEGY",
                     color = MaterialTheme.colorScheme.primary,
                     fontWeight = FontWeight.Bold,
-                    fontSize = 11.sp
+                    fontSize = 10.5.sp
                 )
+            }
+            Button(
+                onClick = { viewModel.deleteOrClearStrategy() },
+                modifier = Modifier.weight(0.9f).height(42.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.error.copy(alpha = 0.12f),
+                    contentColor = MaterialTheme.colorScheme.error
+                ),
+                shape = RoundedCornerShape(8.dp),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.5f)),
+                contentPadding = PaddingValues(horizontal = 4.dp),
+                enabled = uiState.activeLegs.isNotEmpty() || uiState.editingStrategyId != null || uiState.selectedStrategy != null
+            ) {
+                Icon(Icons.Default.Delete, contentDescription = null, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(14.dp))
+                Spacer(Modifier.width(4.dp))
+                Text("DELETE", color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold, fontSize = 11.sp)
             }
         }
 
         // 5. Payoff Metrics & Visualization (Rendered ONLY after clicking ANALYZE)
         Spacer(Modifier.height(16.dp))
-        if (uiState.isStrategyAnalyzed && uiState.selectedStrategy != null) {
-            val strategy = uiState.selectedStrategy!!
+        val currentStrategy = uiState.selectedStrategy
+        if (uiState.isStrategyAnalyzed && currentStrategy != null) {
+            val strategy = currentStrategy
             Card(
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                 shape = RoundedCornerShape(12.dp),
@@ -920,18 +958,32 @@ fun StrategyBuilderTab(uiState: FnoUiState, viewModel: FnoViewModel) {
                             fontSize = 13.sp,
                             modifier = Modifier.weight(1f)
                         )
-                        Surface(
-                            color = AppGreen.copy(alpha = 0.15f),
-                            shape = RoundedCornerShape(4.dp),
-                            modifier = Modifier.border(0.5.dp, AppGreen.copy(alpha = 0.5f), RoundedCornerShape(4.dp))
-                        ) {
-                            Text(
-                                "ANALYZED",
-                                color = AppGreen,
-                                fontSize = 8.sp,
-                                fontWeight = FontWeight.ExtraBold,
-                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                            )
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Surface(
+                                color = AppGreen.copy(alpha = 0.15f),
+                                shape = RoundedCornerShape(4.dp),
+                                modifier = Modifier.border(0.5.dp, AppGreen.copy(alpha = 0.5f), RoundedCornerShape(4.dp))
+                            ) {
+                                Text(
+                                    "ANALYZED",
+                                    color = AppGreen,
+                                    fontSize = 8.sp,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                )
+                            }
+                            Spacer(Modifier.width(6.dp))
+                            IconButton(
+                                onClick = { viewModel.deleteOrClearStrategy() },
+                                modifier = Modifier.size(24.dp)
+                            ) {
+                                Icon(
+                                    Icons.Default.Delete,
+                                    contentDescription = "Delete Strategy",
+                                    tint = MaterialTheme.colorScheme.error,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            }
                         }
                     }
                     Spacer(Modifier.height(14.dp))
@@ -1116,6 +1168,7 @@ fun StrategyBuilderTab(uiState: FnoUiState, viewModel: FnoViewModel) {
 @Composable
 fun StrategyLegRow(
     leg: StrategyLeg,
+    lotSize: Int = 50,
     onShiftStrike: (Int) -> Unit,
     onToggleType: () -> Unit,
     onToggleInstrument: () -> Unit,
@@ -1172,9 +1225,10 @@ fun StrategyLegRow(
                         )
                     }
 
-                    if (leg.qty > 50) {
+                    val baseLot = if (lotSize > 0) lotSize else 50
+                    if (leg.qty > baseLot) {
                         Text(
-                            "${leg.qty / 50}x",
+                            "${leg.qty / baseLot}x",
                             color = MaterialTheme.colorScheme.primary,
                             fontSize = 9.sp,
                             fontWeight = FontWeight.ExtraBold

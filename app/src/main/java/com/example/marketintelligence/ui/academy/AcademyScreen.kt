@@ -195,7 +195,10 @@ fun AskMentorTab(uiState: AcademyUiState, viewModel: AcademyViewModel) {
                 modifier = Modifier.size(40.dp).background(MaterialTheme.colorScheme.primary, CircleShape)
             ) {
                 if (uiState.isLoading) CircularProgressIndicator(Modifier.size(16.dp), color = MaterialTheme.colorScheme.onPrimary, strokeWidth = 2.dp)
-                else Icon(Icons.Default.Send, null, tint = MaterialTheme.colorScheme.onPrimary, modifier = Modifier.size(15.dp))
+                else {
+                    @Suppress("DEPRECATION")
+                    Icon(Icons.Default.Send, null, tint = MaterialTheme.colorScheme.onPrimary, modifier = Modifier.size(15.dp))
+                }
             }
         }
     }
@@ -219,7 +222,8 @@ fun LiveTrainingTab(uiState: AcademyUiState, viewModel: AcademyViewModel) {
         }
         Spacer(Modifier.height(12.dp))
         
-        if (uiState.lastFnoSignal != null) {
+        val fnoSignal = uiState.lastFnoSignal
+        if (fnoSignal != null) {
             Card(
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                 shape = RoundedCornerShape(12.dp),
@@ -228,10 +232,10 @@ fun LiveTrainingTab(uiState: AcademyUiState, viewModel: AcademyViewModel) {
                 Column(modifier = Modifier.padding(12.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Surface(color = MaterialTheme.colorScheme.primary.copy(0.15f), shape = RoundedCornerShape(4.dp), modifier = Modifier.border(0.5.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(4.dp))) {
-                            Text(uiState.lastFnoSignal!!.underlyingSymbol, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp), fontWeight = FontWeight.Bold, fontSize = 9.sp, fontFamily = FontFamily.Monospace)
+                            Text(fnoSignal.underlyingSymbol, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp), fontWeight = FontWeight.Bold, fontSize = 9.sp, fontFamily = FontFamily.Monospace)
                         }
                         Spacer(Modifier.width(10.dp))
-                        Text(uiState.lastFnoSignal!!.strategyName.uppercase(), color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                        Text(fnoSignal.strategyName.uppercase(), color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold, fontSize = 12.sp)
                     }
                     
                     Spacer(modifier = Modifier.height(12.dp))
@@ -240,13 +244,13 @@ fun LiveTrainingTab(uiState: AcademyUiState, viewModel: AcademyViewModel) {
                     Text(uiState.mentorExplanation ?: "Analyzing institutional footprints...", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp, lineHeight = 16.sp)
                     
                     Spacer(modifier = Modifier.height(12.dp))
-                    Divider(color = MaterialTheme.colorScheme.outline, thickness = 0.5.dp)
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outline, thickness = 0.5.dp)
                     Spacer(modifier = Modifier.height(12.dp))
                     
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                         Column {
                             Text("OBJECTIVE", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 8.sp, fontWeight = FontWeight.Bold)
-                            Text("Identify ${uiState.lastFnoSignal!!.marketRegime} mitigation", color = MaterialTheme.colorScheme.onSurface, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                            Text("Identify ${fnoSignal.marketRegime} mitigation", color = MaterialTheme.colorScheme.onSurface, fontSize = 10.sp, fontWeight = FontWeight.Bold)
                         }
                         if (uiState.simulationMode) {
                             Button(

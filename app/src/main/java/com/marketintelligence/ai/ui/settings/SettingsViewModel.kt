@@ -11,7 +11,7 @@ import javax.inject.Inject
 
 data class SettingsUiState(
     val selectedScannerEngine: String = "Standard (Gemini)",
-    val selectedMentorEngine: String = "Standard (Gemini)",
+    val selectedMentorEngine: String = "Aarka AI",
     val selectedChartEngine: String = "Proprietary Engine",
     val selectedMarket: MarketType = MarketType.IN,
     val isDarkMode: Boolean = true,

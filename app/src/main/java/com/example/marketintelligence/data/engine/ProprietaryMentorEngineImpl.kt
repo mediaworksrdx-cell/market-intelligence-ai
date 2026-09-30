@@ -63,7 +63,7 @@ class ProprietaryMentorEngineImpl @Inject constructor(
                 |**Active Asset Allocations**:
                 |$holdingsStr
                 |
-                |💡 *Institutional Mentor Guidance*: Portfolio exposure is well-distributed. Maintain disciplined stop-losses and avoid over-leveraging open positions.
+                |💡 *Institutional Mentor Guidance*: Portfolio exposure is well-distributed. Maintain disciplined invalidation levels and avoid over-concentration in correlated assets.
             """.trimMargin()
         }
 
@@ -81,7 +81,7 @@ class ProprietaryMentorEngineImpl @Inject constructor(
                 |• **Put Wall (Dealer Support)**: ₹${String.format(Locale.US, "%,.0f", fno.putWall)}
                 |• **Institutional Footprint**: ${fno.institutionalBias}
                 |
-                |💡 *Strategy Recommendation*: Deploy high-probability credit spreads centered around Max Pain, capitalizing on dealer gamma pinning.
+                |💡 *Study Recommendation*: Observe high-probability credit spread structures centered around Max Pain, illustrating dealer gamma pinning.
             """.trimMargin()
         }
 
@@ -89,14 +89,14 @@ class ProprietaryMentorEngineImpl @Inject constructor(
         if (lower.contains("signal") || lower.contains("scanner") || lower.contains("scan") || lower.contains("setup") || lower.contains("breakout") || lower.contains("alert") || lower.contains("confluence")) {
             val signals = intelligenceBus.scannerSignals.value
             val signalsStr = signals.joinToString("\n\n") { s ->
-                "• **${s.symbol}** (${s.timeframe} • ${s.bias}):\n  - Entry: ₹${s.entryPrice} | SL: ₹${s.stopLoss} | Target: ₹${s.target}\n  - Confidence: ${s.confidence}%\n  - Rationale: ${s.rationale}"
+                "• **${s.symbol}** (${s.timeframe} • ${s.bias}):\n  - Study Zone: ₹${s.entryPrice} | Invalidation: ₹${s.stopLoss} | Projection: ₹${s.target}\n  - Confidence: ${s.confidence}%\n  - Rationale: ${s.rationale}"
             }
             return """
-                |⚡ **Active AI Scanner Confluence Setups**
+                |⚡ **Active AI Scanner Confluence Studies**
                 |
                 |$signalsStr
                 |
-                |💡 *Institutional Execution Protocol*: Wait for confirmation on lower timeframe liquidity sweeps before triggering market execution.
+                |💡 *Institutional Study Protocol*: Wait for confirmation on lower timeframe liquidity sweeps before validating analysis.
             """.trimMargin()
         }
 
@@ -115,16 +115,16 @@ class ProprietaryMentorEngineImpl @Inject constructor(
             return """
                 |📊 **Live Market Intelligence Pulse**
                 |
-                |• **NIFTY 50**: ₹${nifty?.price ?: 23600.0} (${nifty?.changePercent ?: -0.61}%)
-                |• **SENSEX**: ₹${sensex?.price ?: 77200.0} (${sensex?.changePercent ?: -0.73}%)
-                |• **BANKNIFTY**: ₹${banknifty?.price ?: 50400.0} (${banknifty?.changePercent ?: -0.42}%)
-                |• **RELIANCE**: ₹${reliance?.price ?: 1301.0} (${reliance?.changePercent ?: -1.11}%)
-                |• **BTC / USD**: $${btc?.price ?: 79227.0} (+${btc?.changePercent ?: 1.45}%)
-                |• **ETH / USD**: $${eth?.price ?: 2480.0} (+${eth?.changePercent ?: 0.75}%)
+                |• **NIFTY 50**: ₹${nifty?.price ?: 22716.20} (${nifty?.changePercent ?: -0.28}%)
+                |• **SENSEX**: ₹${sensex?.price ?: 72529.07} (${sensex?.changePercent ?: -0.33}%)
+                |• **BANKNIFTY**: ₹${banknifty?.price ?: 54259.95} (${banknifty?.changePercent ?: -0.39}%)
+                |• **RELIANCE**: ₹${reliance?.price ?: 1182.0} (${reliance?.changePercent ?: -1.30}%)
+                |• **BTC / USD**: $${btc?.price ?: 83923.0} (+${btc?.changePercent ?: 1.45}%)
+                |• **ETH / USD**: $${eth?.price ?: 2495.0} (+${eth?.changePercent ?: 0.75}%)
                 |• **S&P 500 (SPX)**: $${spx?.price ?: 5485.88} (${spx?.changePercent ?: -0.26}%)
                 |• **DFM General (UAE)**: ${dfmgi?.price ?: 4849.37} (+${dfmgi?.changePercent ?: 0.11}%)
                 |
-                |💡 *Market Structure*: Major indices are consolidating near institutional demand zones. Look for confirmation before taking directional swing positions.
+                |💡 *Market Structure*: Major indices are consolidating near institutional demand zones. Study confirmation patterns before drawing directional conclusions.
             """.trimMargin()
         }
 
@@ -139,7 +139,7 @@ class ProprietaryMentorEngineImpl @Inject constructor(
         }
 
         return if (matchedEntry != null) {
-            "**${matchedEntry.title}**\n\n${matchedEntry.content}\n\n---\n*Live Context: F&O Regime ${intelligenceBus.fnoIntelligence.value.regime} • NIFTY at ₹${intelligenceBus.getLivePrice("NIFTY 50")?.price ?: 23600.0}*"
+            "**${matchedEntry.title}**\n\n${matchedEntry.content}\n\n---\n*Live Context: F&O Regime ${intelligenceBus.fnoIntelligence.value.regime} • NIFTY at ₹${intelligenceBus.getLivePrice("NIFTY 50")?.price ?: 22716.20}*"
         } else {
             "Proprietary Mentor: Analyzing '$query' through our institutional Smart Money Framework. Active F&O regime is ${intelligenceBus.fnoIntelligence.value.regime} with PCR at ${intelligenceBus.fnoIntelligence.value.pcr}. Ask about 'live prices', 'signals', 'fno', or 'portfolio' for instant real-time intelligence."
         }

@@ -39,4 +39,10 @@ abstract class RepositoryModule {
     abstract fun bindInstrumentRepository(
         impl: com.marketintelligence.ai.data.repository.InstrumentRepositoryImpl
     ): com.marketintelligence.ai.domain.repository.InstrumentRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindNotificationRepository(
+        impl: com.marketintelligence.ai.data.repository.NotificationRepositoryImpl
+    ): com.marketintelligence.ai.domain.repository.NotificationRepository
 }

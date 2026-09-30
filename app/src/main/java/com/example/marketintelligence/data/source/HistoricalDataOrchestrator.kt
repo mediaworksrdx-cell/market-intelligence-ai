@@ -30,16 +30,16 @@ class HistoricalDataOrchestrator(
             }
 
             if (remoteCandles.isNotEmpty()) {
-                val duration = when (timeframe.lowercase()) {
-                    "1m" -> 60_000L
+                val duration = when (timeframe) {
+                    "1m", "1min" -> 60_000L
                     "5m" -> 300_000L
                     "15m" -> 900_000L
                     "30m" -> 1800_000L
-                    "1h", "60m" -> 3600_000L
-                    "4h" -> 14400_000L
-                    "1d", "day" -> 86400_000L
-                    "1w", "week" -> 7 * 86400_000L
-                    "1m", "month" -> 30 * 86400_000L
+                    "1h", "1H", "60m" -> 3600_000L
+                    "4h", "4H" -> 14400_000L
+                    "1d", "1D", "day" -> 86400_000L
+                    "1w", "1W", "week" -> 7 * 86400_000L
+                    "1M", "1mo", "month" -> 30 * 86400_000L
                     else -> 86400_000L
                 }
                 val mappedCandles = remoteCandles.map { c ->
@@ -49,7 +49,7 @@ class HistoricalDataOrchestrator(
                 val validCandles = validateCandles(mappedCandles)
                 try {
                     candleRepository.insertCandles(validCandles)
-                } catch (_: Exception) {}
+                } catch (e: Exception) { android.util.Log.e("HistoricalData", "Error: " + e.message) }
                 validCandles
             } else {
                 emptyList()

@@ -26,15 +26,15 @@ object InstrumentParser {
             if (row.size >= columns.size) {
                 try {
                     val entity = InstrumentEntity(
-                        instrument_token = row[colMap["instrument_token"]!!].toLong(),
-                        exchange = row[colMap["exchange"]!!],
-                        tradingsymbol = row[colMap["tradingsymbol"]!!],
-                        name = row[colMap["name"]!!].trim('\"'),
-                        instrument_type = row[colMap["instrument_type"]!!],
-                        segment = row[colMap["segment"]!!],
-                        expiry = row[colMap["expiry"]!!].takeIf { it.isNotEmpty() },
-                        strike = row[colMap["strike"]!!].toDoubleOrNull(),
-                        lot_size = row[colMap["lot_size"]!!].toInt()
+                        instrument_token = row[colMap["instrument_token"] ?: return@forEachLine].toLong(),
+                        exchange = row[colMap["exchange"] ?: return@forEachLine],
+                        tradingsymbol = row[colMap["tradingsymbol"] ?: return@forEachLine],
+                        name = row[colMap["name"] ?: return@forEachLine].trim('\"'),
+                        instrument_type = row[colMap["instrument_type"] ?: return@forEachLine],
+                        segment = row[colMap["segment"] ?: return@forEachLine],
+                        expiry = row[colMap["expiry"] ?: return@forEachLine].takeIf { it.isNotEmpty() },
+                        strike = row[colMap["strike"] ?: return@forEachLine].toDoubleOrNull(),
+                        lot_size = row[colMap["lot_size"] ?: return@forEachLine].toInt()
                     )
                     
                     val isEquity = entity.instrument_type == "EQ" && (entity.exchange == "NSE" || entity.exchange == "BSE")

@@ -212,10 +212,12 @@ private fun IndicatorCustomRow(
     var currentPeriod by remember(config.type, config.period) { mutableStateOf(config.period) }
     var currentMultiplier by remember(config.type, config.multiplier) { mutableStateOf(config.multiplier) }
     var currentSecondaryPeriod by remember(config.type, config.secondaryPeriod) { mutableStateOf(config.secondaryPeriod) }
+    var currentTertiaryPeriod by remember(config.type, config.tertiaryPeriod) { mutableStateOf(config.tertiaryPeriod) }
     var selectedColorLong by remember(config.type, config.color) { mutableStateOf(config.color) }
 
     val hasMultiplier = type == IndicatorType.BOLLINGER_BANDS || type == IndicatorType.SUPERTREND
     val hasSecondary = type == IndicatorType.MACD || type == IndicatorType.STOCHASTIC || type == IndicatorType.ICHIMOKU
+    val hasTertiary = type == IndicatorType.MACD || type == IndicatorType.ICHIMOKU
 
     Column(
         modifier = Modifier
@@ -399,6 +401,31 @@ private fun IndicatorCustomRow(
                     }
                 }
 
+                if (hasTertiary) {
+                    Spacer(Modifier.height(8.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text("Tertiary / Signal Period:", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = colors.onSurface, fontFamily = FontFamily.Monospace)
+                        InstitutionalStepper(
+                            valueText = "$currentTertiaryPeriod",
+                            canDecrement = currentTertiaryPeriod > 1,
+                            onDecrement = {
+                                if (currentTertiaryPeriod > 1) {
+                                    currentTertiaryPeriod -= 1
+                                    onSaveConfig(config.copy(tertiaryPeriod = currentTertiaryPeriod))
+                                }
+                            },
+                            onIncrement = {
+                                currentTertiaryPeriod += 1
+                                onSaveConfig(config.copy(tertiaryPeriod = currentTertiaryPeriod))
+                            }
+                        )
+                    }
+                }
+
                 Spacer(Modifier.height(8.dp))
 
                 // 4. Color Palette
@@ -440,16 +467,19 @@ private fun IndicatorCustomRow(
                             val defaultP = IndicatorConfig.defaultPeriod(type)
                             val defaultM = IndicatorConfig.defaultMultiplier(type)
                             val defaultS = IndicatorConfig.defaultSecondaryPeriod(type)
+                            val defaultT = IndicatorConfig.defaultTertiaryPeriod(type)
                             val defaultC = IndicatorConfig.defaultColor(type)
                             currentPeriod = defaultP
                             currentMultiplier = defaultM
                             currentSecondaryPeriod = defaultS
+                            currentTertiaryPeriod = defaultT
                             selectedColorLong = defaultC
                             onSaveConfig(
                                 config.copy(
                                     period = defaultP,
                                     multiplier = defaultM,
                                     secondaryPeriod = defaultS,
+                                    tertiaryPeriod = defaultT,
                                     color = defaultC
                                 )
                             )
@@ -471,6 +501,7 @@ private fun IndicatorCustomRow(
                                     period = currentPeriod,
                                     multiplier = currentMultiplier,
                                     secondaryPeriod = currentSecondaryPeriod,
+                                    tertiaryPeriod = currentTertiaryPeriod,
                                     color = selectedColorLong
                                 )
                             )
@@ -501,6 +532,7 @@ private fun getIndicatorTip(type: IndicatorType): String = when (type) {
     IndicatorType.STOCHASTIC -> "• Stochastic: Close position vs range (%K 14, %D 3)."
     IndicatorType.ATR -> "• ATR: Pure volatility measure (default 14)."
     IndicatorType.CVD -> "• CVD: Cumulative Volume Delta (institutional net buyer vs seller flow)."
+    else -> "• Technical Indicator: Quantitative trend and momentum measurement."
 }
 
 /**

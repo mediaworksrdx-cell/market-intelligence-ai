@@ -65,6 +65,24 @@ fun DrawScope.drawIndicatorPanelLayer(
         )
         drawText(labelResult, topLeft = Offset(4.dp.toPx(), currentPanelTop + 2.dp.toPx()))
 
+        if (result == null) {
+            val msg = textMeasurer.measure(
+                "Computing...",
+                TextStyle(
+                    color = Color.Gray.copy(alpha = 0.6f),
+                    fontSize = 12.sp
+                )
+            )
+            drawText(
+                msg,
+                topLeft = Offset(
+                    (chartWidth - msg.size.width) / 2f,
+                    currentPanelTop + (singlePanelHeight - msg.size.height) / 2f
+                )
+            )
+            return@forEachIndexed
+        }
+
         when (config.type) {
             IndicatorType.RSI -> {
                 @Suppress("UNCHECKED_CAST")

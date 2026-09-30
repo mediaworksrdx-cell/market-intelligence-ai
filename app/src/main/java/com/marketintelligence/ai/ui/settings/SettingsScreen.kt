@@ -87,7 +87,7 @@ fun SettingsScreen(
                 title = "AI Mentor Intelligence",
                 icon = Icons.Filled.School,
                 selected = uiState.selectedMentorEngine,
-                options = listOf("Standard (Gemini)", "Proprietary Engine"),
+                options = listOf("Aarka AI", "Proprietary Engine", "Standard (Gemini)"),
                 onSelected = { viewModel.setMentorEngine(it) }
             )
             SettingsSelectItem(

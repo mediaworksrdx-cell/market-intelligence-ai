@@ -58,7 +58,7 @@ fun AnalysisScreen(
         onDispose {}
     }
 
-    val liveInstrumentData by remember(uiState.symbol, marketUiState) {
+    val liveInstrumentData by remember(uiState.symbol) {
         derivedStateOf {
             marketViewModel.getSelectedInstrumentData(uiState.symbol)
         }
@@ -199,81 +199,83 @@ fun AnalysisScreen(
                 }
             }
 
-            // Chart Style Dropdown
-            Box {
-                val currentLabel = when (uiState.chartStyle) {
-                    ChartStyle.CANDLESTICK -> "Candles"
-                    ChartStyle.HOLLOW_CANDLE -> "Hollow"
-                    ChartStyle.LINE -> "Line"
-                    ChartStyle.AREA -> "Area"
-                    ChartStyle.HEIKIN_ASHI -> "Heikin-Ashi"
-                }
-                Surface(
-                    onClick = { chartStyleExpanded = true },
-                    shape = RoundedCornerShape(6.dp),
-                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-                    border = androidx.compose.foundation.BorderStroke(0.5.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.3f))
-                ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
-                    ) {
-                        Text(
-                            text = currentLabel,
-                            color = MaterialTheme.colorScheme.onSurface,
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold,
-                            fontFamily = FontFamily.Monospace
-                        )
-                        Icon(
-                            imageVector = Icons.Default.ArrowDropDown,
-                            contentDescription = "Select Chart Style",
-                            tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
-                            modifier = Modifier.size(16.dp)
-                        )
+            if (activeChartEngine?.engineName == "Proprietary Engine" || activeChartEngine == null) {
+                // Chart Style Dropdown
+                Box {
+                    val currentLabel = when (uiState.chartStyle) {
+                        ChartStyle.CANDLESTICK -> "Candles"
+                        ChartStyle.HOLLOW_CANDLE -> "Hollow"
+                        ChartStyle.LINE -> "Line"
+                        ChartStyle.AREA -> "Area"
+                        ChartStyle.HEIKIN_ASHI -> "Heikin-Ashi"
                     }
-                }
-
-                DropdownMenu(
-                    expanded = chartStyleExpanded,
-                    onDismissRequest = { chartStyleExpanded = false },
-                    modifier = Modifier.background(MaterialTheme.colorScheme.surface)
-                ) {
-                    ChartStyle.values().forEach { style ->
-                        val isSelected = uiState.chartStyle == style
-                        val label = when (style) {
-                            ChartStyle.CANDLESTICK -> "Candles"
-                            ChartStyle.HOLLOW_CANDLE -> "Hollow"
-                            ChartStyle.LINE -> "Line"
-                            ChartStyle.AREA -> "Area"
-                            ChartStyle.HEIKIN_ASHI -> "Heikin-Ashi"
+                    Surface(
+                        onClick = { chartStyleExpanded = true },
+                        shape = RoundedCornerShape(6.dp),
+                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                        border = androidx.compose.foundation.BorderStroke(0.5.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.3f))
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Text(
+                                text = currentLabel,
+                                color = MaterialTheme.colorScheme.onSurface,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                fontFamily = FontFamily.Monospace
+                            )
+                            Icon(
+                                imageVector = Icons.Default.ArrowDropDown,
+                                contentDescription = "Select Chart Style",
+                                tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+                                modifier = Modifier.size(16.dp)
+                            )
                         }
-                        DropdownMenuItem(
-                            text = {
-                                Text(
-                                    text = label,
-                                    fontSize = 12.sp,
-                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                                    color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
-                                    fontFamily = FontFamily.Monospace
-                                )
-                            },
-                            trailingIcon = if (isSelected) {
-                                {
-                                    Icon(
-                                        Icons.Default.Check,
-                                        contentDescription = "Selected",
-                                        tint = MaterialTheme.colorScheme.primary,
-                                        modifier = Modifier.size(16.dp)
-                                    )
-                                }
-                            } else null,
-                            onClick = {
-                                viewModel.onChartStyleSelected(style)
-                                chartStyleExpanded = false
+                    }
+
+                    DropdownMenu(
+                        expanded = chartStyleExpanded,
+                        onDismissRequest = { chartStyleExpanded = false },
+                        modifier = Modifier.background(MaterialTheme.colorScheme.surface)
+                    ) {
+                        ChartStyle.values().forEach { style ->
+                            val isSelected = uiState.chartStyle == style
+                            val label = when (style) {
+                                ChartStyle.CANDLESTICK -> "Candles"
+                                ChartStyle.HOLLOW_CANDLE -> "Hollow"
+                                ChartStyle.LINE -> "Line"
+                                ChartStyle.AREA -> "Area"
+                                ChartStyle.HEIKIN_ASHI -> "Heikin-Ashi"
                             }
-                        )
+                            DropdownMenuItem(
+                                text = {
+                                    Text(
+                                        text = label,
+                                        fontSize = 12.sp,
+                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                        color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                                        fontFamily = FontFamily.Monospace
+                                    )
+                                },
+                                trailingIcon = if (isSelected) {
+                                    {
+                                        Icon(
+                                            Icons.Default.Check,
+                                            contentDescription = "Selected",
+                                            tint = MaterialTheme.colorScheme.primary,
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                    }
+                                } else null,
+                                onClick = {
+                                    viewModel.onChartStyleSelected(style)
+                                    chartStyleExpanded = false
+                                }
+                            )
+                        }
                     }
                 }
             }
@@ -282,16 +284,18 @@ fun AnalysisScreen(
         Spacer(modifier = Modifier.height(4.dp))
 
         // 3. Indicator Toggle Chips
-        IndicatorToggleBar(
-            config = uiState.indicatorConfig,
-            onToggleSMC = { viewModel.toggleSMC() },
-            onToggleEMA = { viewModel.toggleEMA() },
-            onToggleBB = { viewModel.toggleBollinger() },
-            onToggleVWAP = { viewModel.toggleVWAP() },
-            onToggleVOL = { viewModel.toggleVolume() },
-            onToggleRSI = { viewModel.toggleRSI() },
-            onToggleMACD = { viewModel.toggleMACD() }
-        )
+        if (activeChartEngine?.engineName == "Proprietary Engine" || activeChartEngine == null) {
+            IndicatorToggleBar(
+                config = uiState.indicatorConfig,
+                onToggleSMC = { viewModel.toggleSMC() },
+                onToggleEMA = { viewModel.toggleEMA() },
+                onToggleBB = { viewModel.toggleBollinger() },
+                onToggleVWAP = { viewModel.toggleVWAP() },
+                onToggleVOL = { viewModel.toggleVolume() },
+                onToggleRSI = { viewModel.toggleRSI() },
+                onToggleMACD = { viewModel.toggleMACD() }
+            )
+        }
 
         Spacer(modifier = Modifier.height(6.dp))
 

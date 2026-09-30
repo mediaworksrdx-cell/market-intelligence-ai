@@ -39,7 +39,7 @@ fun CoinDetailScreen(
 
     if (state.error != null) {
         Box(modifier = Modifier.fillMaxSize().background(BgDark), contentAlignment = Alignment.Center) {
-            Text(state.error!!, color = BearishColor)
+            Text(state.error.orEmpty(), color = BearishColor)
         }
         return
     }
@@ -120,7 +120,7 @@ fun CoinDetailScreen(
                 ) {
                     Column(modifier = Modifier.padding(16.dp).fillMaxWidth()) {
                         Text("Trade Setup (${setup.grade.name.replace("_", "+")})", color = GradeAPlus, fontWeight = FontWeight.Bold, fontSize = 18.sp)
-                        Divider(modifier = Modifier.padding(vertical = 8.dp), color = TextSecondary.copy(alpha = 0.3f))
+                        HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp), color = TextSecondary.copy(alpha = 0.3f))
                         
                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                             DetailItem("Entry", String.format("%.4f", setup.entry))

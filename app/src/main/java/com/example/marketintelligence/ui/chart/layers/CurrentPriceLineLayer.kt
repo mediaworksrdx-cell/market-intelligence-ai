@@ -35,7 +35,7 @@ fun DrawScope.drawCurrentPriceLineLayer(
     val currentCandle = candles.last()
     val currentPrice = if (currentPriceOverride != null && currentPriceOverride > 0.0) currentPriceOverride else currentCandle.close
     val priceRange = priceMax - priceMin
-    if (priceRange <= 0.0 || chartAreaHeight <= 0f) return
+    if (priceRange <= 0.0 || chartAreaHeight < 4f) return
 
     val chartWidth = size.width - rightMargin
     if (chartWidth <= 0f) return
@@ -45,7 +45,7 @@ fun DrawScope.drawCurrentPriceLineLayer(
 
     // Calculate Y on canvas (inverted: higher price = lower y)
     val rawY = chartAreaHeight - ((currentPrice - priceMin) / priceRange * chartAreaHeight).toFloat()
-    val clampedY = rawY.coerceIn(2f, chartAreaHeight - 2f)
+    val clampedY = rawY.coerceIn(2f, maxOf(2f, chartAreaHeight - 2f))
 
     // 1. Soft glow halo line across the chart
     drawLine(

@@ -14,12 +14,24 @@ class MarketDataRepositoryImpl @Inject constructor(
     private val realTimeService: RealTimeDataService
 ) : MarketDataRepository {
     override fun getQuote(symbol: String): Flow<Result<StockData>> = flow {
-        // Implementation using domain.model.StockData
-        emit(Result.success(StockData(symbol, symbol, 0.0, 0.0, 0.0, 0.0, "0", com.example.marketintelligence.domain.model.MarketType.IN)))
+        try {
+            val response = apiService.getQuote(symbol)
+            emit(Result.success(StockData(
+                symbol = response.symbol,
+                name = response.symbol,
+                price = response.price,
+                openPrice = response.open,
+                change = response.change,
+                changePercent = response.percentChange,
+                volume = response.volume,
+                market = com.example.marketintelligence.domain.model.MarketType.IN
+            )))
+        } catch (e: Exception) {
+            emit(Result.failure(e))
+        }
     }
 
     override fun getOptionChain(symbol: String): Flow<Result<OptionChain>> = flow {
-         // Implementation
-         emit(Result.success(OptionChain(0.0, emptyList())))
+        emit(Result.failure(NotImplementedError("Option chain not available")))
     }
 }

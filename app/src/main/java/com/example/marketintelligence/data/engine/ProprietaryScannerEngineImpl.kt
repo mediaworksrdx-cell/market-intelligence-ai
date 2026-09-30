@@ -142,8 +142,8 @@ class ProprietaryScannerEngineImpl @Inject constructor(
             ),
             versions = emptyMap(),
             explanation = SignalExplanation(
-                "Live Analysis",
-                listOf(ExplanationComponent("Institutional Flow", "Order block confluence validated at key liquidity level", emptyMap()))
+                "Live Study",
+                listOf(ExplanationComponent("Institutional Flow", "Institutional block confluence validated at key liquidity level", emptyMap()))
             )
         )
     }

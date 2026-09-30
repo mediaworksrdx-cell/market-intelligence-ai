@@ -294,7 +294,7 @@ fun AdvancedStudyCard(setup: TradeSetup, onViewChart: (String) -> Unit) {
             Spacer(Modifier.height(12.dp))
             
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                LevelItem("ENTRY ZONE", setup.entryPrice.toPlainString(), MaterialTheme.colorScheme.onSurface)
+                LevelItem("STUDY ZONE", setup.entryPrice.toPlainString(), MaterialTheme.colorScheme.onSurface)
                 LevelItem("INVALIDATION", setup.stopLossPrice.toPlainString(), AppRed)
             }
             Spacer(Modifier.height(8.dp))

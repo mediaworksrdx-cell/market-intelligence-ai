@@ -30,9 +30,22 @@ object ApiServiceModule {
 
     @Provides
     @Singleton
+    fun provideAarkaApiService(retrofit: Retrofit): com.example.marketintelligence.data.source.remote.AarkaApiService {
+        return retrofit.create(com.example.marketintelligence.data.source.remote.AarkaApiService::class.java)
+    }
+
+    @Provides
+    @Singleton
     fun provideRetrofit(json: Json): Retrofit {
+        val okHttpClient = okhttp3.OkHttpClient.Builder()
+            .connectTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
+            .readTimeout(90, java.util.concurrent.TimeUnit.SECONDS)
+            .writeTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
+            .build()
+
         return Retrofit.Builder()
             .baseUrl(com.marketintelligence.ai.BuildConfig.BASE_URL)
+            .client(okHttpClient)
             .addConverterFactory(json.asConverterFactory("application/json".toMediaType()))
             .build()
     }

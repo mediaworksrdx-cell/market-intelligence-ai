@@ -32,4 +32,7 @@ abstract class EngineModule {
 
     @Binds @IntoSet
     abstract fun bindProprietaryMentorEngine(engine: ProprietaryMentorEngineImpl): Engine
+
+    @Binds @IntoSet
+    abstract fun bindAarkaAiMentorEngine(engine: AarkaAiMentorEngineImpl): Engine
 }

@@ -1,5 +1,6 @@
 package com.example.marketintelligence.ui.portfolio
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.marketintelligence.data.source.local.TransactionEntity
@@ -14,6 +15,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -106,10 +108,10 @@ class PortfolioViewModel @Inject constructor(
     private fun startQuotePolling() {
         quotePollingJob?.cancel()
         quotePollingJob = viewModelScope.launch(Dispatchers.IO) {
-            while (true) {
+            while (isActive) {
                 try {
                     refreshQuotes()
-                } catch (_: Exception) {}
+                } catch (e: Exception) { Log.e("PortfolioVM", "Quote polling error", e) }
                 delay(5000)
             }
         }
@@ -132,7 +134,7 @@ class PortfolioViewModel @Inject constructor(
                 val clean = upper.removeSuffix(".NS").removeSuffix(".BO")
                 quotesMap[clean] = q
             }
-        } catch (_: Exception) {}
+        } catch (e: Exception) { Log.e("PortfolioVM", "Live price fetch error", e) }
 
         try {
             val cryptoPrices = marketRepository.getCryptoLivePrices()
@@ -149,7 +151,7 @@ class PortfolioViewModel @Inject constructor(
                 val clean = upper.removeSuffix("-USD").removeSuffix("USDT")
                 quotesMap[clean] = q
             }
-        } catch (_: Exception) {}
+        } catch (e: Exception) { Log.e("PortfolioVM", "Crypto price fetch error", e) }
 
         // Enrich known global & equity symbols so all assets have active market quotes
         val catalogSymbols = listOf("AAPL", "NVDA", "TSLA", "MSFT", "GOOGL", "AMZN", "META", "BTC", "ETH", "SOL", "RELIANCE", "HDFCBANK", "TCS", "INFY")

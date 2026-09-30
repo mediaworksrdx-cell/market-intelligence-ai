@@ -25,11 +25,17 @@ enum class IndicatorType(val label: String, val isOverlay: Boolean) {
     VWAP("VWAP", true),
     SUPERTREND("Supertrend", true),
     ICHIMOKU("Ichimoku", true),
+    PARABOLIC_SAR("SAR", true),
     RSI("RSI", false),
     MACD("MACD", false),
     STOCHASTIC("Stochastic", false),
     ATR("ATR", false),
-    CVD("CVD", false)
+    CVD("CVD", false),
+    ADX("ADX", false),
+    OBV("OBV", false),
+    CCI("CCI", false),
+    WILLIAMS_R("Williams %R", false),
+    MFI("MFI", false)
 }
 
 /**
@@ -47,9 +53,14 @@ enum class DrawingToolType(val label: String) {
     NONE("None"),
     TRENDLINE("Trendline"),
     HORIZONTAL_LINE("H-Line"),
+    VERTICAL_LINE("V-Line"),
+    RAY("Ray"),
     FIBONACCI("Fibonacci"),
+    FIBONACCI_EXTENSION("Fib Ext"),
     RECTANGLE("Rectangle"),
-    CHANNEL("Channel")
+    CHANNEL("Channel"),
+    PITCHFORK("Pitchfork"),
+    TEXT_ANNOTATION("Text")
 }
 
 /**
@@ -59,6 +70,7 @@ data class IndicatorConfig(
     val type: IndicatorType,
     val period: Int = defaultPeriod(type),
     val secondaryPeriod: Int = defaultSecondaryPeriod(type),
+    val tertiaryPeriod: Int = defaultTertiaryPeriod(type),
     val color: Long = defaultColor(type),
     val secondaryColor: Long = 0xFF42A5F5,
     val tertiaryColor: Long = 0xFFEF5350,
@@ -73,17 +85,29 @@ data class IndicatorConfig(
             IndicatorType.VWAP -> 1
             IndicatorType.SUPERTREND -> 10
             IndicatorType.ICHIMOKU -> 9
+            IndicatorType.PARABOLIC_SAR -> 0
             IndicatorType.RSI -> 14
             IndicatorType.MACD -> 12
             IndicatorType.STOCHASTIC -> 14
             IndicatorType.ATR -> 14
             IndicatorType.CVD -> 14
+            IndicatorType.ADX -> 14
+            IndicatorType.OBV -> 0
+            IndicatorType.CCI -> 20
+            IndicatorType.WILLIAMS_R -> 14
+            IndicatorType.MFI -> 14
         }
 
         fun defaultSecondaryPeriod(type: IndicatorType): Int = when (type) {
             IndicatorType.MACD -> 26
             IndicatorType.STOCHASTIC -> 3
             IndicatorType.ICHIMOKU -> 26
+            else -> 0
+        }
+
+        fun defaultTertiaryPeriod(type: IndicatorType): Int = when (type) {
+            IndicatorType.MACD -> 9
+            IndicatorType.ICHIMOKU -> 52
             else -> 0
         }
 
@@ -100,11 +124,17 @@ data class IndicatorConfig(
             IndicatorType.VWAP -> 0xFFFFEB3B        // Yellow
             IndicatorType.SUPERTREND -> 0xFF00E676  // Green
             IndicatorType.ICHIMOKU -> 0xFF26A69A     // Teal
+            IndicatorType.PARABOLIC_SAR -> 0xFFD32F2F // Red
             IndicatorType.RSI -> 0xFFAB47BC          // Light purple
             IndicatorType.MACD -> 0xFF29B6F6         // Light blue
             IndicatorType.STOCHASTIC -> 0xFFFF7043   // Deep orange
             IndicatorType.ATR -> 0xFF78909C           // Blue grey
             IndicatorType.CVD -> 0xFF00E5FF           // Cyan
+            IndicatorType.ADX -> 0xFF8E24AA           // Purple
+            IndicatorType.OBV -> 0xFF43A047           // Green
+            IndicatorType.CCI -> 0xFF00ACC1           // Cyan
+            IndicatorType.WILLIAMS_R -> 0xFFFDD835    // Yellow
+            IndicatorType.MFI -> 0xFF3949AB           // Indigo
         }
     }
 }
@@ -171,6 +201,12 @@ data class IchimokuResult(
     val senkouSpanA: List<Double?>,   // Leading Span A
     val senkouSpanB: List<Double?>,   // Leading Span B
     val chikouSpan: List<Double?>     // Lagging Span
+)
+
+data class AdxResult(
+    val plusDI: List<Double?>,
+    val minusDI: List<Double?>,
+    val adx: List<Double?>
 )
 
 // ── Institutional Microstructure & F&O Models ──

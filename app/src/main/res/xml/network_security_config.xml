@@ -4,6 +4,11 @@
         <domain includeSubdomains="true">10.0.2.2</domain>
     </domain-config>
 
+    <!-- Allow cleartext traffic for Azure Trade Engine -->
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="true">20.80.83.151</domain>
+    </domain-config>
+
     <!-- Allow cleartext traffic for GCP Trade Engine -->
     <domain-config cleartextTrafficPermitted="true">
         <domain includeSubdomains="true">35.225.45.190</domain>

@@ -38,7 +38,7 @@ fun AnalysisScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val marketUiState by marketViewModel.uiState.collectAsState()
-    val activeChartEngine by engineRouter.activeChartEngine.collectAsState(initial = null)
+    val _activeChartEngine by engineRouter.activeChartEngine.collectAsState(initial = null)
     var isFullScreen by remember { mutableStateOf(false) }
 
     val scrollState = rememberScrollState()
@@ -46,10 +46,13 @@ fun AnalysisScreen(
     DisposableEffect(Unit) {
         marketViewModel.startListeningForLivePrices()
         marketViewModel.startPollingCryptoPrices()
-        onDispose {}
+        onDispose {
+            marketViewModel.stopListeningForLivePrices()
+            marketViewModel.stopPollingCryptoPrices()
+        }
     }
 
-    val liveInstrumentData by remember(uiState.symbol, marketUiState) {
+    val liveInstrumentData by remember(uiState.symbol) {
         derivedStateOf {
             marketViewModel.getSelectedInstrumentData(uiState.symbol)
         }
@@ -85,6 +88,7 @@ fun AnalysisScreen(
                     onSelectDrawing = { viewModel.selectDrawing(it) },
                     onDeleteDrawing = { viewModel.deleteDrawing(it) },
                     onContinueDrawing = { viewModel.continueDrawing(it) },
+                    onMoveDrawingPoint = { id, idx, pt -> viewModel.moveDrawingPoint(id, idx, pt) },
                     onOpenIndicatorSettingsFor = { viewModel.openIndicatorSettings(it) },
                     onToggleIndicator = { viewModel.toggleIndicator(it) }
                 )
@@ -141,6 +145,8 @@ fun AnalysisScreen(
                 onToggleVolumeProfile = { viewModel.toggleVolumeProfile() },
                 onToggleFnoOverlay = { viewModel.toggleFnoOverlay() },
                 onToggleSmcOverlay = { viewModel.toggleSmcOverlay() },
+                onUndo = { viewModel.undoDrawing() },
+                onRedo = { viewModel.redoDrawing() },
                 onToggleFullScreen = { isFullScreen = true }
             )
 
@@ -171,6 +177,7 @@ fun AnalysisScreen(
                             onSelectDrawing = { viewModel.selectDrawing(it) },
                             onDeleteDrawing = { viewModel.deleteDrawing(it) },
                             onContinueDrawing = { viewModel.continueDrawing(it) },
+                            onMoveDrawingPoint = { id, idx, pt -> viewModel.moveDrawingPoint(id, idx, pt) },
                             onOpenIndicatorSettingsFor = { viewModel.openIndicatorSettings(it) },
                             onToggleIndicator = { viewModel.toggleIndicator(it) }
                         )

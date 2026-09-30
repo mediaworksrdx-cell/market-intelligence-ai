@@ -327,6 +327,7 @@ fun BuildupDetailScreen(
                         modifier = Modifier.padding(horizontal = 10.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
+                        @Suppress("DEPRECATION")
                         Icon(
                             Icons.Default.Sort,
                             contentDescription = null,
@@ -761,7 +762,7 @@ fun BuildupStockCard(
             // Expandable Action Panel
             AnimatedVisibility(visible = isExpanded) {
                 Column(modifier = Modifier.padding(top = 8.dp)) {
-                    Divider(color = MaterialTheme.colorScheme.outline.copy(0.2f), thickness = 0.5.dp)
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(0.2f), thickness = 0.5.dp)
                     Spacer(Modifier.height(6.dp))
                     Row(
                         modifier = Modifier.fillMaxWidth(),

@@ -11,7 +11,7 @@ import javax.inject.Inject
 
 data class SettingsUiState(
     val selectedScannerEngine: String = "Standard (Gemini)",
-    val selectedMentorEngine: String = "Standard (Gemini)",
+    val selectedMentorEngine: String = "Aarka AI",
     val selectedChartEngine: String = "Proprietary Engine",
     val selectedMarket: MarketType = MarketType.IN,
     val isDarkMode: Boolean = true,
@@ -57,4 +57,14 @@ class SettingsViewModel @Inject constructor(
     fun setDarkMode(enabled: Boolean) = viewModelScope.launch { settingsRepository.setDarkMode(enabled) }
     fun setRiskProfile(profile: String) = viewModelScope.launch { settingsRepository.setRiskProfile(profile) }
     fun setNotificationsEnabled(enabled: Boolean) = viewModelScope.launch { settingsRepository.setNotificationsEnabled(enabled) }
+    
+    fun resetAll() = viewModelScope.launch {
+        settingsRepository.setScannerEngine("Standard (Gemini)")
+        settingsRepository.setMentorEngine("Aarka AI")
+        settingsRepository.setChartEngine("Proprietary Engine")
+        settingsRepository.setMarket(MarketType.IN)
+        settingsRepository.setDarkMode(true)
+        settingsRepository.setRiskProfile("CONSERVATIVE")
+        settingsRepository.setNotificationsEnabled(true)
+    }
 }

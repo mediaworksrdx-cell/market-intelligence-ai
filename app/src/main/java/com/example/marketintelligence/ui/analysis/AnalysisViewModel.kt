@@ -1,5 +1,6 @@
 package com.example.marketintelligence.ui.analysis
 
+import android.util.Log
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -15,7 +16,10 @@ import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
@@ -28,6 +32,8 @@ data class AnalysisUiState(
     val priceChange: Double = 0.0,
     val priceChangePercent: Double = 0.0,
     val isLoading: Boolean = false,
+    val isError: Boolean = false,
+    val errorMessage: String? = null,
     val error: String? = null,
     val chartState: ChartState = ChartState(),
     val showIndicatorSheet: Boolean = false,
@@ -41,7 +47,8 @@ class AnalysisViewModel @Inject constructor(
     private val getHistoricalCandlesUseCase: GetHistoricalCandlesUseCase,
     private val listenForLiveTicksUseCase: ListenForLiveTicksUseCase,
     private val candleRepository: com.example.marketintelligence.data.source.CandleRepository,
-    private val marketRepository: com.example.marketintelligence.domain.repository.MarketRepository
+    private val marketRepository: com.example.marketintelligence.domain.repository.MarketRepository,
+    private val application: android.app.Application
 ) : ViewModel() {
 
     // Track cumulative volume per symbol to compute per-tick delta
@@ -60,6 +67,15 @@ class AnalysisViewModel @Inject constructor(
     val uiState = _uiState.asStateFlow()
 
     init {
+        val savedDrawings = ChartState.loadDrawings(application, symbol)
+        _uiState.update { it.copy(chartState = it.chartState.copy(drawings = savedDrawings)) }
+        
+        viewModelScope.launch {
+            uiState.map { it.chartState.drawings }.distinctUntilChanged().collect { drawings ->
+                ChartState.saveDrawings(application, symbol, drawings)
+            }
+        }
+
         fetchHistoricalData()
         listenForLivePrices()
         startPeriodicCryptoPolling()
@@ -142,6 +158,24 @@ class AnalysisViewModel @Inject constructor(
         }
     }
 
+    fun moveDrawingPoint(drawingId: String, pointIndex: Int, newPoint: ChartPoint) {
+        _uiState.update { state ->
+            state.chartState.pushDrawingState()
+            val updatedDrawings = state.chartState.drawings.map { drawing ->
+                if (drawing.id == drawingId && pointIndex in drawing.points.indices) {
+                    val updatedPoints = drawing.points.toMutableList()
+                    updatedPoints[pointIndex] = newPoint
+                    drawing.copy(points = updatedPoints)
+                } else {
+                    drawing
+                }
+            }
+            state.copy(
+                chartState = state.chartState.copy(drawings = updatedDrawings)
+            )
+        }
+    }
+
     fun addDrawingPoint(point: ChartPoint) {
         _uiState.update { state ->
             val chartState = state.chartState
@@ -150,9 +184,9 @@ class AnalysisViewModel @Inject constructor(
 
             val currentDrawing = chartState.currentDrawing
             val requiredPoints = when (tool) {
-                DrawingToolType.HORIZONTAL_LINE -> 1
-                DrawingToolType.TRENDLINE, DrawingToolType.FIBONACCI, DrawingToolType.RECTANGLE -> 2
-                DrawingToolType.CHANNEL -> 3
+                DrawingToolType.VERTICAL_LINE, DrawingToolType.TEXT_ANNOTATION, DrawingToolType.HORIZONTAL_LINE -> 1
+                DrawingToolType.TRENDLINE, DrawingToolType.FIBONACCI, DrawingToolType.RECTANGLE, DrawingToolType.RAY -> 2
+                DrawingToolType.CHANNEL, DrawingToolType.FIBONACCI_EXTENSION, DrawingToolType.PITCHFORK -> 3
                 DrawingToolType.NONE -> 0
             }
 
@@ -165,6 +199,7 @@ class AnalysisViewModel @Inject constructor(
                     isComplete = requiredPoints == 1
                 )
                 if (requiredPoints == 1) {
+                    chartState.pushDrawingState()
                     // Single-point tool (horizontal line) — complete immediately
                     val updatedDrawings = chartState.drawings + newDrawing
                     state.copy(chartState = chartState.copy(
@@ -180,6 +215,7 @@ class AnalysisViewModel @Inject constructor(
                 // Add point to existing drawing
                 val updatedPoints = currentDrawing.points + point
                 if (updatedPoints.size >= requiredPoints) {
+                    chartState.pushDrawingState()
                     // Drawing complete
                     val completedDrawing = currentDrawing.copy(points = updatedPoints, isComplete = true)
                     val updatedDrawings = chartState.drawings + completedDrawing
@@ -200,7 +236,20 @@ class AnalysisViewModel @Inject constructor(
 
     fun clearDrawings() {
         _uiState.update { state ->
+            state.chartState.pushDrawingState()
             state.copy(chartState = state.chartState.copy(drawings = emptyList(), currentDrawing = null, selectedDrawingId = null))
+        }
+    }
+
+    fun undoDrawing() {
+        _uiState.update { state ->
+            state.copy(chartState = state.chartState.undo())
+        }
+    }
+
+    fun redoDrawing() {
+        _uiState.update { state ->
+            state.copy(chartState = state.chartState.redo())
         }
     }
 
@@ -212,6 +261,7 @@ class AnalysisViewModel @Inject constructor(
 
     fun deleteDrawing(drawingId: String) {
         _uiState.update { state ->
+            state.chartState.pushDrawingState()
             val updated = state.chartState.drawings.filter { it.id != drawingId }
             state.copy(chartState = state.chartState.copy(drawings = updated, selectedDrawingId = null))
         }
@@ -248,21 +298,27 @@ class AnalysisViewModel @Inject constructor(
                 IndicatorType.SMA -> IndicatorCalculator.calculateSMA(candles, config.period)
                 IndicatorType.EMA -> IndicatorCalculator.calculateEMA(candles, config.period)
                 IndicatorType.RSI -> IndicatorCalculator.calculateRSI(candles, config.period)
-                IndicatorType.MACD -> IndicatorCalculator.calculateMACD(candles, config.period, config.secondaryPeriod)
+                IndicatorType.MACD -> IndicatorCalculator.calculateMACD(candles, config.period, config.secondaryPeriod, config.tertiaryPeriod)
                 IndicatorType.BOLLINGER_BANDS -> IndicatorCalculator.calculateBollingerBands(candles, config.period, config.multiplier)
                 IndicatorType.VWAP -> IndicatorCalculator.calculateVWAP(candles)
                 IndicatorType.SUPERTREND -> IndicatorCalculator.calculateSupertrend(candles, config.period, config.multiplier)
                 IndicatorType.ATR -> IndicatorCalculator.calculateATR(candles, config.period)
                 IndicatorType.STOCHASTIC -> IndicatorCalculator.calculateStochastic(candles, config.period, config.secondaryPeriod)
-                IndicatorType.ICHIMOKU -> IndicatorCalculator.calculateIchimoku(candles, config.period, config.secondaryPeriod)
+                IndicatorType.ICHIMOKU -> IndicatorCalculator.calculateIchimoku(candles, config.period, config.secondaryPeriod, config.tertiaryPeriod)
                 IndicatorType.CVD -> IndicatorCalculator.calculateCVD(candles)
+                IndicatorType.PARABOLIC_SAR -> IndicatorCalculator.calculateParabolicSAR(candles)
+                IndicatorType.ADX -> IndicatorCalculator.calculateADX(candles, config.period)
+                IndicatorType.OBV -> IndicatorCalculator.calculateOBV(candles)
+                IndicatorType.CCI -> IndicatorCalculator.calculateCCI(candles, config.period)
+                IndicatorType.WILLIAMS_R -> IndicatorCalculator.calculateWilliamsR(candles, config.period)
+                IndicatorType.MFI -> IndicatorCalculator.calculateMFI(candles, config.period)
             }
             if (result != null) results[config.type] = result
         }
 
         val smc = IndicatorCalculator.detectSMC(candles)
         val lastClose = candles.last().close
-        val strikeStep = if (lastClose > 10000) 100.0 else if (lastClose > 1000) 50.0 else 10.0
+        val strikeStep = if (lastClose > 5000) 100.0 else 50.0
         val baseStrike = (kotlin.math.round(lastClose / strikeStep)) * strikeStep
 
         val fno = chartState.fnoLevels ?: FnoOverlayLevels(
@@ -308,12 +364,15 @@ class AnalysisViewModel @Inject constructor(
         DrawingToolType.RECTANGLE -> 0xFF81C784
         DrawingToolType.CHANNEL -> 0xFF4FC3F7
         DrawingToolType.NONE -> 0xFFFFFFFF
+        else -> 0xFFFFFFFF
     }
 
     // ── Data Fetching ──
     private fun fetchHistoricalData() {
         viewModelScope.launch {
-            _uiState.update { it.copy(isLoading = true, error = null) }
+            _uiState.update { it.copy(isLoading = true, error = null, isError = false, errorMessage = null) }
+            
+            var hasError = false
             val fetchedCandles = try {
                 val to = System.currentTimeMillis()
                 val tf = _uiState.value.selectedTimeframe.trim()
@@ -344,14 +403,15 @@ class AnalysisViewModel @Inject constructor(
                     type = type
                 )
             } catch (e: Exception) {
+                hasError = true
                 emptyList()
             }
 
-            val historicalCandles = if (fetchedCandles.isNotEmpty()) {
-                fetchedCandles
-            } else {
-                generateLocalFallbackCandles(_uiState.value.symbol, _uiState.value.selectedTimeframe)
+            if (fetchedCandles.isEmpty()) {
+                hasError = true
             }
+
+            val historicalCandles = fetchedCandles
 
             val clean = _uiState.value.symbol.uppercase().removeSuffix(".NS").removeSuffix(".BO").removeSuffix("USDT").removeSuffix("-USD").trim()
             val isCryptoAsset = type.equals("CRYPTO", ignoreCase = true) || clean in listOf("BTC", "ETH", "SOL", "BNB", "XRP", "DOGE", "SHIB", "BITCOIN", "ETHEREUM")
@@ -372,7 +432,7 @@ class AnalysisViewModel @Inject constructor(
                         liveCryptoSpot = matched.price
                         liveCryptoPct = matched.changePercent
                     }
-                } catch (_: Exception) {}
+                } catch (e: Exception) { Log.e("AnalysisVM", "Error: ${e.message}") }
             }
 
             val lastClose = liveCryptoSpot ?: historicalCandles.lastOrNull()?.close ?: 0.0
@@ -394,6 +454,8 @@ class AnalysisViewModel @Inject constructor(
                     priceChange = activeChange,
                     priceChangePercent = activeChangePct,
                     isLoading = false,
+                    isError = hasError,
+                    errorMessage = if (hasError) "Unable to load chart data. Please check your connection." else null,
                     chartState = newChartState
                 )
             }
@@ -445,7 +507,24 @@ class AnalysisViewModel @Inject constructor(
                 }
 
                 _uiState.update { currentState ->
-                    val updatedCandles = currentState.candles.toMutableList()
+                    var updatedCandles = currentState.candles.toMutableList()
+                    if (updatedCandles.isEmpty()) {
+                        val tfDuration = getTimeframeDurationMs(currentState.selectedTimeframe)
+                        val newOpenTime = (tick.timestamp / tfDuration) * tfDuration
+                        val newCloseTime = newOpenTime + tfDuration
+                        updatedCandles.add(Candle(
+                            symbol = currentState.symbol,
+                            timeframe = currentState.selectedTimeframe,
+                            openTime = newOpenTime,
+                            open = tick.price,
+                            high = tick.price,
+                            low = tick.price,
+                            close = tick.price,
+                            volume = tickVolumeDelta,
+                            closeTime = newCloseTime,
+                            isClosed = false
+                        ))
+                    }
                     if (updatedCandles.isNotEmpty()) {
                         val lastCandle = updatedCandles.last()
                         val tfDuration = getTimeframeDurationMs(currentState.selectedTimeframe)
@@ -486,7 +565,7 @@ class AnalysisViewModel @Inject constructor(
                             viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
                                 try {
                                     candleRepository.insertCandles(listOf(newCandle))
-                                } catch (_: Exception) {}
+                                } catch (e: Exception) { Log.e("AnalysisVM", "Error: ${e.message}") }
                             }
                         } else {
                             // Update existing candle in real time
@@ -511,7 +590,7 @@ class AnalysisViewModel @Inject constructor(
                                         close = updatedLastCandle.close,
                                         volume = updatedLastCandle.volume
                                     )
-                                } catch (_: Exception) {}
+                                } catch (e: Exception) { Log.e("AnalysisVM", "Error: ${e.message}") }
                             }
                         }
                         val newChartState = recalculateIndicators(
@@ -542,7 +621,7 @@ class AnalysisViewModel @Inject constructor(
         val isCrypto = type.equals("CRYPTO", ignoreCase = true) || clean in listOf("BTC", "ETH", "SOL", "BNB", "XRP", "DOGE", "SHIB", "BITCOIN", "ETHEREUM")
         if (isCrypto) {
             viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
-                while (true) {
+                while (isActive) {
                     try {
                         val cryptos = marketRepository.getCryptoLivePrices()
                         if (cryptos.isNotEmpty()) {
@@ -580,6 +659,7 @@ class AnalysisViewModel @Inject constructor(
                                             // Spawn a new live candle
                                             val newOpenTime = (now / tfDuration) * tfDuration
                                             val newCloseTime = newOpenTime + tfDuration
+                                            val tickSize = 1.0
                                             curList.add(Candle(
                                                 symbol = state.symbol,
                                                 timeframe = state.selectedTimeframe,
@@ -588,16 +668,18 @@ class AnalysisViewModel @Inject constructor(
                                                 high = livePrice,
                                                 low = livePrice,
                                                 close = livePrice,
-                                                volume = 0.0,
+                                                volume = tickSize,
                                                 closeTime = newCloseTime,
                                                 isClosed = false
                                             ))
                                         } else {
                                             // Update existing live candle
+                                            val tickSize = 1.0
                                             curList[lastIdx] = last.copy(
                                                 close = livePrice,
                                                 high = maxOf(last.high, livePrice),
-                                                low = minOf(last.low, livePrice)
+                                                low = minOf(last.low, livePrice),
+                                                volume = last.volume + tickSize
                                             )
                                         }
                                     }
@@ -612,7 +694,7 @@ class AnalysisViewModel @Inject constructor(
                                 }
                             }
                         }
-                    } catch (_: Exception) {}
+                    } catch (e: Exception) { Log.e("AnalysisVM", "Error: ${e.message}") }
                     kotlinx.coroutines.delay(2000L) // 2-second real-time spot price refresh
                 }
             }
@@ -629,7 +711,7 @@ class AnalysisViewModel @Inject constructor(
         if (isCrypto) return // crypto is already handled by startPeriodicCryptoPolling
 
         viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
-            while (true) {
+            while (isActive) {
                 try {
                     val prices = marketRepository.getLivePrices()
                     if (prices.isNotEmpty()) {
@@ -704,86 +786,11 @@ class AnalysisViewModel @Inject constructor(
                             }
                         }
                     }
-                } catch (_: Exception) {}
+                } catch (e: Exception) { Log.e("AnalysisVM", "Error: ${e.message}") }
                 kotlinx.coroutines.delay(1000L) // 1-second real-time polling
             }
         }
     }
 
-    private fun generateLocalFallbackCandles(symbol: String, timeframe: String): List<Candle> {
-        val clean = symbol.uppercase().removeSuffix(".NS").removeSuffix(".BO").removeSuffix("USDT").removeSuffix("-USD").trim()
-        val basePrice = when {
-            clean in listOf("BTC", "BITCOIN") -> 78800.0
-            clean in listOf("ETH", "ETHEREUM") -> 2495.0
-            clean in listOf("SOL") -> 103.5
-            clean in listOf("BNB", "BINANCECOIN") -> 755.0
-            clean in listOf("DOGE", "DOGECOIN") -> 0.090
-            clean in listOf("SHIB", "SHIBA INU", "SHIBA-INU") -> 0.0000185
-            clean in listOf("NIFTY", "NIFTY 50", "NIFTY50") -> 23600.0
-            clean in listOf("BANKNIFTY") -> 50400.0
-            clean in listOf("FINNIFTY", "FIN NIFTY") -> 21500.0
-            clean in listOf("SENSEX") -> 77200.0
-            clean in listOf("RELIANCE") -> 1300.0
-            clean in listOf("HDFCBANK") -> 1720.0
-            clean in listOf("TCS") -> 4100.0
-            clean in listOf("ICICI", "ICICIBANK") -> 1120.0
-            clean in listOf("SBIN", "SBI") -> 830.0
-            clean in listOf("INFY") -> 1850.0
-            clean in listOf("SPX") -> 5500.0
-            clean in listOf("NDX") -> 19200.0
-            clean in listOf("AAPL") -> 225.0
-            clean in listOf("TSLA") -> 210.0
-            clean in listOf("NVDA") -> 118.0
-            clean in listOf("DFMGI") -> 4850.0
-            clean in listOf("ADX", "ADI") -> 9250.0
-            clean in listOf("EMAAR") -> 8.45
-            else -> 500.0
-        }
-        val effectiveBase = if (_uiState.value.currentPrice > 0.0) _uiState.value.currentPrice else basePrice
-        val now = System.currentTimeMillis()
-        val tf = timeframe.trim()
-        val isLongTerm = tf.equals("1D", ignoreCase = true) || tf.equals("1W", ignoreCase = true) || tf == "1M"
-        val count = if (isLongTerm) 750 else 120 // 750 trading days = 3 full years!
-        val intervalMs = when {
-            tf == "1m" -> 60_000L
-            tf.equals("5m", ignoreCase = true) -> 300_000L
-            tf.equals("15m", ignoreCase = true) -> 900_000L
-            tf.equals("30m", ignoreCase = true) -> 1800_000L
-            tf.equals("1h", ignoreCase = true) || tf.equals("60m", ignoreCase = true) -> 3600_000L
-            tf.equals("4h", ignoreCase = true) -> 14400_000L
-            tf.equals("1d", ignoreCase = true) -> 86400_000L
-            tf.equals("1w", ignoreCase = true) -> 7 * 86400_000L
-            tf == "1M" -> 30 * 86400_000L
-            else -> 86400_000L
-        }
-        var currentPrice = effectiveBase
-        val list = mutableListOf<Candle>()
-        val rnd = java.util.Random(symbol.hashCode().toLong())
-        for (i in 0..count) {
-            val candleTime = now - (i * intervalMs)
-            val changePct = (rnd.nextDouble() - 0.50) * 0.008
-            val close = currentPrice
-            val open = close / (1.0 + changePct)
-            val high = maxOf(open, close) * (1.0 + rnd.nextDouble() * 0.003)
-            val low = minOf(open, close) * (1.0 - rnd.nextDouble() * 0.003)
-            val vol = 1000.0 + rnd.nextDouble() * 5000.0
-            list.add(
-                Candle(
-                    symbol = symbol,
-                    timeframe = timeframe,
-                    openTime = candleTime,
-                    open = (open * 100).toLong() / 100.0,
-                    high = (high * 100).toLong() / 100.0,
-                    low = (low * 100).toLong() / 100.0,
-                    close = (close * 100).toLong() / 100.0,
-                    volume = (vol * 10).toLong() / 10.0,
-                    closeTime = candleTime + intervalMs,
-                    isClosed = i > 0
-                )
-            )
-            currentPrice = open
-        }
-        return list.reversed()
-    }
 }
 

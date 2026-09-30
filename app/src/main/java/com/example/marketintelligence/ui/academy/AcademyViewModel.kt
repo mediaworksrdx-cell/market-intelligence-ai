@@ -24,8 +24,10 @@ data class AcademyUiState(
     ),
     val currentInput: String = "",
     val suggestedQuestions: List<String> = listOf(
-        "📊 NIFTY 50 live market outlook",
-        "⚡ What are the active AI Scanner setups?",
+        "📊 NIFTY 50 live market structure study",
+        "📈 What are the latest quarterly results of Reliance?",
+        "🔍 Analyze TCS fundamentals and valuation ratios",
+        "⚡ What are the active AI Scanner studies?",
         "🎯 Explain current F&O Max Pain & Walls",
         "💼 How is my portfolio performing today?"
     ),
@@ -94,7 +96,7 @@ class AcademyViewModel @Inject constructor(
             .onEach { market ->
                 val modules = when(market) {
                     MarketType.IN -> listOf(
-                        TrainingModule("1", "Institutional Simulation Engine", "2h", false, listOf("RedX Theory", "Execution")),
+                        TrainingModule("1", "Institutional Simulation Engine", "2h", false, listOf("Market Intelligence Theory", "Execution")),
                         TrainingModule("2", "NIFTY 50 Dynamics", "1h 30m", false, listOf("Index Correlation", "SMC")),
                         TrainingModule("3", "Behavioral Bias Detection", "1h", false, listOf("Retail Traps", "Volume Analysis")),
                         TrainingModule("4", "Risk Discipline Engine", "2h", true, listOf("Institutional Control"))

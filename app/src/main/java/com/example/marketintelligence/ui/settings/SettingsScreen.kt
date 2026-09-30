@@ -26,11 +26,9 @@ import com.example.marketintelligence.ui.theme.*
 
 @Composable
 fun SettingsScreen(
-    viewModel: SettingsViewModel = hiltViewModel(),
-    marketViewModel: MarketViewModel = hiltViewModel()
+    viewModel: SettingsViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
-    val marketUiState by marketViewModel.uiState.collectAsState()
     val scrollState = rememberScrollState()
 
     Column(
@@ -87,7 +85,7 @@ fun SettingsScreen(
                 title = "AI Mentor Intelligence",
                 icon = Icons.Filled.School,
                 selected = uiState.selectedMentorEngine,
-                options = listOf("Standard (Gemini)", "Proprietary Engine"),
+                options = listOf("Aarka AI", "Proprietary Engine", "Standard (Gemini)"),
                 onSelected = { viewModel.setMentorEngine(it) }
             )
             SettingsSelectItem(
@@ -134,7 +132,7 @@ fun SettingsScreen(
         Text("DATA MANAGEMENT", color = AppRed, fontSize = 11.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 1.sp)
         Spacer(Modifier.height(16.dp))
         Button(
-            onClick = { /* Reset Logic */ },
+            onClick = { viewModel.resetAll() },
             modifier = Modifier.fillMaxWidth(),
             colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
             shape = RoundedCornerShape(12.dp)

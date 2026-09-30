@@ -54,6 +54,8 @@ fun ChartToolbar(
     onToggleVolumeProfile: () -> Unit = {},
     onToggleFnoOverlay: () -> Unit = {},
     onToggleSmcOverlay: () -> Unit = {},
+    onUndo: () -> Unit = {},
+    onRedo: () -> Unit = {},
     onToggleFullScreen: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -644,6 +646,34 @@ fun ChartToolbar(
         }
 
         Spacer(Modifier.width(4.dp))
+
+        // ── Undo/Redo Buttons (Visible only when drawing tool is active) ──
+        if (activeDrawingTool != DrawingToolType.NONE) {
+            IconButton(
+                onClick = onUndo,
+                modifier = Modifier.size(32.dp)
+            ) {
+                Icon(
+                    Icons.Default.Undo,
+                    contentDescription = "Undo",
+                    tint = colors.onSurface.copy(alpha = 0.7f),
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+            
+            IconButton(
+                onClick = onRedo,
+                modifier = Modifier.size(32.dp)
+            ) {
+                Icon(
+                    Icons.Default.Redo,
+                    contentDescription = "Redo",
+                    tint = colors.onSurface.copy(alpha = 0.7f),
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+            Spacer(Modifier.width(4.dp))
+        }
 
         // ── Cursor Mode Toggle (Crosshair vs Pan/Hand) ──
         IconButton(

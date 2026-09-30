@@ -30,6 +30,10 @@ fun NotificationsScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
+    LaunchedEffect(Unit) {
+        viewModel.markAllAsRead()
+    }
+
     Column(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background).padding(16.dp)) {
         Row(
             modifier = Modifier.fillMaxWidth(),

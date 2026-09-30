@@ -46,7 +46,7 @@ class MarketRepositoryImpl @Inject constructor(
     init {
         CoroutineScope(Dispatchers.IO).launch {
             val prefs = context.getSharedPreferences("market_repo_prefs", Context.MODE_PRIVATE)
-            val isSeeded = prefs.getBoolean("has_seeded_hub_v9", false)
+            val isSeeded = prefs.getBoolean("has_seeded_hub_v10", false)
             if (!isSeeded) {
                 watchlistDao.clearAll()
                 val initialEntities = mutableListOf<WatchlistEntity>()
@@ -95,7 +95,7 @@ class MarketRepositoryImpl @Inject constructor(
                 }
 
                 watchlistDao.insertAll(initialEntities)
-                prefs.edit().putBoolean("has_seeded_hub_v9", true).apply()
+                prefs.edit().putBoolean("has_seeded_hub_v10", true).apply()
             }
             // Always ensure TCS token is corrected to 2953217L
             try {
@@ -109,7 +109,7 @@ class MarketRepositoryImpl @Inject constructor(
                         instrumentToken = 2953217L
                     )
                 )
-            } catch (_: Exception) {}
+            } catch (e: Exception) { android.util.Log.e("MarketRepo", "Error: " + e.message) }
         }
     }
 
@@ -347,7 +347,16 @@ class MarketRepositoryImpl @Inject constructor(
     override suspend fun getHistoricalCandles(symbol: String, timeframe: String): List<Candle> {
         val to = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
         val cal = Calendar.getInstance()
-        cal.add(Calendar.DATE, -30)
+        val daysToSubtract = when (timeframe) {
+            "1m", "5m", "15m" -> 7
+            "30m", "1h", "1H" -> 30
+            "4h", "4H" -> 90
+            "1d", "1D", "day" -> 365
+            "1w", "1W", "week" -> 730
+            "1M", "month" -> 1825
+            else -> 30
+        }
+        cal.add(Calendar.DATE, -daysToSubtract)
         val from = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(cal.time)
 
         val clean = symbol.removeSuffix(".NS").removeSuffix(".BO").trim().uppercase()

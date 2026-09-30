@@ -24,6 +24,11 @@ object NetworkModule {
             install(ContentNegotiation) {
                 json(json)
             }
+            install(io.ktor.client.plugins.HttpTimeout) {
+                requestTimeoutMillis = 15_000
+                connectTimeoutMillis = 15_000
+                socketTimeoutMillis = 15_000
+            }
         }
     }
 

@@ -1,12 +1,14 @@
 package com.example.marketintelligence.ui.notifications
 
 import androidx.lifecycle.ViewModel
-import com.example.marketintelligence.data.local.MockData
+import androidx.lifecycle.viewModelScope
 import com.example.marketintelligence.domain.model.NotificationItem
+import com.example.marketintelligence.domain.repository.NotificationRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import javax.inject.Inject
 
 data class NotificationsUiState(
@@ -15,26 +17,27 @@ data class NotificationsUiState(
 )
 
 @HiltViewModel
-class NotificationsViewModel @Inject constructor() : ViewModel() {
+class NotificationsViewModel @Inject constructor(
+    private val notificationRepository: NotificationRepository
+) : ViewModel() {
 
-    private val _uiState = MutableStateFlow(NotificationsUiState())
-    val uiState = _uiState.asStateFlow()
+    val uiState: StateFlow<NotificationsUiState> = notificationRepository.notifications
+        .map { NotificationsUiState(notifications = it) }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = NotificationsUiState(notifications = notificationRepository.notifications.value)
+        )
 
-    init {
-        loadNotifications()
-    }
-
-    private fun loadNotifications() {
-        _uiState.update { it.copy(notifications = MockData.NOTIFICATIONS_MOCK) }
+    fun markAllAsRead() {
+        notificationRepository.markAllAsRead()
     }
 
     fun dismissNotification(id: String) {
-        _uiState.update { state ->
-            state.copy(notifications = state.notifications.filter { it.id != id })
-        }
+        notificationRepository.dismissNotification(id)
     }
 
     fun clearAll() {
-        _uiState.update { it.copy(notifications = emptyList()) }
+        notificationRepository.clearAll()
     }
 }

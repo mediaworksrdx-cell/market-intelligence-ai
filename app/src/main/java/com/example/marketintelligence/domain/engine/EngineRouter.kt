@@ -16,7 +16,7 @@ class EngineRouter @Inject constructor(
     private val chartEngines = engines.filterIsInstance<ChartEngine>().associateBy { it.engineName }
 
     private val defaultScannerEngine = scannerEngines.values.firstOrNull()
-    private val defaultMentorEngine = mentorEngines.values.firstOrNull()
+    private val defaultMentorEngine = mentorEngines["Aarka AI"] ?: mentorEngines.values.firstOrNull()
     private val defaultChartEngine = chartEngines.values.firstOrNull()
 
     init {

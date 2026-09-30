@@ -63,22 +63,22 @@ class TradeSetupEngine(
 
         // Rule 13: Explainability
         val explanation = SignalExplanation(
-            title = "Institutional Setup",
+            title = "Institutional Study",
             components = listOf(
                 ExplanationComponent(
-                    "Entry Logic",
-                    "Limit Order at Institutional Block (${if(bias == FVGDirection.BULLISH) "Discount" else "Premium"})",
-                    mapOf("Price" to entryPrice.toPlainString())
+                    "Study Logic",
+                    "Key Level at Institutional Block (${if(bias == FVGDirection.BULLISH) "Discount" else "Premium"})",
+                    mapOf("Level" to entryPrice.toPlainString())
                 ),
                 ExplanationComponent(
-                    "Invalidation (SL)",
+                    "Invalidation Level",
                     "Structural Failure below Block Distal Line",
-                    mapOf("Price" to stopLossPrice.toPlainString())
+                    mapOf("Level" to stopLossPrice.toPlainString())
                 ),
                 ExplanationComponent(
-                    "Liquidity Targets",
-                    if (targets.isNotEmpty()) "Targeting internal/external liquidity pools" else "Projected 1:${rr} RR based on volatility",
-                    mapOf("TP1" to takeProfit1.toPlainString())
+                    "Liquidity Projections",
+                    if (targets.isNotEmpty()) "Projecting internal/external liquidity pools" else "Projected 1:${rr} ratio based on volatility",
+                    mapOf("Level 1" to takeProfit1.toPlainString())
                 )
             )
         )

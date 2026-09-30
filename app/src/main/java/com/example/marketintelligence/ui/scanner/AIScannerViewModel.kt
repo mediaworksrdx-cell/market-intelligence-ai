@@ -95,14 +95,14 @@ class AIScannerViewModel @Inject constructor(
             val results = mutableListOf<TradeSetup>()
             for (symbol in symbols) {
                 try {
-                    val analysis = scanStockUseCase(symbol, "1H")
+                    val analysis = scanStockUseCase(symbol, _uiState.value.selectedTimeframe)
                     if (analysis != null && !analysis.entryZone.isNullOrBlank()) {
                         results.add(mapToTradeSetup(analysis))
                     } else {
-                        results.add(generateMockTradeSetup(symbol, "1H"))
+                        results.add(generateMockTradeSetup(symbol, _uiState.value.selectedTimeframe))
                     }
                 } catch (e: Exception) {
-                    results.add(generateMockTradeSetup(symbol, "1H"))
+                    results.add(generateMockTradeSetup(symbol, _uiState.value.selectedTimeframe))
                 }
             }
             _uiState.update { it.copy(
@@ -112,7 +112,7 @@ class AIScannerViewModel @Inject constructor(
             val signalInfos = results.map { setup ->
                 com.example.marketintelligence.domain.engine.ScannerSignalInfo(
                     symbol = setup.underlyingSignal.underlyingSignal.symbol,
-                    timeframe = "1H",
+                    timeframe = _uiState.value.selectedTimeframe,
                     bias = setup.underlyingSignal.underlyingSignal.higherTimeframeBias.name,
                     entryPrice = setup.entryPrice.toDouble(),
                     stopLoss = setup.stopLossPrice.toDouble(),

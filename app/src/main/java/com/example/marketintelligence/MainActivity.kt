@@ -1,9 +1,12 @@
 package com.example.marketintelligence
 
+import android.net.Uri
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.animation.*
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -24,6 +27,7 @@ import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -52,6 +56,7 @@ import com.example.marketintelligence.ui.portfolio.HoldingDetailScreen
 import com.example.marketintelligence.ui.portfolio.PortfolioScreen
 import com.example.marketintelligence.ui.scanner.AIScannerScreen
 import com.example.marketintelligence.ui.settings.SettingsScreen
+import com.example.marketintelligence.ui.welcome.MarketIntelligenceWelcomeScreen
 import com.example.marketintelligence.ui.theme.*
 import dagger.hilt.EntryPoint
 import dagger.hilt.android.AndroidEntryPoint
@@ -68,7 +73,7 @@ sealed class Screen(val route: String, val label: String, val icon: Int? = null)
     object BuildupDetail : Screen("buildup_detail", "BUILDUP")
     object Search : Screen("search", "SEARCH")
     object Analysis : Screen("analysis/{symbol}/{type}", "ANALYSIS") { 
-        fun createRoute(symbol: String, type: String) = "analysis/$symbol/$type" 
+        fun createRoute(symbol: String, type: String) = "analysis/${Uri.encode(symbol)}/$type" 
     }
     object HoldingDetail : Screen("holding/{symbol}", "DETAIL") { fun createRoute(symbol: String) = "holding/$symbol" }
 }
@@ -85,7 +90,16 @@ class MainActivity : ComponentActivity() {
             val isDarkMode by mainViewModel.isDarkMode.collectAsState()
             
             MarketIntelligenceAiAndroidTheme(darkTheme = isDarkMode) {
-                MainScreen(mainViewModel = mainViewModel)
+                var showSplash by remember { mutableStateOf(true) }
+                Crossfade(targetState = showSplash, animationSpec = tween(400), label = "splashCrossfade") { isSplash ->
+                    if (isSplash) {
+                        MarketIntelligenceWelcomeScreen(
+                            onAnimationComplete = { showSplash = false }
+                        )
+                    } else {
+                        MainScreen(mainViewModel = mainViewModel)
+                    }
+                }
             }
         }
     }
@@ -119,29 +133,37 @@ fun MainScreen(mainViewModel: MainViewModel) {
                 title = { 
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         if (!isUtilityScreen) {
-                            Surface(
-                                color = colors.primary,
-                                shape = RoundedCornerShape(4.dp),
-                                modifier = Modifier.size(22.dp)
-                            ) {
-                                Box(contentAlignment = Alignment.Center) {
-                                    Text(
-                                        "AI", 
-                                        color = colors.onPrimary, 
-                                        fontSize = 11.sp, 
-                                        fontWeight = FontWeight.ExtraBold,
-                                        fontFamily = FontFamily.Monospace
-                                    )
-                                }
-                            }
-                            Spacer(Modifier.width(8.dp))
-                            Text(
-                                "MARKET INTELLIGENCE", 
-                                fontWeight = FontWeight.ExtraBold, 
-                                fontSize = 12.sp,
-                                letterSpacing = 0.5.sp,
-                                fontFamily = FontFamily.Monospace
+                            Image(
+                                painter = painterResource(id = R.drawable.ic_falcon_emblem),
+                                contentDescription = "Market Intelligence Logo",
+                                modifier = Modifier.size(26.dp)
                             )
+                            Spacer(Modifier.width(8.dp))
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    "MARKET INTELLIGENCE", 
+                                    fontWeight = FontWeight.ExtraBold, 
+                                    fontSize = 11.sp,
+                                    letterSpacing = 0.5.sp,
+                                    fontFamily = FontFamily.Monospace
+                                )
+                                Spacer(Modifier.width(5.dp))
+                                Text(
+                                    "-",
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 11.sp
+                                )
+                                Spacer(Modifier.width(5.dp))
+                                Text(
+                                    "MI 007", 
+                                    color = MaterialTheme.colorScheme.primary,
+                                    fontWeight = FontWeight.Black, 
+                                    fontSize = 11.sp,
+                                    letterSpacing = 0.5.sp,
+                                    fontFamily = FontFamily.Monospace
+                                )
+                            }
                         } else {
                             Text(
                                 (currentRoute?.split("/")?.first()?.uppercase() ?: "SYSTEM"), 
