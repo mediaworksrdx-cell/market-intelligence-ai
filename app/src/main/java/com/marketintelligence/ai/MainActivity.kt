@@ -1,8 +1,15 @@
 package com.marketintelligence.ai
 
+import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.lifecycle.lifecycleScope
+import com.marketintelligence.ai.data.auth.AuthTokenManager
+import kotlinx.coroutines.launch
+import javax.inject.Inject
 import androidx.compose.animation.*
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -88,8 +95,12 @@ val navItems = listOf(Screen.Market, Screen.AiScan, Screen.Academy, Screen.Fno, 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
 
+    @Inject
+    lateinit var authTokenManager: AuthTokenManager
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        handleDeepLink(intent)
         setContent {
             CompositionLocalProvider(
                 androidx.compose.ui.platform.LocalLifecycleOwner provides this
@@ -108,6 +119,42 @@ class MainActivity : ComponentActivity() {
                             MainScreen(mainViewModel = mainViewModel)
                         }
                     }
+                }
+            }
+        }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        handleDeepLink(intent)
+    }
+
+    private fun handleDeepLink(intent: Intent?) {
+        val uri: Uri? = intent?.data
+        if (uri != null && 
+            (uri.scheme == AuthTokenManager.DEEP_LINK_SCHEME_AARKAAI || uri.scheme == AuthTokenManager.DEEP_LINK_SCHEME_MI) &&
+            uri.host == AuthTokenManager.DEEP_LINK_HOST
+        ) {
+            val token = uri.getQueryParameter("token")
+            val userId = uri.getQueryParameter("user_id") ?: "google_user"
+            val name = uri.getQueryParameter("name") ?: "Institutional User"
+            val email = uri.getQueryParameter("email")
+
+            if (!token.isNullOrBlank()) {
+                lifecycleScope.launch {
+                    authTokenManager.saveAuth(
+                        token = token,
+                        userId = userId,
+                        name = name,
+                        email = email,
+                        provider = "google"
+                    )
+                    Toast.makeText(
+                        applicationContext,
+                        "Google Authentication Active • Welcome, $name!",
+                        Toast.LENGTH_LONG
+                    ).show()
                 }
             }
         }

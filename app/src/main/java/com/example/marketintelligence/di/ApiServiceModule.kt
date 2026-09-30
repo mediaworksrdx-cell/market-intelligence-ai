@@ -1,5 +1,6 @@
 package com.example.marketintelligence.di
 
+import com.example.marketintelligence.data.auth.AuthTokenManager
 import com.example.marketintelligence.data.source.remote.InstrumentApiService
 import com.example.marketintelligence.data.source.remote.MarketApiService
 import com.jakewharton.retrofit2.converter.kotlinx.serialization.asConverterFactory
@@ -7,9 +8,13 @@ import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
+import kotlinx.coroutines.flow.firstOrNull
+import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.Json
 import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.OkHttpClient
 import retrofit2.Retrofit
+import java.util.concurrent.TimeUnit
 import javax.inject.Singleton
 
 @Module
@@ -36,11 +41,23 @@ object ApiServiceModule {
 
     @Provides
     @Singleton
-    fun provideRetrofit(json: Json): Retrofit {
-        val okHttpClient = okhttp3.OkHttpClient.Builder()
-            .connectTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
-            .readTimeout(90, java.util.concurrent.TimeUnit.SECONDS)
-            .writeTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
+    fun provideRetrofit(json: Json, authTokenManager: AuthTokenManager): Retrofit {
+        val okHttpClient = OkHttpClient.Builder()
+            .connectTimeout(30, TimeUnit.SECONDS)
+            .readTimeout(90, TimeUnit.SECONDS)
+            .writeTimeout(30, TimeUnit.SECONDS)
+            .addInterceptor { chain ->
+                val original = chain.request()
+                val token = runCatching { runBlocking { authTokenManager.token.firstOrNull() } }.getOrNull()
+                val request = if (!token.isNullOrBlank()) {
+                    original.newBuilder()
+                        .header("Authorization", "Bearer $token")
+                        .build()
+                } else {
+                    original
+                }
+                chain.proceed(request)
+            }
             .build()
 
         return Retrofit.Builder()

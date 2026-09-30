@@ -1,9 +1,11 @@
 package com.marketintelligence.ai.ui.settings
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -15,11 +17,15 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.example.marketintelligence.R
 import com.marketintelligence.ai.domain.model.MarketType
+import com.marketintelligence.ai.ui.auth.AuthViewModel
 import com.marketintelligence.ai.ui.market.MarketToggle
 import com.marketintelligence.ai.ui.market.MarketViewModel
 import com.marketintelligence.ai.ui.theme.*
@@ -27,7 +33,8 @@ import com.marketintelligence.ai.ui.theme.*
 @Composable
 fun SettingsScreen(
     viewModel: SettingsViewModel = hiltViewModel(),
-    marketViewModel: MarketViewModel = hiltViewModel()
+    marketViewModel: MarketViewModel = hiltViewModel(),
+    authViewModel: AuthViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val marketUiState by marketViewModel.uiState.collectAsState()
@@ -42,6 +49,150 @@ fun SettingsScreen(
     ) {
         Text("System Configuration", color = MaterialTheme.colorScheme.onBackground, fontSize = 24.sp, fontWeight = FontWeight.ExtraBold)
         Text("Institutional Control Panel", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
+        
+        Spacer(modifier = Modifier.height(20.dp))
+
+        // 0. Authentication & Cloud Profile
+        SettingsSection(title = "AUTHENTICATION & PROFILE") {
+            val authState by authViewModel.authState.collectAsState()
+            val context = LocalContext.current
+
+            Column(modifier = Modifier.padding(12.dp)) {
+                if (authState.isLoggedIn) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Surface(
+                            shape = CircleShape,
+                            color = MaterialTheme.colorScheme.primaryContainer,
+                            modifier = Modifier.size(46.dp)
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Text(
+                                    text = (authState.userName?.firstOrNull() ?: 'U').uppercase(),
+                                    fontWeight = FontWeight.Black,
+                                    fontSize = 20.sp,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                                )
+                            }
+                        }
+                        Spacer(Modifier.width(14.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = authState.userName ?: "Authenticated User",
+                                color = MaterialTheme.colorScheme.onSurface,
+                                fontSize = 15.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                text = authState.userEmail ?: authState.userId ?: "Google Account",
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                fontSize = 12.sp
+                            )
+                            Spacer(Modifier.height(4.dp))
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(7.dp)
+                                        .background(AppGreen, CircleShape)
+                                )
+                                Spacer(Modifier.width(6.dp))
+                                Text(
+                                    text = "Google Synced • Azure Active",
+                                    color = AppGreen,
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            }
+                        }
+                    }
+
+                    Spacer(Modifier.height(14.dp))
+                    OutlinedButton(
+                        onClick = { authViewModel.signOut() },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(10.dp),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, AppRed.copy(alpha = 0.5f))
+                    ) {
+                        Icon(
+                            Icons.Default.ExitToApp,
+                            contentDescription = "Sign Out",
+                            tint = AppRed,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Text("Sign Out to Guest Session", color = AppRed, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    }
+                } else {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Surface(
+                            shape = CircleShape,
+                            color = MaterialTheme.colorScheme.surfaceVariant,
+                            modifier = Modifier.size(42.dp)
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(
+                                    Icons.Default.Person,
+                                    contentDescription = "Guest",
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                            }
+                        }
+                        Spacer(Modifier.width(12.dp))
+                        Column {
+                            Text(
+                                text = "Guest Institutional Session",
+                                color = MaterialTheme.colorScheme.onSurface,
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                text = "Sign in to sync watchlists, signals, and telemetry",
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                fontSize = 11.sp
+                            )
+                        }
+                    }
+
+                    Spacer(Modifier.height(14.dp))
+
+                    Surface(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { authViewModel.launchGoogleSignIn(context) },
+                        shape = RoundedCornerShape(12.dp),
+                        color = Color.White,
+                        shadowElevation = 2.dp
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 12.dp, horizontal = 16.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Center
+                        ) {
+                            Image(
+                                painter = painterResource(id = R.drawable.ic_google_logo),
+                                contentDescription = "Google Logo",
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Spacer(Modifier.width(12.dp))
+                            Text(
+                                text = "Continue with Google",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 13.sp,
+                                color = Color(0xFF1F1F1F)
+                            )
+                        }
+                    }
+                }
+            }
+        }
         
         Spacer(modifier = Modifier.height(24.dp))
         
