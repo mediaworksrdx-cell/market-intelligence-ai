@@ -103,7 +103,7 @@ fun InstitutionalChartEngine(
             val last = candles.last()
             // Scale sanity guard: prevent single-candle 50x dislocation wicks if candles have different baseline
             val ratio = if (last.close > 0.0) effectivePrice / last.close else 1.0
-            val normalizedCandles = if (ratio < 0.85 || ratio > 1.18) {
+            val normalizedCandles = if (ratio < 0.96 || ratio > 1.04) {
                 candles.map { c ->
                     c.copy(
                         open = (c.open * ratio * 100).toLong() / 100.0,
@@ -116,9 +116,17 @@ fun InstitutionalChartEngine(
                 candles
             }
             val normLast = normalizedCandles.last()
-            val safeHigh = minOf(maxOf(normLast.high, effectivePrice), effectivePrice * 1.05)
-            val safeLow = maxOf(minOf(normLast.low, effectivePrice), effectivePrice * 0.95)
+            val safeOpen = if (normLast.open <= 0.0 || Math.abs(normLast.open - effectivePrice) / effectivePrice > 0.025) {
+                effectivePrice
+            } else {
+                normLast.open
+            }
+            val top = maxOf(safeOpen, effectivePrice)
+            val bot = minOf(safeOpen, effectivePrice)
+            val safeHigh = minOf(maxOf(normLast.high, top), (top * 1.01 * 100).toLong() / 100.0)
+            val safeLow = maxOf(minOf(normLast.low, bot), (bot * 0.99 * 100).toLong() / 100.0)
             normalizedCandles.dropLast(1) + normLast.copy(
+                open = safeOpen,
                 close = effectivePrice,
                 high = safeHigh,
                 low = safeLow,

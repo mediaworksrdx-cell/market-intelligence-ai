@@ -506,9 +506,11 @@ fun main() {
                 // ── 4. Indian NSE / NFO Instruments via KiteConnect ──
                 val cleanSymbol = symbol.removeSuffix(".NS").removeSuffix(".BO").trim()
                 val tokenFromMap = AppConfig.symbolMap.entries.find {
+                    val cleanValue = it.value.removeSuffix(".NS").removeSuffix(".BO").trim()
                     it.value.equals(symbol, ignoreCase = true) ||
                     it.value.equals(cleanSymbol, ignoreCase = true) ||
-                    it.value.replace(" ", "").equals(cleanSymbol.replace(" ", ""), ignoreCase = true)
+                    cleanValue.equals(cleanSymbol, ignoreCase = true) ||
+                    cleanValue.replace(" ", "").equals(cleanSymbol.replace(" ", ""), ignoreCase = true)
                 }?.key
 
                 val instrument = if (tokenFromMap != null) {
