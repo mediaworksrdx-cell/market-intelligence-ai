@@ -954,9 +954,10 @@ fun generateFallbackCandles(symbol: String, timeframe: String, basePrice: Double
     }
     var currentPrice = if (basePrice > 0.0) basePrice else 100.0
     val result = mutableListOf<Candle>()
+    val alignedNow = (now / intervalMs) * intervalMs
     val rnd = Random(symbol.hashCode().toLong())
     for (i in 0..totalCandles) {
-        val candleTime = now - (i * intervalMs)
+        val candleTime = alignedNow - (i * intervalMs)
         val changePct = (rnd.nextDouble() - 0.50) * 0.008
         val close = currentPrice
         val open = close / (1.0 + changePct)
