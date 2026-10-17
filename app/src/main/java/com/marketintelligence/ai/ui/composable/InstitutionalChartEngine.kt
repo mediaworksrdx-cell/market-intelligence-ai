@@ -98,10 +98,26 @@ fun InstitutionalChartEngine(
     val effectiveCandles = remember(candles, effectivePrice) {
         if (candles.isNotEmpty() && effectivePrice > 0.0) {
             val last = candles.last()
-            candles.dropLast(1) + last.copy(
+            // Scale sanity guard: prevent single-candle 50x dislocation wicks if candles have different baseline
+            val ratio = if (last.close > 0.0) effectivePrice / last.close else 1.0
+            val normalizedCandles = if (ratio < 0.4 || ratio > 2.5) {
+                candles.map { c ->
+                    c.copy(
+                        open = (c.open * ratio * 100).toLong() / 100.0,
+                        high = (c.high * ratio * 100).toLong() / 100.0,
+                        low = (c.low * ratio * 100).toLong() / 100.0,
+                        close = (c.close * ratio * 100).toLong() / 100.0
+                    )
+                }
+            } else {
+                candles
+            }
+            val normLast = normalizedCandles.last()
+            normalizedCandles.dropLast(1) + normLast.copy(
                 close = effectivePrice,
-                high = maxOf(last.high, effectivePrice),
-                low = minOf(last.low, effectivePrice)
+                high = maxOf(normLast.high, effectivePrice),
+                low = minOf(normLast.low, effectivePrice),
+                isClosed = false
             )
         } else {
             candles

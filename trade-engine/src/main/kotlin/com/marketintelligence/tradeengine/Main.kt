@@ -227,10 +227,10 @@ fun main() {
         "SHIBUSDT" to "shiba-inu"
     )
     val cryptoLatestPrices = ConcurrentHashMap<String, Double>()
-    cryptoLatestPrices["BTCUSDT"] = 78800.0
-    cryptoLatestPrices["BTC"] = 78800.0
-    cryptoLatestPrices["ETHUSDT"] = 2495.0
-    cryptoLatestPrices["ETH"] = 2495.0
+    cryptoLatestPrices["BTCUSDT"] = 83651.0
+    cryptoLatestPrices["BTC"] = 83651.0
+    cryptoLatestPrices["ETHUSDT"] = 2687.50
+    cryptoLatestPrices["ETH"] = 2687.50
     cryptoLatestPrices["SOLUSDT"] = 103.5
     cryptoLatestPrices["SOL"] = 103.5
     cryptoLatestPrices["BNBUSDT"] = 754.0
@@ -400,19 +400,20 @@ fun main() {
                             val spot = cryptoLatestPrices[cleanUpperSymbol + "USDT"]
                                 ?: cryptoLatestPrices[cleanUpperSymbol]
                                 ?: cryptoLatestPrices[coinId]
-                            if (spot != null && spot > 0.0 && cryptoCandles.isNotEmpty()) {
+                                ?: getDefaultPrice(cleanUpperSymbol)
+                            if (spot > 0.0 && cryptoCandles.isNotEmpty()) {
                                 val lastCandle = cryptoCandles.last()
                                 val now = System.currentTimeMillis()
                                 if (now >= lastCandle.closeTime) {
-                                    val op = lastCandle.close
-                                    val hi = maxOf(lastCandle.close, spot)
-                                    val lo = minOf(lastCandle.close, spot)
-                                    val currentVol = com.marketintelligence.tradeengine.service.calculateCryptoCandleVolume(op, hi, lo, spot, now, avgRangePct) * 0.45
+                                    val safeOpen = if (Math.abs(spot - lastCandle.close) / (if (lastCandle.close > 0) lastCandle.close else 1.0) > 0.03) spot else lastCandle.close
+                                    val hi = maxOf(safeOpen, spot)
+                                    val lo = minOf(safeOpen, spot)
+                                    val currentVol = com.marketintelligence.tradeengine.service.calculateCryptoCandleVolume(safeOpen, hi, lo, spot, now, avgRangePct) * 0.45
                                     val currentBar = Candle(
                                         symbol = symbol,
                                         timeframe = timeframe,
                                         openTime = lastCandle.closeTime,
-                                        open = op,
+                                        open = safeOpen,
                                         high = hi,
                                         low = lo,
                                         close = spot,
@@ -541,7 +542,18 @@ fun main() {
                             val now = System.currentTimeMillis()
                             val mutableCandles = candles.toMutableList()
                             val last = mutableCandles.last()
-                            if (now < last.closeTime) {
+                            val benchmarkLtp = getDefaultPrice(symbol)
+                            val currentLtp = tickCache[tokenToUse]?.ltp ?: instrument?.last_price ?: benchmarkLtp
+                            if (currentLtp > 0.0) {
+                                val hi = maxOf(last.high, currentLtp)
+                                val lo = minOf(last.low, currentLtp)
+                                mutableCandles[mutableCandles.lastIndex] = last.copy(
+                                    close = currentLtp,
+                                    high = hi,
+                                    low = lo,
+                                    isClosed = false
+                                )
+                            } else if (now < last.closeTime) {
                                 mutableCandles[mutableCandles.lastIndex] = last.copy(isClosed = false)
                             }
                             candleService.addCandles(symbol, timeframe, mutableCandles)
@@ -552,19 +564,39 @@ fun main() {
                         logger.warn("Kite historical data fetch failed for $symbol (token $tokenToUse): ${e.message}")
                     }
 
-                    // Fallback from live cache LTP or instrument last price
-                    val ltp = tickCache[tokenToUse]?.ltp ?: instrument?.last_price ?: 1000.0
-                    val fallbackCandles = generateFallbackCandles(symbol, timeframe, if (ltp > 0) ltp else 1000.0)
+                    // Fallback from live cache LTP, instrument last price, or standard benchmark price
+                    val benchmarkLtp = getDefaultPrice(symbol)
+                    val ltp = tickCache[tokenToUse]?.ltp ?: instrument?.last_price ?: benchmarkLtp
+                    val fallbackCandles = generateFallbackCandles(symbol, timeframe, if (ltp > 0) ltp else benchmarkLtp)
                     call.respond(fallbackCandles)
                     return@get
                 }
 
                 // General fallback so chart is never blank
-                val fallbackCandles = generateFallbackCandles(symbol, timeframe, 500.0)
+                val fallbackCandles = generateFallbackCandles(symbol, timeframe, getDefaultPrice(symbol))
                 call.respond(fallbackCandles)
             }
             get("/live-prices") {
-                call.respond(tickCache.values.toList())
+                val result = mutableListOf<LivePrice>()
+                result.addAll(tickCache.values)
+                val existingTokens = tickCache.keys
+                val now = System.currentTimeMillis()
+                AppConfig.symbolMap.forEach { (token, sym) ->
+                    if (!existingTokens.contains(token)) {
+                        val price = getDefaultPrice(sym)
+                        result.add(
+                            LivePrice(
+                                instrumentToken = token,
+                                symbol = sym,
+                                ltp = price,
+                                change = 0.0,
+                                changePercent = 0.0,
+                                timestamp = now
+                            )
+                        )
+                    }
+                }
+                call.respond(result)
             }
             get("/macro-data") {
                 val macroData = TwelveDataClient.getLiveMacroData()
@@ -935,6 +967,97 @@ val cryptoIdMap = mapOf(
     "AVAXUSDT" to "avalanche-2"
 )
 
+fun getDefaultPrice(symbol: String): Double {
+    val clean = symbol.uppercase()
+        .removeSuffix(".NS")
+        .removeSuffix(".BO")
+        .removeSuffix("USDT")
+        .removeSuffix("-USD")
+        .replace("-", "")
+        .replace(" ", "")
+        .trim()
+
+    return when {
+        // Crypto
+        clean in listOf("BTC", "BITCOIN") -> 83651.0
+        clean in listOf("ETH", "ETHEREUM") -> 2687.50
+        clean in listOf("SOL", "SOLANA") -> 103.5
+        clean in listOf("BNB", "BINANCECOIN") -> 754.0
+        clean in listOf("DOGE", "DOGECOIN") -> 0.090
+        clean in listOf("SHIB", "SHIBAINU") -> 0.0000185
+        clean in listOf("XRP", "RIPPLE") -> 0.60
+        clean in listOf("ADA", "CARDANO") -> 0.45
+        clean in listOf("AVAX", "AVALANCHE") -> 28.50
+
+        // Indian Indices
+        clean in listOf("NIFTY", "NIFTY50") -> 22960.75
+        clean in listOf("BANKNIFTY", "NIFTYBANK") -> 55551.60
+        clean in listOf("FINNIFTY") -> 25196.60
+        clean in listOf("SENSEX", "BSESENSEX") -> 74183.80
+        clean in listOf("MIDCPNIFTY") -> 12250.0
+        clean in listOf("NIFTYNEXT50") -> 68500.0
+        clean in listOf("NIFTYIT") -> 35600.0
+
+        // Indian Equities
+        clean in listOf("RELIANCE") -> 1196.40
+        clean in listOf("TCS") -> 2426.00
+        clean in listOf("HDFCBANK", "HDFC") -> 729.90
+        clean in listOf("INFY", "INFOSYS") -> 1152.05
+        clean in listOf("ICICI", "ICICIBANK") -> 1383.00
+        clean in listOf("SBIN", "SBI") -> 954.55
+        clean in listOf("BHARTIARTL", "AIRTEL") -> 1882.80
+        clean in listOf("TITAN") -> 3480.00
+        clean in listOf("BAJFINANCE") -> 7120.40
+        clean in listOf("POLYCAB") -> 5840.20
+        clean in listOf("DIXON") -> 13950.00
+        clean in listOf("CDSL") -> 1580.40
+        clean in listOf("DEEPAKNTR") -> 2280.00
+        clean in listOf("ITC") -> 261.40
+        clean in listOf("LT", "LARSEN") -> 3617.00
+        clean in listOf("TATAMOTORS", "TATAMTR") -> 283.70
+        clean in listOf("TATASTEEL", "TATASTEELTD") -> 154.00
+        clean in listOf("AXISBANK", "AXIS") -> 1180.0
+        clean in listOf("KOTAKBANK", "KOTAK") -> 1780.0
+        clean in listOf("MARUTI") -> 12400.0
+        clean in listOf("SUNPHARMA") -> 1680.0
+        clean in listOf("WIPRO") -> 530.0
+        clean in listOf("ADANIENT") -> 2950.0
+        clean in listOf("HINDUNILVR") -> 2450.0
+
+        // US Indices & Equities
+        clean in listOf("SPX", "SP500") -> 5864.20
+        clean in listOf("NDX", "NASDAQ100", "NASDAQ") -> 18240.00
+        clean in listOf("DJI", "DOWJONES") -> 39500.00
+        clean in listOf("NVDA") -> 875.40
+        clean in listOf("AAPL") -> 228.60
+        clean in listOf("MSFT") -> 432.80
+        clean in listOf("TSLA") -> 248.50
+        clean in listOf("META") -> 562.10
+        clean in listOf("AMZN") -> 198.30
+        clean in listOf("GOOGL") -> 176.40
+
+        // UAE
+        clean in listOf("DFMGI") -> 4850.00
+        clean in listOf("ADXGI", "ADX") -> 9250.00
+        clean in listOf("FTSEADX15") -> 9410.20
+        clean in listOf("EMAAR") -> 8.48
+        clean in listOf("FAB") -> 13.85
+        clean in listOf("DEWA") -> 2.94
+        clean in listOf("ALDAR") -> 6.82
+        clean in listOf("ENBD") -> 18.65
+        clean in listOf("ADNOC") -> 3.78
+        clean in listOf("SALIK") -> 3.65
+        clean in listOf("AIRARABIA") -> 2.65
+
+        // Macro
+        clean in listOf("GOLD") -> 2648.00
+        clean in listOf("XAUUSD") -> 2150.50
+        clean in listOf("BRENT") -> 82.50
+
+        else -> 100.0
+    }
+}
+
 fun generateFallbackCandles(symbol: String, timeframe: String, basePrice: Double = 100.0, count: Int = 60): List<Candle> {
     val now = System.currentTimeMillis()
     val tf = timeframe.trim()
@@ -952,12 +1075,19 @@ fun generateFallbackCandles(symbol: String, timeframe: String, basePrice: Double
         tf == "1M" -> 30 * 86400_000L
         else -> 86400_000L
     }
-    var currentPrice = if (basePrice > 0.0) basePrice else 100.0
+    val defaultBench = getDefaultPrice(symbol)
+    var currentPrice = if (basePrice > 0.0 && basePrice != 100.0 && basePrice != 500.0 && basePrice != 1000.0) {
+        basePrice
+    } else {
+        defaultBench
+    }
     val result = mutableListOf<Candle>()
     val alignedNow = (now / intervalMs) * intervalMs
-    val rnd = Random(symbol.hashCode().toLong())
     for (i in 0..totalCandles) {
         val candleTime = alignedNow - (i * intervalMs)
+        // Deterministic pseudo-random seed per candle bucket to prevent bars jumping around on clock tick
+        val seed = symbol.hashCode().toLong() xor (candleTime / intervalMs)
+        val rnd = Random(seed)
         val changePct = (rnd.nextDouble() - 0.50) * 0.008
         val close = currentPrice
         val open = close / (1.0 + changePct)

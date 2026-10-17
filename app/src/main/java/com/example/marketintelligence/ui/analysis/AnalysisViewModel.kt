@@ -566,11 +566,30 @@ class AnalysisViewModel @Inject constructor(
             }
 
             val fallbackSpot = liveCryptoSpot ?: (if (_uiState.value.currentPrice > 0.0) _uiState.value.currentPrice else com.example.marketintelligence.data.util.MarketPriceCatalog.getFallbackPrice(_uiState.value.symbol))
-            val historicalCandles = if (fetchedCandles.size >= 300) {
-                fetchedCandles
-            } else if (fetchedCandles.isNotEmpty()) {
-                val needed = 300 - fetchedCandles.size
-                val firstCandle = fetchedCandles.first()
+            
+            // Scale guard: if candles fetched from server are severely dislocated from benchmark/live price (e.g. 1000 vs 55550), scale them smoothly
+            val validFetchedCandles = if (fetchedCandles.isNotEmpty() && fallbackSpot > 0.0) {
+                val sClose = fetchedCandles.last().close
+                if (sClose > 0.0) {
+                    val ratio = fallbackSpot / sClose
+                    if (ratio < 0.4 || ratio > 2.5) {
+                        fetchedCandles.map { c ->
+                            c.copy(
+                                open = (c.open * ratio * 100).toLong() / 100.0,
+                                high = (c.high * ratio * 100).toLong() / 100.0,
+                                low = (c.low * ratio * 100).toLong() / 100.0,
+                                close = (c.close * ratio * 100).toLong() / 100.0
+                            )
+                        }
+                    } else fetchedCandles
+                } else fetchedCandles
+            } else fetchedCandles
+
+            val historicalCandles = if (validFetchedCandles.size >= 300) {
+                validFetchedCandles
+            } else if (validFetchedCandles.isNotEmpty()) {
+                val needed = 300 - validFetchedCandles.size
+                val firstCandle = validFetchedCandles.first()
                 val generated = generateSyntheticCandles(
                     symbol = _uiState.value.symbol,
                     timeframe = _uiState.value.selectedTimeframe,
@@ -578,7 +597,7 @@ class AnalysisViewModel @Inject constructor(
                     endTime = firstCandle.openTime,
                     count = needed
                 )
-                (generated + fetchedCandles).distinctBy { it.openTime }.sortedBy { it.openTime }
+                (generated + validFetchedCandles).distinctBy { it.openTime }.sortedBy { it.openTime }
             } else {
                 generateSyntheticCandles(
                     symbol = _uiState.value.symbol,
@@ -589,22 +608,35 @@ class AnalysisViewModel @Inject constructor(
                 )
             }
 
-            val lastClose = liveCryptoSpot ?: historicalCandles.lastOrNull()?.close ?: 0.0
+            val lastClose = liveCryptoSpot ?: historicalCandles.lastOrNull()?.close ?: fallbackSpot
             val prevClose = if (historicalCandles.size > 1) historicalCandles[historicalCandles.size - 2].close else historicalCandles.firstOrNull()?.open ?: lastClose
             val chg = if (liveCryptoSpot != null && liveCryptoPct != null) (liveCryptoSpot * liveCryptoPct) / 100.0 else (lastClose - prevClose)
             val chgPct = liveCryptoPct ?: (if (prevClose > 0) (chg / prevClose) * 100.0 else 0.0)
 
+            val activePrice = if (_uiState.value.currentPrice > 0.0) _uiState.value.currentPrice else lastClose
+            val activeChange = if (_uiState.value.currentPrice > 0.0) _uiState.value.priceChange else chg
+            val activeChangePct = if (_uiState.value.currentPrice > 0.0) _uiState.value.priceChangePercent else chgPct
+
+            // Synchronize the last candle with activePrice so there is no vertical jump or monster wick
+            val syncedCandles = if (historicalCandles.isNotEmpty() && activePrice > 0.0) {
+                val last = historicalCandles.last()
+                val syncedLast = last.copy(
+                    close = activePrice,
+                    high = maxOf(last.high, activePrice),
+                    low = minOf(last.low, activePrice),
+                    isClosed = false
+                )
+                historicalCandles.dropLast(1) + syncedLast
+            } else historicalCandles
+
             val newChartState = recalculateIndicatorsAsync(
-                _uiState.value.chartState.copy(candles = historicalCandles),
-                historicalCandles
+                _uiState.value.chartState.copy(candles = syncedCandles),
+                syncedCandles
             )
 
             _uiState.update { state ->
-                val activePrice = if (state.currentPrice > 0.0) state.currentPrice else lastClose
-                val activeChange = if (state.currentPrice > 0.0) state.priceChange else chg
-                val activeChangePct = if (state.currentPrice > 0.0) state.priceChangePercent else chgPct
                 state.copy(
-                    candles = historicalCandles,
+                    candles = syncedCandles,
                     currentPrice = activePrice,
                     priceChange = activeChange,
                     priceChangePercent = activeChangePct,
@@ -694,9 +726,34 @@ class AnalysisViewModel @Inject constructor(
                             lastCandle.openTime + tfDuration
                         }
 
-                        val shouldSpawnNew = lastCandle.isClosed || tick.timestamp >= candleCloseTime
+                        val currentBucketOpenTime = (tick.timestamp / tfDuration) * tfDuration
+                        if (lastCandle.openTime == currentBucketOpenTime) {
+                            // Update existing candle in real time for current bucket
+                            val updatedLastCandle = lastCandle.copy(
+                                high = maxOf(lastCandle.high, tick.price),
+                                low = minOf(lastCandle.low, tick.price),
+                                close = tick.price,
+                                volume = lastCandle.volume + tickVolumeDelta,
+                                closeTime = candleCloseTime,
+                                isClosed = false
+                            )
+                            updatedCandles[updatedCandles.lastIndex] = updatedLastCandle
 
-                        if (shouldSpawnNew) {
+                            // Persist update to Room DB
+                            viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+                                try {
+                                    candleRepository.updateCandle(
+                                        openTime = updatedLastCandle.openTime,
+                                        symbol = updatedLastCandle.symbol,
+                                        timeframe = updatedLastCandle.timeframe,
+                                        high = updatedLastCandle.high,
+                                        low = updatedLastCandle.low,
+                                        close = updatedLastCandle.close,
+                                        volume = updatedLastCandle.volume
+                                    )
+                                } catch (e: Exception) { Log.e("AnalysisVM", "Error: ${e.message}") }
+                            }
+                        } else if (lastCandle.isClosed || tick.timestamp >= candleCloseTime) {
                             // Seal previous candle if not already closed
                             if (!lastCandle.isClosed) {
                                 val closedLastCandle = lastCandle.copy(isClosed = true, closeTime = candleCloseTime)
@@ -705,7 +762,7 @@ class AnalysisViewModel @Inject constructor(
 
                             // Spawn new candle for the active timeframe
                             // Floor openTime to timeframe boundary for proper alignment
-                            val newOpenTime = (tick.timestamp / tfDuration) * tfDuration
+                            val newOpenTime = currentBucketOpenTime
                             val newCloseTime = newOpenTime + tfDuration
                             val newCandle = Candle(
                                 symbol = currentState.symbol,
@@ -811,15 +868,25 @@ class AnalysisViewModel @Inject constructor(
                                     val tfDuration = getTimeframeDurationMs(snapshot.selectedTimeframe)
                                     val candleCloseTime = if (last.closeTime > last.openTime) last.closeTime else last.openTime + tfDuration
 
-                                    if (last.isClosed || now >= candleCloseTime) {
+                                    val newOpenTime = (now / tfDuration) * tfDuration
+                                    val newCloseTime = newOpenTime + tfDuration
+                                    val tickSize = 1.0
+
+                                    if (last.openTime == newOpenTime) {
+                                        // Update existing live candle in current bucket
+                                        curList[lastIdx] = last.copy(
+                                            close = livePrice,
+                                            high = maxOf(last.high, livePrice),
+                                            low = minOf(last.low, livePrice),
+                                            volume = last.volume + tickSize,
+                                            isClosed = false
+                                        )
+                                    } else if (last.isClosed || now >= candleCloseTime) {
                                         // Seal previous candle if not already closed
                                         if (!last.isClosed) {
                                             curList[lastIdx] = last.copy(isClosed = true, closeTime = candleCloseTime)
                                         }
                                         // Spawn a new live candle
-                                        val newOpenTime = (now / tfDuration) * tfDuration
-                                        val newCloseTime = newOpenTime + tfDuration
-                                        val tickSize = 1.0
                                         curList.add(Candle(
                                             symbol = snapshot.symbol,
                                             timeframe = snapshot.selectedTimeframe,
@@ -834,7 +901,6 @@ class AnalysisViewModel @Inject constructor(
                                         ))
                                     } else {
                                         // Update existing live candle
-                                        val tickSize = 1.0
                                         curList[lastIdx] = last.copy(
                                             close = livePrice,
                                             high = maxOf(last.high, livePrice),
@@ -912,14 +978,23 @@ class AnalysisViewModel @Inject constructor(
                                 val tfDuration = getTimeframeDurationMs(snapshot.selectedTimeframe)
                                 val candleCloseTime = if (last.closeTime > last.openTime) last.closeTime else last.openTime + tfDuration
 
-                                if (last.isClosed || now >= candleCloseTime) {
+                                val newOpenTime = (now / tfDuration) * tfDuration
+                                val newCloseTime = newOpenTime + tfDuration
+
+                                if (last.openTime == newOpenTime) {
+                                    // Update existing live candle in current bucket
+                                    curList[lastIdx] = last.copy(
+                                        close = matchedPrice.ltp,
+                                        high = maxOf(last.high, matchedPrice.ltp),
+                                        low = minOf(last.low, matchedPrice.ltp),
+                                        isClosed = false
+                                    )
+                                } else if (last.isClosed || now >= candleCloseTime) {
                                     // Seal previous candle if not already closed
                                     if (!last.isClosed) {
                                         curList[lastIdx] = last.copy(isClosed = true, closeTime = candleCloseTime)
                                     }
                                     // Spawn a new live candle
-                                    val newOpenTime = (now / tfDuration) * tfDuration
-                                    val newCloseTime = newOpenTime + tfDuration
                                     curList.add(Candle(
                                         symbol = snapshot.symbol,
                                         timeframe = snapshot.selectedTimeframe,
