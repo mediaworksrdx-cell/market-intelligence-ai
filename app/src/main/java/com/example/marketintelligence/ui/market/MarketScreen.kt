@@ -500,8 +500,15 @@ fun IndexTile(data: IndexData, isEditMode: Boolean, modifier: Modifier, onRemove
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
             Column(modifier = Modifier.padding(8.dp)) {
-                Text(data.symbol.uppercase(), color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.ExtraBold, fontSize = 11.sp, fontFamily = FontFamily.Monospace)
-                Text(data.name.uppercase(), color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 8.sp, maxLines = 1, fontWeight = FontWeight.Bold)
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Top) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(data.symbol.uppercase(), color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.ExtraBold, fontSize = 11.sp, fontFamily = FontFamily.Monospace)
+                        Text(data.name.uppercase(), color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 8.sp, maxLines = 1, fontWeight = FontWeight.Bold)
+                    }
+                    Box(modifier = Modifier.width(36.dp).height(16.dp)) {
+                        Sparkline(isPositive = isPositive)
+                    }
+                }
                 Spacer(modifier = Modifier.weight(1f))
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Bottom) {
                     Text(
@@ -1091,15 +1098,26 @@ fun Sparkline(isPositive: Boolean) {
         val width = size.width
         val height = size.height
         val path = Path()
-        
-        path.moveTo(0f, height * 0.7f)
-        path.quadraticBezierTo(width * 0.25f, height * 0.4f, width * 0.5f, height * 0.6f)
-        path.quadraticBezierTo(width * 0.75f, height * 0.8f, width, if (isPositive) height * 0.2f else height * 0.9f)
-        
+
+        if (isPositive) {
+            path.moveTo(0f, height * 0.85f)
+            path.cubicTo(width * 0.3f, height * 0.75f, width * 0.5f, height * 0.45f, width * 0.7f, height * 0.5f)
+            path.cubicTo(width * 0.85f, height * 0.55f, width * 0.95f, height * 0.2f, width, height * 0.15f)
+        } else {
+            path.moveTo(0f, height * 0.15f)
+            path.cubicTo(width * 0.3f, height * 0.25f, width * 0.5f, height * 0.55f, width * 0.7f, height * 0.5f)
+            path.cubicTo(width * 0.85f, height * 0.45f, width * 0.95f, height * 0.8f, width, height * 0.85f)
+        }
+
         drawPath(
             path = path,
             color = color,
-            style = Stroke(width = 1.dp.toPx())
+            style = Stroke(width = 1.4.dp.toPx())
+        )
+        drawCircle(
+            color = color,
+            radius = 1.8.dp.toPx(),
+            center = Offset(width, if (isPositive) height * 0.15f else height * 0.85f)
         )
     }
 }
