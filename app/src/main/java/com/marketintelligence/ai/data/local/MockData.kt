@@ -21,19 +21,20 @@ object MockData {
     )
 
     val INDICES_US = listOf(
-        IndexData("SPX", "S&P 500 Index", 5500.0, 5470.0, 30.0, 0.55, MarketType.US, null),
-        IndexData("NDX", "NASDAQ 100", 19200.0, 19050.0, 150.0, 0.79, MarketType.US, null),
-        IndexData("DJI", "Dow Jones Industrial", 39500.0, 39350.0, 150.0, 0.38, MarketType.US, null)
+        IndexData("SPX", "S&P 500 Index", 7659.40, 7620.90, 38.50, 0.51, MarketType.US, null),
+        IndexData("NDX", "NASDAQ 100", 29187.50, 29022.30, 165.20, 0.57, MarketType.US, null),
+        IndexData("DJI", "Dow Jones Industrial", 52002.40, 52087.80, -85.40, -0.16, MarketType.US, null),
+        IndexData("QQQ", "Invesco QQQ Trust", 715.20, 709.80, 5.40, 0.76, MarketType.US, null)
     )
 
     val WATCHLIST_US = listOf(
-        StockData("AAPL", "Apple Inc.", 225.0, 222.5, 2.5, 1.12, "45M", MarketType.US, null),
-        StockData("NVDA", "NVIDIA Corporation", 118.0, 115.0, 3.0, 2.61, "60M", MarketType.US, null),
-        StockData("MSFT", "Microsoft Corporation", 440.0, 436.0, 4.0, 0.92, "20M", MarketType.US, null),
-        StockData("GOOGL", "Alphabet Inc.", 175.0, 173.0, 2.0, 1.16, "25M", MarketType.US, null),
-        StockData("AMZN", "Amazon.com Inc.", 185.0, 183.0, 2.0, 1.09, "30M", MarketType.US, null),
-        StockData("TSLA", "Tesla Inc.", 210.0, 204.0, 6.0, 2.94, "50M", MarketType.US, null),
-        StockData("META", "Meta Platforms Inc.", 500.0, 492.0, 8.0, 1.63, "15M", MarketType.US, null)
+        StockData("NVDA", "NVIDIA Corporation", 214.10, 210.30, 3.80, 1.81, "60M", MarketType.US, null),
+        StockData("AAPL", "Apple Inc.", 343.50, 341.30, 2.20, 0.64, "45M", MarketType.US, null),
+        StockData("MSFT", "Microsoft Corporation", 529.00, 531.60, -2.60, -0.49, "20M", MarketType.US, null),
+        StockData("TSLA", "Tesla Inc.", 354.70, 346.50, 8.20, 2.37, "50M", MarketType.US, null),
+        StockData("AMZN", "Amazon.com Inc.", 250.00, 251.05, -1.05, -0.42, "30M", MarketType.US, null),
+        StockData("META", "Meta Platforms Inc.", 733.40, 723.80, 9.60, 1.33, "15M", MarketType.US, null),
+        StockData("GOOGL", "Alphabet Inc.", 340.60, 338.30, 2.30, 0.68, "25M", MarketType.US, null)
     )
 
     val INDICES_UAE = listOf(

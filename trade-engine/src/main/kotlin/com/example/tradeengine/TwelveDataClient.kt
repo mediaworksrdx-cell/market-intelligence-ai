@@ -132,19 +132,28 @@ object TwelveDataClient {
 
     fun getFallbackPrice(symbol: String): Double {
         return when (resolveSymbol(symbol)) {
-            "SPY" -> 580.0
-            "QQQ" -> 490.0
-            "DIA" -> 425.0
-            "IWM" -> 220.0
-            "AAPL" -> 232.0
-            "MSFT" -> 428.0
-            "NVDA" -> 138.0
-            "TSLA" -> 225.0
-            "AMZN" -> 188.0
-            "GOOGL" -> 168.0
-            "META" -> 575.0
-            "NFLX" -> 705.0
-            "AMD" -> 155.0
+            "SPY" -> 765.0
+            "QQQ" -> 715.0
+            "DIA" -> 520.0
+            "IWM" -> 245.0
+            "AAPL" -> 343.5
+            "MSFT" -> 529.0
+            "NVDA" -> 214.1
+            "TSLA" -> 354.7
+            "AMZN" -> 250.0
+            "GOOGL" -> 340.6
+            "META" -> 733.4
+            "NFLX" -> 705.3
+            "AMD" -> 550.2
+            "AVGO" -> 329.4
+            "JPM" -> 337.5
+            "LLY" -> 1256.8
+            "COST" -> 989.1
+            "COIN" -> 173.2
+            "XOM" -> 174.6
+            "DIS" -> 110.6
+            "WMT" -> 118.8
+            "V" -> 402.7
             else -> 150.0
         }
     }

@@ -60,19 +60,31 @@ object MarketPriceCatalog {
             clean in listOf("HINDPETRO", "HPCL") -> 410.50
 
             // US Tech & Global Indices
-            clean in listOf("SPX", "SP500") -> 5500.0
-            clean in listOf("NDX", "NASDAQ", "QQQ") -> 19200.0
-            clean in listOf("DJI", "DOW") -> 39500.0
+            clean in listOf("SPX", "SP500") -> 7659.40
+            clean in listOf("NDX", "NASDAQ") -> 29187.50
+            clean in listOf("QQQ") -> 715.20
+            clean in listOf("DJI", "DOW") -> 52002.40
             clean in listOf("FTSE", "FTSE100") -> 8250.0
             clean in listOf("DAX") -> 18500.0
             clean in listOf("NIKKEI", "N225") -> 38800.0
-            clean in listOf("AAPL", "APPLE") -> 225.0
-            clean in listOf("MSFT", "MICROSOFT") -> 440.0
-            clean in listOf("GOOGL", "GOOG", "GOOGLE") -> 175.0
-            clean in listOf("AMZN", "AMAZON") -> 185.0
-            clean in listOf("TSLA", "TESLA") -> 210.0
-            clean in listOf("NVDA", "NVIDIA") -> 118.0
-            clean in listOf("META") -> 500.0
+            clean in listOf("AAPL", "APPLE") -> 343.50
+            clean in listOf("MSFT", "MICROSOFT") -> 529.00
+            clean in listOf("GOOGL", "GOOG", "GOOGLE") -> 340.60
+            clean in listOf("AMZN", "AMAZON") -> 250.00
+            clean in listOf("TSLA", "TESLA") -> 354.70
+            clean in listOf("NVDA", "NVIDIA") -> 214.10
+            clean in listOf("META") -> 733.40
+            clean in listOf("NFLX", "NETFLIX") -> 705.30
+            clean in listOf("AMD") -> 550.20
+            clean in listOf("AVGO") -> 329.40
+            clean in listOf("JPM") -> 337.50
+            clean in listOf("LLY") -> 1256.80
+            clean in listOf("COST") -> 989.10
+            clean in listOf("COIN") -> 173.20
+            clean in listOf("XOM") -> 174.60
+            clean in listOf("DIS") -> 110.60
+            clean in listOf("WMT") -> 118.80
+            clean in listOf("V", "VISA") -> 402.70
 
             // Commodities
             clean in listOf("GOLD", "XAU", "XAUUSD") -> 2450.0
