@@ -36,12 +36,14 @@ class WebSocketClient(
             coroutineScope.launch(Dispatchers.IO) {
                 while (isRunning.get()) {
                     try {
-                        client.webSocket(
-                            method = HttpMethod.Get,
-                            host = url,
-                            port = 0, // or your specific port
-                            path = "/ws" // or your specific path
-                        ) {
+                        val normalizedUrl = when {
+                            url.startsWith("ws://") || url.startsWith("wss://") -> url
+                            url.startsWith("https://") -> "wss://" + url.removePrefix("https://")
+                            url.startsWith("http://") -> "ws://" + url.removePrefix("http://")
+                            else -> "ws://$url"
+                        }.let { if (!it.contains("/ws") && !it.endsWith("/")) "$it/ws" else it }
+
+                        client.webSocket(urlString = normalizedUrl) {
                             _connectionStatus.value = true
                             session = this
                             // Send subscription message if needed

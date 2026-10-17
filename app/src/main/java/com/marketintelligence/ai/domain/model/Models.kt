@@ -118,7 +118,11 @@ data class StrategyLeg(
     val expiry: String,
     val qty: Int,
     val entryPrice: Double,
-    val currentPrice: Double
+    val currentPrice: Double,
+    val lotSize: Int = 0,
+    val lots: Int = 1,
+    val underlying: String = "",
+    val moneyness: String = ""
 ) {
     val pnl: Double
         get() {
@@ -148,7 +152,12 @@ data class OptionStrategy(
     val legs: List<String>,
     val payoffPoints: List<PayoffPoint>,
     val todayPayoffPoints: List<PayoffPoint> = emptyList(),
-    val rawLegs: List<StrategyLeg> = emptyList()
+    val rawLegs: List<StrategyLeg> = emptyList(),
+    val expiry: String = "",
+    val lotSize: Int = 0,
+    val lots: Int = 1,
+    val capitalRequired: Double = 0.0,
+    val underlying: String = ""
 )
 
 @Serializable
@@ -202,7 +211,9 @@ data class EconomicEvent(
     val impact: String,
     val actual: String,
     val forecast: String,
-    val previous: String
+    val previous: String,
+    val description: String = "",
+    val affectedMarkets: String = ""
 )
 
 @Serializable
@@ -214,7 +225,12 @@ data class IPOData(
     val priceBand: String,
     val gmp: Double,
     val gmpPercent: Double,
-    val status: String
+    val status: String,
+    val issueSize: String = "",
+    val lotSize: String = "",
+    val listingDate: String = "",
+    val description: String = "",
+    val subscriptionStatus: String = ""
 )
 
 @Serializable
@@ -227,7 +243,13 @@ data class NotificationItem(
     val read: Boolean,
     val aiResult: AIAnalysisResult? = null,
     val eventData: EconomicEvent? = null,
-    val ipoData: IPOData? = null
+    val ipoData: IPOData? = null,
+    val content: String = "",
+    val summary: String = "",
+    val source: String = "",
+    val category: String = "",
+    val actionSymbol: String? = null,
+    val actionType: String? = null
 )
 
 enum class NotificationType { AI_SIGNAL, NEWS, EVENT, IPO }
@@ -272,7 +294,15 @@ data class Holding(
     val currentValue: Double,
     val totalPnl: Double,
     val todayPnl: Double,
-    val market: MarketType
+    val market: MarketType,
+    val assetCategory: String = "INDIAN_STOCK", // "INDIAN_STOCK", "CRYPTO", "US_STOCK", "UAE_STOCK"
+    val currency: String = "INR",               // "INR", "USD", "AED"
+    val currencySymbol: String = "₹",           // "₹", "$", "AED "
+    val fxRateToInr: Double = 1.0,              // Exchange rate to INR (e.g. 1.0 for INR, 83.45 for USD)
+    val convertedCurrentValue: Double = currentValue,
+    val convertedInvestedValue: Double = investedValue,
+    val convertedTotalPnl: Double = totalPnl,
+    val convertedTodayPnl: Double = todayPnl
 )
 
 @Serializable

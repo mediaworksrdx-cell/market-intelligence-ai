@@ -27,10 +27,11 @@ fun DrawScope.drawGridLayer(
     rightMargin: Float,
     bottomMargin: Float,
     textMeasurer: TextMeasurer,
-    timeframe: String = "1D"
+    timeframe: String = "1D",
+    isDarkTheme: Boolean = false
 ) {
-    val gridColor = Color(0xFF1A1A1A)
-    val textColor = Color(0xFF666666)
+    val gridColor = if (isDarkTheme) Color(0xFF262B3D) else Color(0xFFE8ECF2)
+    val textColor = if (isDarkTheme) Color(0xFF8B92A5) else Color(0xFF6B7280)
     val priceRange = priceMax - priceMin
     if (priceRange <= 0) return
 
@@ -60,13 +61,13 @@ fun DrawScope.drawGridLayer(
             priceText,
             TextStyle(
                 color = textColor,
-                fontSize = 9.sp,
+                fontSize = 8.5.sp,
                 fontFamily = FontFamily.Monospace
             )
         )
         drawText(
             textResult,
-            topLeft = Offset(chartWidth + 4.dp.toPx(), y - textResult.size.height / 2f)
+            topLeft = Offset(chartWidth + 3.dp.toPx(), y - textResult.size.height / 2f)
         )
     }
 
@@ -75,7 +76,9 @@ fun DrawScope.drawGridLayer(
     if (visibleCount <= 0 || candles.isEmpty()) return
 
     val candleWidth = chartWidth / visibleCount
-    val timeStep = maxOf(1, visibleCount / 5)
+    val minLabelSpacingPx = 75.dp.toPx()
+    val minBarsPerLabel = kotlin.math.ceil(minLabelSpacingPx / candleWidth.coerceAtLeast(1f)).toInt().coerceAtLeast(1)
+    val timeStep = maxOf(minBarsPerLabel, 1)
 
     val firstRaw = candles.firstOrNull()?.openTime ?: 0L
     val lastRaw = candles.lastOrNull()?.openTime ?: 0L
@@ -85,7 +88,19 @@ fun DrawScope.drawGridLayer(
         kotlin.math.abs(lastMs - firstMs) / (candles.size - 1).coerceAtLeast(1)
     } else 86_400_000L
 
-    val isDailyOrHigher = timeframe.equals("1D", ignoreCase = true) ||
+    val isExplicitIntraday = timeframe.equals("1m", ignoreCase = true) ||
+        timeframe.equals("1min", ignoreCase = true) ||
+        timeframe.equals("5m", ignoreCase = true) ||
+        timeframe.equals("15m", ignoreCase = true) ||
+        timeframe.equals("30m", ignoreCase = true) ||
+        timeframe.equals("1h", ignoreCase = true) ||
+        timeframe.equals("1H", ignoreCase = true) ||
+        timeframe.equals("60m", ignoreCase = true) ||
+        timeframe.equals("4h", ignoreCase = true) ||
+        timeframe.equals("4H", ignoreCase = true)
+
+    val isDailyOrHigher = !isExplicitIntraday && (
+        timeframe.equals("1D", ignoreCase = true) ||
         timeframe.equals("D", ignoreCase = true) ||
         timeframe.equals("1W", ignoreCase = true) ||
         timeframe.equals("W", ignoreCase = true) ||
@@ -95,26 +110,21 @@ fun DrawScope.drawGridLayer(
         timeframe.contains("week", ignoreCase = true) ||
         timeframe.contains("month", ignoreCase = true) ||
         avgCandleDurationMs >= 20 * 3600 * 1000L
+    )
 
-    val calFirst = Calendar.getInstance().apply { timeInMillis = firstMs }
-    val calLast = Calendar.getInstance().apply { timeInMillis = lastMs }
-    val spansMultipleYears = calFirst.get(Calendar.YEAR) != calLast.get(Calendar.YEAR)
-
-    val dateFormat = if (spansMultipleYears) {
-        SimpleDateFormat("dd MMM ''yy", Locale.US)
-    } else {
-        SimpleDateFormat("dd MMM", Locale.US)
-    }
+    val dateFormat = SimpleDateFormat("dd MMM", Locale.US)
     val timeFormat = SimpleDateFormat("HH:mm", Locale.US)
 
     val totalSpanMs = kotlin.math.abs(lastMs - firstMs)
     val isMultiDayIntraday = !isDailyOrHigher && totalSpanMs > 24 * 3600 * 1000L
 
     var prevDayOfYear = -1
+    var lastDrawnRightX = -1000f
 
     for (i in visibleStartIndex until visibleEndIndex step timeStep) {
         val localIndex = i - visibleStartIndex
-        val x = localIndex * candleWidth + candleWidth / 2
+        val x = localIndex * candleWidth + candleWidth / 2f
+        if (x > chartWidth) break
 
         // Grid line
         drawLine(
@@ -126,7 +136,7 @@ fun DrawScope.drawGridLayer(
         )
 
         // Time / Date label at bottom
-        if (i < candles.size) {
+        if (i in candles.indices) {
             val rawTime = candles[i].openTime
             val timeMs = if (rawTime in 1..99_999_999_999L) rawTime * 1000L else rawTime
             val date = Date(timeMs)
@@ -139,7 +149,7 @@ fun DrawScope.drawGridLayer(
                 }
                 isMultiDayIntraday -> {
                     if (prevDayOfYear != currentDayOfYear) {
-                        dateFormat.format(date)
+                        dateFormat.format(date) + " " + timeFormat.format(date)
                     } else {
                         timeFormat.format(date)
                     }
@@ -158,10 +168,14 @@ fun DrawScope.drawGridLayer(
                     fontFamily = FontFamily.Monospace
                 )
             )
-            drawText(
-                textResult,
-                topLeft = Offset(x - textResult.size.width / 2f, chartHeight + 4.dp.toPx())
-            )
+            val labelLeftX = x - textResult.size.width / 2f
+            if (labelLeftX > lastDrawnRightX + 10.dp.toPx() && (labelLeftX + textResult.size.width) <= size.width) {
+                lastDrawnRightX = labelLeftX + textResult.size.width
+                drawText(
+                    textResult,
+                    topLeft = Offset(labelLeftX, chartHeight + 4.dp.toPx())
+                )
+            }
         }
     }
 }

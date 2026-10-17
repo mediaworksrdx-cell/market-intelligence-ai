@@ -35,7 +35,25 @@ class ProprietaryScannerEngineImpl @Inject constructor(
         delay(300)
 
         val basePrice = MarketPriceCatalog.resolveBasePrice(symbol, marketRepository)
-        val candles = generateInstitutionalCandles(basePrice)
+        val rawCandles = try {
+            marketRepository.getHistoricalCandles(symbol, timeframe)
+        } catch (_: Exception) {
+            emptyList()
+        }
+        val candles = if (rawCandles.size >= 20) {
+            rawCandles.map { c ->
+                Candle(
+                    timestamp = c.openTime,
+                    open = BigDecimal.valueOf(c.open),
+                    high = BigDecimal.valueOf(c.high),
+                    low = BigDecimal.valueOf(c.low),
+                    close = BigDecimal.valueOf(c.close),
+                    volume = BigDecimal.valueOf(c.volume)
+                )
+            }
+        } else {
+            generateInstitutionalCandles(basePrice)
+        }
 
         val rawRegime = regimeEngine.getRegime(candles)
         val regime = if (rawRegime == MarketRegime.UNDEFINED || rawRegime == MarketRegime.HIGH_VOLATILITY) {

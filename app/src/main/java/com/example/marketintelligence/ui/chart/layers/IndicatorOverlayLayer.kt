@@ -17,7 +17,7 @@ import com.example.tradeengine.models.Candle
  */
 fun DrawScope.drawIndicatorOverlayLayer(
     indicators: List<IndicatorConfig>,
-    indicatorResults: Map<IndicatorType, Any>,
+    indicatorResults: Map<String, Any>,
     candles: List<Candle> = emptyList(),
     visibleStartIndex: Int,
     visibleEndIndex: Int,
@@ -36,7 +36,7 @@ fun DrawScope.drawIndicatorOverlayLayer(
     for (config in indicators) {
         if (!config.enabled || !config.type.isOverlay) continue
         // Skip drawing if results aren't pre-computed to avoid blocking the main UI thread.
-        val result = indicatorResults[config.type] ?: continue
+        val result = indicatorResults[config.id] ?: indicatorResults[config.type.name] ?: continue
 
         val baseColor = Color((config.color and 0xFFFFFFFFL).toInt())
 
@@ -70,6 +70,11 @@ fun DrawScope.drawIndicatorOverlayLayer(
                 drawIndicatorLine(ichResult.senkouSpanA, visibleStartIndex, visibleEndIndex, candleWidth, priceMin, priceRange, chartAreaHeight, Color(0xFF00E676).copy(alpha = 0.6f), strokeWidth = 1.2f)
                 drawIndicatorLine(ichResult.senkouSpanB, visibleStartIndex, visibleEndIndex, candleWidth, priceMin, priceRange, chartAreaHeight, Color(0xFFFF1744).copy(alpha = 0.6f), strokeWidth = 1.2f)
             }
+            IndicatorType.PARABOLIC_SAR -> {
+                @Suppress("UNCHECKED_CAST")
+                val sarValues = result as? List<Double?> ?: continue
+                drawParabolicSarDots(sarValues, visibleStartIndex, visibleEndIndex, candleWidth, priceMin, priceRange, chartAreaHeight, baseColor)
+            }
             else -> {}
         }
     }
@@ -92,7 +97,8 @@ private fun DrawScope.drawIndicatorLine(
     val path = Path()
     var started = false
 
-    for (i in startIndex until minOf(endIndex, values.size)) {
+    val safeStart = maxOf(0, startIndex)
+    for (i in safeStart until minOf(endIndex, values.size)) {
         val value = values[i] ?: continue
         val localIndex = i - startIndex
         val x = localIndex * candleWidth + candleWidth / 2f
@@ -129,7 +135,8 @@ private fun DrawScope.drawSupertrendLine(
     var currentIsBullish: Boolean? = null
     var pathStarted = false
 
-    for (i in startIndex until minOf(endIndex, result.values.size)) {
+    val safeStart = maxOf(0, startIndex)
+    for (i in safeStart until minOf(endIndex, result.values.size)) {
         val value = result.values[i] ?: continue
         val direction = result.directions[i] ?: continue
         val localIndex = i - startIndex
@@ -176,7 +183,8 @@ private fun DrawScope.drawBandFill(
     val upperPoints = mutableListOf<Offset>()
     val lowerPoints = mutableListOf<Offset>()
 
-    for (i in startIndex until minOf(endIndex, minOf(upper.size, lower.size))) {
+    val safeStart = maxOf(0, startIndex)
+    for (i in safeStart until minOf(endIndex, minOf(upper.size, lower.size))) {
         val u = upper[i] ?: continue
         val l = lower[i] ?: continue
         val localIndex = i - startIndex
@@ -195,4 +203,32 @@ private fun DrawScope.drawBandFill(
     fillPath.close()
 
     drawPath(fillPath, fillColor, style = Fill)
+}
+
+/**
+ * Draws Parabolic SAR dots at each calculated price point.
+ */
+private fun DrawScope.drawParabolicSarDots(
+    values: List<Double?>,
+    startIndex: Int,
+    endIndex: Int,
+    candleWidth: Float,
+    priceMin: Double,
+    priceRange: Double,
+    chartHeight: Float,
+    color: Color
+) {
+    val radius = 2.dp.toPx()
+    val safeStart = maxOf(0, startIndex)
+    for (i in safeStart until minOf(endIndex, values.size)) {
+        val value = values[i] ?: continue
+        val localIndex = i - startIndex
+        val x = localIndex * candleWidth + candleWidth / 2f
+        val y = chartHeight - ((value - priceMin) / priceRange * chartHeight).toFloat()
+        drawCircle(
+            color = color,
+            radius = radius,
+            center = Offset(x, y)
+        )
+    }
 }

@@ -27,7 +27,8 @@ open class MarketIntelligenceApplication : Application(), Configuration.Provider
     override fun onCreate() {
         super.onCreate()
         setupCrashHandler()
-        createNotificationChannel()
+        createNotificationChannels()
+        scheduleBackgroundNotifications()
     }
 
     private fun setupCrashHandler() {
@@ -45,18 +46,30 @@ open class MarketIntelligenceApplication : Application(), Configuration.Provider
         }
     }
 
-    private fun createNotificationChannel() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val name = "AI Scanner Signals"
-            val descriptionText = "Notifications for high-confidence AI trading signals"
-            val importance = NotificationManager.IMPORTANCE_HIGH
-            val channel = NotificationChannel("AI_SIGNAL_CHANNEL", name, importance).apply {
-                description = descriptionText
-            }
-            // Register the channel with the system
-            val notificationManager: NotificationManager =
-                getSystemService(NOTIFICATION_SERVICE) as NotificationManager
-            notificationManager.createNotificationChannel(channel)
+    private fun createNotificationChannels() {
+        com.example.marketintelligence.background.MarketNotificationWorker.ensureChannels(this)
+    }
+
+    private fun scheduleBackgroundNotifications() {
+        try {
+            val constraints = androidx.work.Constraints.Builder()
+                .setRequiredNetworkType(androidx.work.NetworkType.CONNECTED)
+                .build()
+
+            val periodicWork = androidx.work.PeriodicWorkRequestBuilder<com.example.marketintelligence.background.MarketNotificationWorker>(
+                15, java.util.concurrent.TimeUnit.MINUTES,
+                5, java.util.concurrent.TimeUnit.MINUTES
+            )
+            .setConstraints(constraints)
+            .build()
+
+            androidx.work.WorkManager.getInstance(this).enqueueUniquePeriodicWork(
+                com.example.marketintelligence.background.MarketNotificationWorker.WORK_NAME,
+                androidx.work.ExistingPeriodicWorkPolicy.KEEP,
+                periodicWork
+            )
+        } catch (e: Exception) {
+            android.util.Log.e("WorkManager", "Failed to schedule background notifications: ${e.message}")
         }
     }
 }

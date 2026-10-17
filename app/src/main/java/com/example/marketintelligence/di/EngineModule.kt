@@ -15,8 +15,6 @@ import dagger.multibindings.IntoSet
 @InstallIn(SingletonComponent::class)
 abstract class EngineModule {
 
-    @Binds @IntoSet
-    abstract fun bindTradingViewChartEngine(engine: TradingViewChartEngine): Engine
 
     @Binds @IntoSet
     abstract fun bindProprietaryChartEngine(engine: ProprietaryChartEngine): Engine

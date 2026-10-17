@@ -5,8 +5,10 @@ import androidx.lifecycle.viewModelScope
 import com.example.marketintelligence.domain.repository.NotificationRepository
 import com.example.marketintelligence.domain.repository.SettingsRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.stateIn
 import javax.inject.Inject
 
@@ -23,4 +25,11 @@ class MainViewModel @Inject constructor(
             started = SharingStarted.WhileSubscribed(5000),
             initialValue = true
         )
+
+    private val _pendingRoute = MutableStateFlow<String?>(null)
+    val pendingRoute: StateFlow<String?> = _pendingRoute.asStateFlow()
+
+    fun navigateTo(route: String?) {
+        _pendingRoute.value = route
+    }
 }

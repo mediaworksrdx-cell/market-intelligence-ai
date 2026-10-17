@@ -74,18 +74,24 @@ fun DrawScope.drawCrosshairLayer(
     val candleWidth = chartWidth / visibleCount
     val candleIndex = visibleStartIndex + (clampedX / candleWidth).toInt()
 
-    if (candleIndex in candles.indices) {
-        val rawTime = candles[candleIndex].openTime
-        val timeMs = if (rawTime in 1..99_999_999_999L) rawTime * 1000L else rawTime
-        val date = Date(timeMs)
-
-        val firstRaw = candles.firstOrNull()?.openTime ?: 0L
-        val lastRaw = candles.lastOrNull()?.openTime ?: 0L
+    if (candles.isNotEmpty()) {
+        val firstRaw = candles.first().openTime
+        val lastRaw = candles.last().openTime
         val firstMs = if (firstRaw in 1..99_999_999_999L) firstRaw * 1000L else firstRaw
         val lastMs = if (lastRaw in 1..99_999_999_999L) lastRaw * 1000L else lastRaw
         val avgCandleDurationMs = if (candles.size > 1) {
             kotlin.math.abs(lastMs - firstMs) / (candles.size - 1).coerceAtLeast(1)
         } else 86_400_000L
+
+        val timeMs = if (candleIndex in candles.indices) {
+            val rawTime = candles[candleIndex].openTime
+            if (rawTime in 1..99_999_999_999L) rawTime * 1000L else rawTime
+        } else if (candleIndex >= candles.size) {
+            lastMs + (candleIndex - (candles.size - 1)) * avgCandleDurationMs
+        } else {
+            firstMs + candleIndex * avgCandleDurationMs
+        }
+        val date = Date(timeMs)
 
         val isDailyOrHigher = timeframe.equals("1D", ignoreCase = true) ||
             timeframe.equals("D", ignoreCase = true) ||

@@ -220,78 +220,8 @@ fun SettingsScreen(
                 onCheckedChange = { viewModel.setNotificationsEnabled(it) }
             )
         }
-
-        Spacer(modifier = Modifier.height(24.dp))
-
-        // 2. Intelligence Engines
-        SettingsSection(title = "INTELLIGENCE ENGINES") {
-            SettingsSelectItem(
-                title = "Market Scanner Engine",
-                icon = Icons.Filled.Analytics,
-                selected = uiState.selectedScannerEngine,
-                options = listOf("Standard (Gemini)", "Proprietary Engine"),
-                onSelected = { viewModel.setScannerEngine(it) }
-            )
-            SettingsSelectItem(
-                title = "AI Mentor Intelligence",
-                icon = Icons.Filled.School,
-                selected = uiState.selectedMentorEngine,
-                options = listOf("Aarka AI", "Proprietary Engine", "Standard (Gemini)"),
-                onSelected = { viewModel.setMentorEngine(it) }
-            )
-            SettingsSelectItem(
-                title = "Charting Visualization",
-                icon = Icons.AutoMirrored.Filled.ShowChart,
-                selected = uiState.selectedChartEngine,
-                options = listOf("Standard (TradingView)", "Proprietary Engine"),
-                onSelected = { viewModel.setChartEngine(it) }
-            )
-        }
-
-        Spacer(modifier = Modifier.height(24.dp))
-
-        // 3. Risk Framework
-        SettingsSection(title = "RISK FRAMEWORK") {
-            Column(modifier = Modifier.padding(vertical = 8.dp)) {
-                Text("Study Risk Profile", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                Spacer(Modifier.height(8.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    listOf("CONSERVATIVE", "AGGRESSIVE").forEach { profile ->
-                        val isSelected = uiState.riskProfile == profile
-                        Surface(
-                            color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
-                            shape = RoundedCornerShape(8.dp),
-                            modifier = Modifier.weight(1f).clickable { viewModel.setRiskProfile(profile) }
-                        ) {
-                            Text(
-                                text = profile,
-                                color = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Bold,
-                                modifier = Modifier.padding(vertical = 8.dp),
-                                textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                            )
-                        }
-                    }
-                }
-            }
-        }
-
+        
         Spacer(modifier = Modifier.height(32.dp))
-        
-        // Data Management
-        Text("DATA MANAGEMENT", color = AppRed, fontSize = 11.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 1.sp)
-        Spacer(Modifier.height(16.dp))
-        Button(
-            onClick = { viewModel.resetAll() },
-            modifier = Modifier.fillMaxWidth(),
-            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-            shape = RoundedCornerShape(12.dp)
-        ) {
-            Text("Reset Institutional Data", color = AppRed, fontWeight = FontWeight.Bold)
-        }
-        
-        Spacer(modifier = Modifier.height(48.dp))
     }
 }
 

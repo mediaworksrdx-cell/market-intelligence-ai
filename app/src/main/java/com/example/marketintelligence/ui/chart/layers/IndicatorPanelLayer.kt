@@ -22,7 +22,7 @@ import com.example.marketintelligence.domain.chart.*
  */
 fun DrawScope.drawIndicatorPanelLayer(
     indicators: List<IndicatorConfig>,
-    indicatorResults: Map<IndicatorType, Any>,
+    indicatorResults: Map<String, Any>,
     visibleStartIndex: Int,
     visibleEndIndex: Int,
     panelTop: Float,
@@ -42,7 +42,7 @@ fun DrawScope.drawIndicatorPanelLayer(
 
     panelIndicators.forEachIndexed { index, config ->
         val currentPanelTop = panelTop + index * singlePanelHeight
-        val result = indicatorResults[config.type]
+        val result = indicatorResults[config.id] ?: indicatorResults[config.type.name]
 
         // Panel separator
         drawLine(
@@ -106,6 +106,30 @@ fun DrawScope.drawIndicatorPanelLayer(
                 val cvdResult = result as? CvdResult ?: return@forEachIndexed
                 drawCvdPanel(cvdResult, visibleStartIndex, visibleEndIndex, candleWidth, currentPanelTop, singlePanelHeight, chartWidth, config, textMeasurer)
             }
+            IndicatorType.ADX -> {
+                val adxResult = result as? AdxResult ?: return@forEachIndexed
+                drawAdxPanel(adxResult, visibleStartIndex, visibleEndIndex, candleWidth, currentPanelTop, singlePanelHeight, chartWidth, config, textMeasurer)
+            }
+            IndicatorType.OBV -> {
+                @Suppress("UNCHECKED_CAST")
+                val values = result as? List<Double?> ?: return@forEachIndexed
+                drawGenericLinePanel(values, visibleStartIndex, visibleEndIndex, candleWidth, currentPanelTop, singlePanelHeight, chartWidth, Color((config.color and 0xFFFFFFFFL).toInt()))
+            }
+            IndicatorType.CCI -> {
+                @Suppress("UNCHECKED_CAST")
+                val values = result as? List<Double?> ?: return@forEachIndexed
+                drawCciPanel(values, visibleStartIndex, visibleEndIndex, candleWidth, currentPanelTop, singlePanelHeight, chartWidth, Color((config.color and 0xFFFFFFFFL).toInt()), textMeasurer)
+            }
+            IndicatorType.WILLIAMS_R -> {
+                @Suppress("UNCHECKED_CAST")
+                val values = result as? List<Double?> ?: return@forEachIndexed
+                drawWilliamsRPanel(values, visibleStartIndex, visibleEndIndex, candleWidth, currentPanelTop, singlePanelHeight, chartWidth, Color((config.color and 0xFFFFFFFFL).toInt()), textMeasurer)
+            }
+            IndicatorType.MFI -> {
+                @Suppress("UNCHECKED_CAST")
+                val values = result as? List<Double?> ?: return@forEachIndexed
+                drawMfiPanel(values, visibleStartIndex, visibleEndIndex, candleWidth, currentPanelTop, singlePanelHeight, chartWidth, Color((config.color and 0xFFFFFFFFL).toInt()), textMeasurer)
+            }
             else -> {}
         }
     }
@@ -129,7 +153,8 @@ private fun DrawScope.drawCvdPanel(
     // Find min and max for visible CVD line
     var minVal = Double.MAX_VALUE
     var maxVal = Double.MIN_VALUE
-    for (i in startIndex until minOf(endIndex, result.cvdLine.size)) {
+    val safeStart = maxOf(0, startIndex)
+    for (i in safeStart until minOf(endIndex, result.cvdLine.size)) {
         result.cvdLine[i]?.let {
             minVal = minOf(minVal, it)
             maxVal = maxOf(maxVal, it)
@@ -152,12 +177,12 @@ private fun DrawScope.drawCvdPanel(
     // Delta bars (histogram around zero line)
     val barWidth = candleWidth * 0.45f
     var maxDelta = 1.0
-    for (i in startIndex until minOf(endIndex, result.deltaBars.size)) {
+    for (i in safeStart until minOf(endIndex, result.deltaBars.size)) {
         result.deltaBars[i]?.let { maxDelta = maxOf(maxDelta, kotlin.math.abs(it)) }
     }
     val maxBarHeight = drawHeight * 0.25f
 
-    for (i in startIndex until minOf(endIndex, result.deltaBars.size)) {
+    for (i in safeStart until minOf(endIndex, result.deltaBars.size)) {
         val delta = result.deltaBars[i] ?: continue
         val localIndex = i - startIndex
         val x = localIndex * candleWidth + (candleWidth - barWidth) / 2f
@@ -171,7 +196,7 @@ private fun DrawScope.drawCvdPanel(
     val cvdColor = Color((config.color and 0xFFFFFFFFL).toInt())
     val path = Path()
     var started = false
-    for (i in startIndex until minOf(endIndex, result.cvdLine.size)) {
+    for (i in safeStart until minOf(endIndex, result.cvdLine.size)) {
         val value = result.cvdLine[i] ?: continue
         val localIndex = i - startIndex
         val x = localIndex * candleWidth + candleWidth / 2f
@@ -243,7 +268,8 @@ private fun DrawScope.drawRSIPanel(
     // RSI line
     val path = Path()
     var started = false
-    for (i in startIndex until minOf(endIndex, values.size)) {
+    val safeStart = maxOf(0, startIndex)
+    for (i in safeStart until minOf(endIndex, values.size)) {
         val value = values[i] ?: continue
         val localIndex = i - startIndex
         val x = localIndex * candleWidth + candleWidth / 2f
@@ -270,7 +296,8 @@ private fun DrawScope.drawMACDPanel(
     // Find min/max for visible range
     var minVal = Double.MAX_VALUE
     var maxVal = Double.MIN_VALUE
-    for (i in startIndex until minOf(endIndex, result.macdLine.size)) {
+    val safeStart = maxOf(0, startIndex)
+    for (i in safeStart until minOf(endIndex, result.macdLine.size)) {
         result.macdLine[i]?.let { minVal = minOf(minVal, it); maxVal = maxOf(maxVal, it) }
         result.signalLine[i]?.let { minVal = minOf(minVal, it); maxVal = maxOf(maxVal, it) }
         result.histogram[i]?.let { minVal = minOf(minVal, it); maxVal = maxOf(maxVal, it) }
@@ -284,7 +311,7 @@ private fun DrawScope.drawMACDPanel(
 
     // Histogram bars
     val barWidth = candleWidth * 0.5f
-    for (i in startIndex until minOf(endIndex, result.histogram.size)) {
+    for (i in safeStart until minOf(endIndex, result.histogram.size)) {
         val value = result.histogram[i] ?: continue
         val localIndex = i - startIndex
         val x = localIndex * candleWidth + (candleWidth - barWidth) / 2f
@@ -344,7 +371,8 @@ private fun DrawScope.drawGenericLinePanel(
 
     var minVal = Double.MAX_VALUE
     var maxVal = Double.MIN_VALUE
-    for (i in startIndex until minOf(endIndex, values.size)) {
+    val safeStart = maxOf(0, startIndex)
+    for (i in safeStart until minOf(endIndex, values.size)) {
         values[i]?.let { minVal = minOf(minVal, it); maxVal = maxOf(maxVal, it) }
     }
     if (minVal >= maxVal) return
@@ -364,7 +392,8 @@ private fun DrawScope.drawPanelLine(
 ) {
     val path = Path()
     var started = false
-    for (i in startIndex until minOf(endIndex, values.size)) {
+    val safeStart = maxOf(0, startIndex)
+    for (i in safeStart until minOf(endIndex, values.size)) {
         val value = values[i] ?: continue
         val localIndex = i - startIndex
         val x = localIndex * candleWidth + candleWidth / 2f
@@ -373,3 +402,131 @@ private fun DrawScope.drawPanelLine(
     }
     if (started) drawPath(path, color, style = Stroke(width = 1.dp.toPx()))
 }
+
+private fun DrawScope.drawAdxPanel(
+    result: AdxResult,
+    startIndex: Int,
+    endIndex: Int,
+    candleWidth: Float,
+    panelTop: Float,
+    panelHeight: Float,
+    chartWidth: Float,
+    config: IndicatorConfig,
+    textMeasurer: TextMeasurer
+) {
+    val padding = 4.dp.toPx()
+    val drawHeight = panelHeight - padding * 2
+    val drawTop = panelTop + padding
+
+    // Key threshold line at 25 (trend strength)
+    val dashEffect = PathEffect.dashPathEffect(floatArrayOf(3.dp.toPx(), 3.dp.toPx()))
+    val y25 = drawTop + drawHeight * (1 - 25.0 / 100.0).toFloat()
+    drawLine(Color(0xFF555555), Offset(0f, y25), Offset(chartWidth, y25), strokeWidth = 0.5.dp.toPx(), pathEffect = dashEffect)
+    val t25 = textMeasurer.measure("25", TextStyle(color = Color(0xFF555555), fontSize = 7.sp, fontFamily = FontFamily.Monospace))
+    drawText(t25, topLeft = Offset(chartWidth + 2.dp.toPx(), y25 - t25.size.height / 2f))
+
+    // ADX line (config.color), +DI (0xFF00E676), -DI (0xFFFF1744)
+    drawPanelLine(result.plusDI, startIndex, endIndex, candleWidth, drawTop, drawHeight, 0.0, 100.0, Color(0xFF00E676).copy(alpha = 0.7f))
+    drawPanelLine(result.minusDI, startIndex, endIndex, candleWidth, drawTop, drawHeight, 0.0, 100.0, Color(0xFFFF1744).copy(alpha = 0.7f))
+    drawPanelLine(result.adx, startIndex, endIndex, candleWidth, drawTop, drawHeight, 0.0, 100.0, Color((config.color and 0xFFFFFFFFL).toInt()))
+}
+
+private fun DrawScope.drawCciPanel(
+    values: List<Double?>,
+    startIndex: Int,
+    endIndex: Int,
+    candleWidth: Float,
+    panelTop: Float,
+    panelHeight: Float,
+    chartWidth: Float,
+    color: Color,
+    textMeasurer: TextMeasurer
+) {
+    val padding = 4.dp.toPx()
+    val drawHeight = panelHeight - padding * 2
+    val drawTop = panelTop + padding
+
+    var minVal = -150.0
+    var maxVal = 150.0
+    val safeStart = maxOf(0, startIndex)
+    for (i in safeStart until minOf(endIndex, values.size)) {
+        values[i]?.let {
+            minVal = minOf(minVal, it)
+            maxVal = maxOf(maxVal, it)
+        }
+    }
+    val range = maxVal - minVal
+    if (range <= 0.0) return
+
+    val dashEffect = PathEffect.dashPathEffect(floatArrayOf(3.dp.toPx(), 3.dp.toPx()))
+    val yPlus100 = drawTop + drawHeight * (1 - (100.0 - minVal) / range).toFloat()
+    val yMinus100 = drawTop + drawHeight * (1 - (-100.0 - minVal) / range).toFloat()
+    drawLine(Color(0xFFFF1744).copy(alpha = 0.4f), Offset(0f, yPlus100), Offset(chartWidth, yPlus100), strokeWidth = 0.5.dp.toPx(), pathEffect = dashEffect)
+    drawLine(Color(0xFF00E676).copy(alpha = 0.4f), Offset(0f, yMinus100), Offset(chartWidth, yMinus100), strokeWidth = 0.5.dp.toPx(), pathEffect = dashEffect)
+
+    val tPlus = textMeasurer.measure("+100", TextStyle(color = Color(0xFF555555), fontSize = 7.sp, fontFamily = FontFamily.Monospace))
+    drawText(tPlus, topLeft = Offset(chartWidth + 2.dp.toPx(), yPlus100 - tPlus.size.height / 2f))
+    val tMinus = textMeasurer.measure("-100", TextStyle(color = Color(0xFF555555), fontSize = 7.sp, fontFamily = FontFamily.Monospace))
+    drawText(tMinus, topLeft = Offset(chartWidth + 2.dp.toPx(), yMinus100 - tMinus.size.height / 2f))
+
+    drawPanelLine(values, startIndex, endIndex, candleWidth, drawTop, drawHeight, minVal, range, color)
+}
+
+private fun DrawScope.drawWilliamsRPanel(
+    values: List<Double?>,
+    startIndex: Int,
+    endIndex: Int,
+    candleWidth: Float,
+    panelTop: Float,
+    panelHeight: Float,
+    chartWidth: Float,
+    color: Color,
+    textMeasurer: TextMeasurer
+) {
+    val padding = 4.dp.toPx()
+    val drawHeight = panelHeight - padding * 2
+    val drawTop = panelTop + padding
+
+    val dashEffect = PathEffect.dashPathEffect(floatArrayOf(3.dp.toPx(), 3.dp.toPx()))
+    val y20 = drawTop + drawHeight * (1 - (-20.0 - (-100.0)) / 100.0).toFloat()
+    val y80 = drawTop + drawHeight * (1 - (-80.0 - (-100.0)) / 100.0).toFloat()
+    drawLine(Color(0xFFFF1744).copy(alpha = 0.4f), Offset(0f, y20), Offset(chartWidth, y20), strokeWidth = 0.5.dp.toPx(), pathEffect = dashEffect)
+    drawLine(Color(0xFF00E676).copy(alpha = 0.4f), Offset(0f, y80), Offset(chartWidth, y80), strokeWidth = 0.5.dp.toPx(), pathEffect = dashEffect)
+
+    val t20 = textMeasurer.measure("-20", TextStyle(color = Color(0xFF555555), fontSize = 7.sp, fontFamily = FontFamily.Monospace))
+    drawText(t20, topLeft = Offset(chartWidth + 2.dp.toPx(), y20 - t20.size.height / 2f))
+    val t80 = textMeasurer.measure("-80", TextStyle(color = Color(0xFF555555), fontSize = 7.sp, fontFamily = FontFamily.Monospace))
+    drawText(t80, topLeft = Offset(chartWidth + 2.dp.toPx(), y80 - t80.size.height / 2f))
+
+    drawPanelLine(values, startIndex, endIndex, candleWidth, drawTop, drawHeight, -100.0, 100.0, color)
+}
+
+private fun DrawScope.drawMfiPanel(
+    values: List<Double?>,
+    startIndex: Int,
+    endIndex: Int,
+    candleWidth: Float,
+    panelTop: Float,
+    panelHeight: Float,
+    chartWidth: Float,
+    color: Color,
+    textMeasurer: TextMeasurer
+) {
+    val padding = 4.dp.toPx()
+    val drawHeight = panelHeight - padding * 2
+    val drawTop = panelTop + padding
+
+    val dashEffect = PathEffect.dashPathEffect(floatArrayOf(3.dp.toPx(), 3.dp.toPx()))
+    val y80 = drawTop + drawHeight * (1 - 80.0 / 100.0).toFloat()
+    val y20 = drawTop + drawHeight * (1 - 20.0 / 100.0).toFloat()
+    drawLine(Color(0xFFFF1744).copy(alpha = 0.4f), Offset(0f, y80), Offset(chartWidth, y80), strokeWidth = 0.5.dp.toPx(), pathEffect = dashEffect)
+    drawLine(Color(0xFF00E676).copy(alpha = 0.4f), Offset(0f, y20), Offset(chartWidth, y20), strokeWidth = 0.5.dp.toPx(), pathEffect = dashEffect)
+
+    val t80 = textMeasurer.measure("80", TextStyle(color = Color(0xFF555555), fontSize = 7.sp, fontFamily = FontFamily.Monospace))
+    drawText(t80, topLeft = Offset(chartWidth + 2.dp.toPx(), y80 - t80.size.height / 2f))
+    val t20 = textMeasurer.measure("20", TextStyle(color = Color(0xFF555555), fontSize = 7.sp, fontFamily = FontFamily.Monospace))
+    drawText(t20, topLeft = Offset(chartWidth + 2.dp.toPx(), y20 - t20.size.height / 2f))
+
+    drawPanelLine(values, startIndex, endIndex, candleWidth, drawTop, drawHeight, 0.0, 100.0, color)
+}
+

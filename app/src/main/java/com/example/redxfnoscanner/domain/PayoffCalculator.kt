@@ -32,9 +32,10 @@ class PayoffCalculator {
             // For a short position (quantity < 0), the credit is the premium received.
             val costOrCredit = leg.option.lastTradedPrice * leg.quantity
 
-            val payoffAtExpiry = when (leg.option.type) {
-                "CE" -> max(0.0, price - leg.option.strikePrice)
-                "PE" -> max(0.0, leg.option.strikePrice - price)
+            val payoffAtExpiry = when (leg.option.type.uppercase()) {
+                "CE", "CALL" -> max(0.0, price - leg.option.strikePrice)
+                "PE", "PUT" -> max(0.0, leg.option.strikePrice - price)
+                "FUT", "FUTURE" -> price - leg.option.strikePrice
                 else -> 0.0
             }
 

@@ -79,7 +79,7 @@ fun AnalysisScreen(
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .background(Color(0xFF0D0E12))
+                        .background(Color.White)
                 ) {
                     if (activeChartEngine != null && activeChartEngine?.engineName != "Proprietary Engine") {
                         activeChartEngine?.Render(
@@ -102,7 +102,7 @@ fun AnalysisScreen(
                         onClick = { isFullScreen = false },
                         modifier = Modifier.align(Alignment.TopEnd).padding(12.dp)
                     ) {
-                        Icon(Icons.Filled.Close, contentDescription = "Close", tint = Color.White)
+                        Icon(Icons.Filled.Close, contentDescription = "Close", tint = Color(0xFF131722))
                     }
                 }
             }
@@ -112,8 +112,8 @@ fun AnalysisScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
-            .padding(horizontal = 16.dp)
+            .background(Color.White)
+            .padding(horizontal = 4.dp)
             .verticalScroll(scrollState)
     ) {
         InstitutionalHeader(
@@ -303,10 +303,11 @@ fun AnalysisScreen(
         Card(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(470.dp),
-            shape = RoundedCornerShape(12.dp),
-            colors = CardDefaults.cardColors(containerColor = Color(0xFF0D0E12)),
-            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                .height(520.dp),
+            shape = RoundedCornerShape(8.dp),
+            colors = CardDefaults.cardColors(containerColor = Color.White),
+            border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFE8ECF2)),
+            elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
         ) {
             Box(
                 modifier = Modifier.fillMaxSize(),
@@ -335,7 +336,7 @@ fun AnalysisScreen(
                     onClick = { isFullScreen = true },
                     modifier = Modifier.align(Alignment.BottomEnd).padding(6.dp)
                 ) {
-                    Icon(Icons.Filled.Fullscreen, contentDescription = "Full Screen", tint = Color.Gray)
+                    Icon(Icons.Filled.Fullscreen, contentDescription = "Full Screen", tint = Color(0xFF6B7280))
                 }
             }
         }
@@ -361,12 +362,12 @@ fun IndicatorToggleBar(
             .horizontalScroll(rememberScrollState()),
         horizontalArrangement = Arrangement.spacedBy(6.dp)
     ) {
-        IndicatorPill(label = "EMA 9/20/50/200", active = config.showEMA, activeColor = Color(0xFFFFD600), onClick = onToggleEMA)
-        IndicatorPill(label = "Bollinger (20)", active = config.showBollinger, activeColor = Color(0xFF2979FF), onClick = onToggleBB)
-        IndicatorPill(label = "VWAP", active = config.showVWAP, activeColor = Color(0xFF00E5FF), onClick = onToggleVWAP)
-        IndicatorPill(label = "Volume", active = config.showVolume, activeColor = Color.White, onClick = onToggleVOL)
-        IndicatorPill(label = "RSI (14)", active = config.showRSI, activeColor = Color(0xFFBA68C8), onClick = onToggleRSI)
-        IndicatorPill(label = "MACD", active = config.showMACD, activeColor = Color(0xFF29B6F6), onClick = onToggleMACD)
+        IndicatorPill(label = "EMA 9/20/50/200", active = config.showEMA, activeColor = Color(0xFFE65100), onClick = onToggleEMA)
+        IndicatorPill(label = "Bollinger (20)", active = config.showBollinger, activeColor = Color(0xFF1976D2), onClick = onToggleBB)
+        IndicatorPill(label = "VWAP", active = config.showVWAP, activeColor = Color(0xFF00897B), onClick = onToggleVWAP)
+        IndicatorPill(label = "Volume", active = config.showVolume, activeColor = Color(0xFF455A64), onClick = onToggleVOL)
+        IndicatorPill(label = "RSI (14)", active = config.showRSI, activeColor = Color(0xFF7B1FA2), onClick = onToggleRSI)
+        IndicatorPill(label = "MACD", active = config.showMACD, activeColor = Color(0xFF0288D1), onClick = onToggleMACD)
     }
 }
 
@@ -374,13 +375,13 @@ fun IndicatorToggleBar(
 fun IndicatorPill(label: String, active: Boolean, activeColor: Color, onClick: () -> Unit) {
     Surface(
         shape = RoundedCornerShape(4.dp),
-        color = if (active) activeColor.copy(alpha = 0.2f) else Color(0xFF14161D),
-        border = androidx.compose.foundation.BorderStroke(0.5.dp, if (active) activeColor else Color(0xFF263238)),
+        color = if (active) activeColor.copy(alpha = 0.12f) else Color(0xFFF3F4F6),
+        border = androidx.compose.foundation.BorderStroke(0.5.dp, if (active) activeColor else Color(0xFFE5E7EB)),
         modifier = Modifier.clickable { onClick() }
     ) {
         Text(
             text = label,
-            color = if (active) activeColor else Color.Gray,
+            color = if (active) activeColor else Color(0xFF6B7280),
             fontSize = 9.sp,
             fontWeight = FontWeight.Bold,
             modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp)
@@ -423,7 +424,7 @@ fun InstitutionalHeader(
             Column {
                 Text(
                     text = symbol.uppercase(),
-                    color = MaterialTheme.colorScheme.onBackground,
+                    color = Color(0xFF131722),
                     fontSize = 18.sp,
                     fontWeight = FontWeight.ExtraBold,
                     fontFamily = FontFamily.Monospace
@@ -453,7 +454,7 @@ fun InstitutionalHeader(
                     kotlin.math.abs(change) < 0.001 -> String.format(java.util.Locale.US, "%.7f", change)
                     else -> String.format(java.util.Locale.US, "%.2f", change)
                 }
-                Text(formattedPrice, color = MaterialTheme.colorScheme.onBackground, fontSize = 18.sp, fontWeight = FontWeight.ExtraBold, fontFamily = FontFamily.Monospace)
+                Text(formattedPrice, color = Color(0xFF131722), fontSize = 18.sp, fontWeight = FontWeight.ExtraBold, fontFamily = FontFamily.Monospace)
                 Text("${if(isPositive) "+" else ""}$formattedChange (${if(isPositive) "+" else ""}${"%.2f".format(changePercent)}%)", color = if(isPositive) AppGreen else AppRed, fontSize = 10.5.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace)
             }
         }

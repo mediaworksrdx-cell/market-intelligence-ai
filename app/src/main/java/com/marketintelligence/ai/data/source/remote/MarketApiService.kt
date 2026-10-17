@@ -26,6 +26,9 @@ interface MarketApiService {
     @GET("crypto-prices")
     suspend fun getCryptoPrices(): List<com.marketintelligence.ai.domain.model.CryptoData>
 
+    @GET("macro-data")
+    suspend fun getMacroData(): List<com.marketintelligence.ai.domain.model.MacroData>
+
     @GET("search")
     suspend fun search(@Query("query") query: String): List<SearchResult>
 

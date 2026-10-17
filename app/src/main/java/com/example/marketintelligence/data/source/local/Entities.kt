@@ -16,7 +16,7 @@ data class NotificationEntity(
 data class TransactionEntity(
     @PrimaryKey(autoGenerate = true) val id: Int = 0,
     val symbol: String,
-    val quantity: Int,
+    val quantity: Double,
     val price: Double,
     val type: String, // BUY/SELL
     val timestamp: Long
@@ -25,7 +25,7 @@ data class TransactionEntity(
 @Entity(tableName = "holdings")
 data class HoldingEntity(
     @PrimaryKey val symbol: String,
-    val quantity: Int,
+    val quantity: Double,
     val averagePrice: Double
 )
 

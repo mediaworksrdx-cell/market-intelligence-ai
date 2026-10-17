@@ -10,8 +10,9 @@ class GetHistoricalCandlesUseCase @Inject constructor(
     suspend fun execute(symbol: String, timeframe: String, from: Long, to: Long, type: String): List<Candle> {
         // Ensure data is available in the database
         val remoteCandles = historicalDataOrchestrator.fetchAndStoreHistoricalData(symbol, timeframe, from, to, type)
-        // Load data from the database
+        if (remoteCandles.isNotEmpty()) return remoteCandles
+        // Fallback to locally cached data in the database
         val dbCandles = historicalDataOrchestrator.loadCandlesFromDb(symbol, timeframe, from, to)
-        return if (dbCandles.isNotEmpty()) dbCandles else remoteCandles
+        return dbCandles
     }
 }

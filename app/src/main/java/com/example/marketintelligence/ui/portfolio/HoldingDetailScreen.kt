@@ -48,24 +48,33 @@ fun HoldingDetailScreen(
         )
     }
 
-    val holding = uiState.holdings.find { it.symbol.equals(symbol, ignoreCase = true) } ?: Holding(
-        symbol = symbol,
-        quantity = 0.0,
-        avgPrice = 0.0,
-        investedValue = 0.0,
-        currentValue = 0.0,
-        totalPnl = 0.0,
-        todayPnl = 0.0,
-        market = uiState.selectedMarket
-    )
+    val holding = uiState.allHoldings.find { it.symbol.equals(symbol, ignoreCase = true) }
+        ?: uiState.holdings.find { it.symbol.equals(symbol, ignoreCase = true) }
+        ?: Holding(
+            symbol = symbol,
+            quantity = 0.0,
+            avgPrice = 0.0,
+            investedValue = 0.0,
+            currentValue = 0.0,
+            totalPnl = 0.0,
+            todayPnl = 0.0,
+            market = uiState.selectedMarket,
+            currency = if (symbol.contains("BTC") || symbol.contains("ETH") || symbol.contains("SOL")) "USD" else "INR",
+            currencySymbol = if (symbol.contains("BTC") || symbol.contains("ETH") || symbol.contains("SOL")) "$" else "₹"
+        )
 
     val currentPrice = if (holding.quantity > 0.0) holding.currentValue / holding.quantity else holding.avgPrice
     val pnlPercent = if (holding.investedValue > 0.0) (holding.totalPnl / holding.investedValue) * 100.0 else 0.0
-    val weightPercent = if (uiState.totalCurrentValue > 0.0) (holding.currentValue / uiState.totalCurrentValue) * 100.0 else 0.0
+    val totalCategoryVal = if (holding.currency == "USD") uiState.usdCurrentValue else uiState.inrCurrentValue
+    val weightPercent = if (totalCategoryVal > 0.0) {
+        (holding.currentValue / totalCategoryVal) * 100.0
+    } else 0.0
+
     val totalColor = if (holding.totalPnl >= 0) AppGreen else AppRed
     val totalPrefix = if (holding.totalPnl >= 0) "+" else ""
     val todayColor = if (holding.todayPnl >= 0) AppGreen else AppRed
     val todayPrefix = if (holding.todayPnl >= 0) "+" else ""
+    val currSym = holding.currencySymbol
 
     Column(
         modifier = Modifier
@@ -99,7 +108,7 @@ fun HoldingDetailScreen(
                     fontFamily = FontFamily.Monospace
                 )
                 Text(
-                    "MARKET: ${holding.market.name} • HOLDING PERFORMANCE",
+                    "CATEGORY: ${holding.assetCategory.replace("_", " ")} • CURRENCY: ${holding.currency} ($currSym)",
                     color = colors.onSurfaceVariant,
                     fontSize = 9.sp,
                     fontWeight = FontWeight.Bold
@@ -119,28 +128,41 @@ fun HoldingDetailScreen(
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
                 Text(
-                    "CURRENT VALUATION",
+                    "CURRENT VALUATION (${holding.currency})",
                     color = colors.onSurfaceVariant,
                     fontSize = 9.sp,
                     fontWeight = FontWeight.Bold,
                     letterSpacing = 0.5.sp
                 )
                 Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    "₹${"%,.2f".format(holding.currentValue)}",
-                    color = colors.onSurface,
-                    fontSize = 24.sp,
-                    fontWeight = FontWeight.ExtraBold,
-                    fontFamily = FontFamily.Monospace
-                )
+                Row(verticalAlignment = Alignment.Bottom) {
+                    Text(
+                        "$currSym${"%,.2f".format(holding.currentValue)}",
+                        color = colors.onSurface,
+                        fontSize = 24.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        fontFamily = FontFamily.Monospace
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        holding.currency,
+                        color = colors.onSurfaceVariant,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        fontFamily = FontFamily.Monospace,
+                        modifier = Modifier.padding(bottom = 3.dp)
+                    )
+                }
+
                 Spacer(modifier = Modifier.height(14.dp))
                 HorizontalDivider(color = colors.outline.copy(alpha = 0.2f), thickness = 0.5.dp)
                 Spacer(modifier = Modifier.height(12.dp))
 
+                val qtyFormatted = if (holding.quantity % 1.0 == 0.0) "${holding.quantity.toInt()}" else "${holding.quantity}"
                 Row(modifier = Modifier.fillMaxWidth()) {
-                    DetailMetric("QTY / UNITS", "${holding.quantity}", Modifier.weight(1f))
-                    DetailMetric("AVG PRICE", "₹${"%,.2f".format(holding.avgPrice)}", Modifier.weight(1f))
-                    DetailMetric("LTP (MARKET)", "₹${"%,.2f".format(currentPrice)}", Modifier.weight(1f))
+                    DetailMetric("QTY / UNITS", qtyFormatted, Modifier.weight(1f))
+                    DetailMetric("AVG PRICE", "$currSym${"%,.2f".format(holding.avgPrice)}", Modifier.weight(1f))
+                    DetailMetric("LTP (MARKET)", "$currSym${"%,.2f".format(currentPrice)}", Modifier.weight(1f))
                 }
             }
         }
@@ -168,19 +190,19 @@ fun HoldingDetailScreen(
                 Row(modifier = Modifier.fillMaxWidth()) {
                     DetailMetric(
                         "TOTAL RETURN",
-                        "$totalPrefix₹${"%,.2f".format(holding.totalPnl)}\n($totalPrefix${"%.2f".format(pnlPercent)}%)",
+                        "$totalPrefix$currSym${"%,.2f".format(holding.totalPnl)}\n($totalPrefix${"%.2f".format(pnlPercent)}%)",
                         Modifier.weight(1f),
                         totalColor
                     )
                     DetailMetric(
                         "DAY'S P&L",
-                        "$todayPrefix₹${"%,.2f".format(holding.todayPnl)}",
+                        "$todayPrefix$currSym${"%,.2f".format(holding.todayPnl)}",
                         Modifier.weight(1f),
                         todayColor
                     )
                     DetailMetric(
                         "INVESTED BASIS",
-                        "₹${"%,.2f".format(holding.investedValue)}",
+                        "$currSym${"%,.2f".format(holding.investedValue)}",
                         Modifier.weight(1f)
                     )
                 }
@@ -201,7 +223,7 @@ fun HoldingDetailScreen(
                         fontWeight = FontWeight.Bold
                     )
                     Text(
-                        "${"%.2f".format(weightPercent)}% OF TOTAL",
+                        "${"%.2f".format(weightPercent)}% OF ${if (holding.currency == "USD") "USD" else "INR"} HOLDINGS",
                         color = colors.primary,
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Bold,
@@ -222,58 +244,67 @@ fun HoldingDetailScreen(
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        // Action: View Chart
+        // Action Buttons: Deep Dive Analysis & Liquidate
         Button(
             onClick = { onNavigateToAnalysis(holding.symbol) },
-            modifier = Modifier.fillMaxWidth(),
-            colors = ButtonDefaults.buttonColors(containerColor = colors.primary),
-            shape = RoundedCornerShape(8.dp)
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(44.dp),
+            shape = RoundedCornerShape(8.dp),
+            colors = ButtonDefaults.buttonColors(containerColor = colors.primary)
         ) {
-            Icon(Icons.Default.ShowChart, contentDescription = null, modifier = Modifier.size(18.dp))
+            Icon(Icons.Default.ShowChart, contentDescription = null, modifier = Modifier.size(16.dp))
             Spacer(modifier = Modifier.width(8.dp))
             Text(
-                "OPEN ADVANCED CHART & AI SCAN",
-                color = colors.onPrimary,
-                fontSize = 11.sp,
-                fontWeight = FontWeight.Bold
+                "OPEN TECHNICAL & QUANT CHARTS",
+                fontWeight = FontWeight.Bold,
+                fontSize = 11.sp
             )
         }
 
         Spacer(modifier = Modifier.height(10.dp))
 
-        // Action: Liquidate
-        if (holding.quantity > 0.0) {
-            OutlinedButton(
-                onClick = { viewModel.requestLiquidateAsset(holding.symbol) },
-                modifier = Modifier.fillMaxWidth(),
-                colors = ButtonDefaults.outlinedButtonColors(contentColor = AppRed),
-                border = androidx.compose.foundation.BorderStroke(1.dp, AppRed.copy(alpha = 0.5f)),
-                shape = RoundedCornerShape(8.dp)
-            ) {
-                Text(
-                    "LIQUIDATE POSITION",
-                    color = AppRed,
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Bold
-                )
-            }
+        OutlinedButton(
+            onClick = { viewModel.requestLiquidateAsset(holding.symbol) },
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(44.dp),
+            shape = RoundedCornerShape(8.dp),
+            colors = ButtonDefaults.outlinedButtonColors(contentColor = AppRed),
+            border = androidx.compose.foundation.BorderStroke(1.dp, AppRed.copy(alpha = 0.5f))
+        ) {
+            Text(
+                "LIQUIDATE / CLOSE POSITION",
+                fontWeight = FontWeight.Bold,
+                fontSize = 11.sp
+            )
         }
     }
 }
 
 @Composable
-fun DetailMetric(label: String, value: String, modifier: Modifier, valueColor: Color = Color.Unspecified) {
+private fun DetailMetric(
+    label: String,
+    value: String,
+    modifier: Modifier = Modifier,
+    valueColor: Color = Color.Unspecified
+) {
     val colors = MaterialTheme.colorScheme
     Column(modifier = modifier) {
-        Text(label, color = colors.onSurfaceVariant, fontSize = 8.sp, fontWeight = FontWeight.Bold)
+        Text(
+            label,
+            color = colors.onSurfaceVariant,
+            fontSize = 7.5.sp,
+            fontWeight = FontWeight.Bold
+        )
         Spacer(modifier = Modifier.height(2.dp))
         Text(
             value,
             color = if (valueColor != Color.Unspecified) valueColor else colors.onSurface,
-            fontSize = 12.sp,
             fontWeight = FontWeight.Bold,
+            fontSize = 11.sp,
             fontFamily = FontFamily.Monospace,
-            lineHeight = 15.sp
+            lineHeight = 14.sp
         )
     }
 }

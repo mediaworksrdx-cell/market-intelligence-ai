@@ -40,6 +40,9 @@ object AppConfig {
     // --- Massive / Polygon API Credentials --- //
     val massiveApiKey: String = properties.getProperty("MASSIVE_API_KEY", System.getenv("MASSIVE_API_KEY") ?: "Lcz6VOZUXzeoxZghYy3V3FfgATTdpyvm")
 
+    // --- Twelve Data API Credentials (for US Stocks & Index EOD Data) --- //
+    val twelveDataApiKey: String = properties.getProperty("TWELVE_DATA_API_KEY", properties.getProperty("TD_API_KEY", System.getenv("TWELVE_DATA_API_KEY") ?: "3c6252df98714218a5e24b09be3c6ad4"))
+
     // --- Instruments to Track (Token to Symbol Map) --- //
     val symbolMap = mapOf(
         256265L to "NIFTY 50",

@@ -122,13 +122,17 @@ class FnoViewModel @Inject constructor(
         val coveringCount = initialBuildup.count { it.buildupType == BuildupType.SHORT_COVERING }
         val unwindingCount = initialBuildup.count { it.buildupType == BuildupType.LONG_UNWINDING }
 
+        val initialExpiries = generateAvailableExpiries()
         _uiState.update {
             it.copy(
                 buildupStocks = initialBuildup,
                 longBuildupCount = longCount,
                 shortBuildupCount = shortCount,
                 shortCoveringCount = coveringCount,
-                longUnwindingCount = unwindingCount
+                longUnwindingCount = unwindingCount,
+                availableExpiries = initialExpiries,
+                selectedExpiry = initialExpiries.firstOrNull() ?: "",
+                lotSize = getLotSize(it.selectedAsset)
             )
         }
 
@@ -286,7 +290,7 @@ class FnoViewModel @Inject constructor(
         _uiState.update { it.copy(selectedCategory = category) }
     }
 
-    private fun getUpcomingExpiry(weeksAhead: Int = 0): String {
+    fun getUpcomingExpiry(weeksAhead: Int = 0): String {
         val calendar = Calendar.getInstance()
         var daysToAdd = (Calendar.THURSDAY - calendar.get(Calendar.DAY_OF_WEEK) + 7) % 7
         if (daysToAdd == 0 && calendar.get(Calendar.HOUR_OF_DAY) >= 15) {
@@ -296,11 +300,11 @@ class FnoViewModel @Inject constructor(
         val day = calendar.get(Calendar.DAY_OF_MONTH).toString().padStart(2, '0')
         val monthNames = arrayOf("JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC")
         val month = monthNames[calendar.get(Calendar.MONTH)]
-        val year = (calendar.get(Calendar.YEAR) % 100).toString().padStart(2, '0')
-        return "$day$month$year"
+        val year = calendar.get(Calendar.YEAR).toString()
+        return "$day $month $year"
     }
 
-    private fun getUpcomingMonthlyExpiry(monthsAhead: Int = 0): String {
+    fun getUpcomingMonthlyExpiry(monthsAhead: Int = 0): String {
         val calendar = Calendar.getInstance()
         if (monthsAhead > 0) {
             calendar.add(Calendar.MONTH, monthsAhead)
@@ -312,33 +316,122 @@ class FnoViewModel @Inject constructor(
         val day = calendar.get(Calendar.DAY_OF_MONTH).toString().padStart(2, '0')
         val monthNames = arrayOf("JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC")
         val month = monthNames[calendar.get(Calendar.MONTH)]
-        val year = (calendar.get(Calendar.YEAR) % 100).toString().padStart(2, '0')
-        return "$day$month$year"
+        val year = calendar.get(Calendar.YEAR).toString()
+        return "$day $month $year"
+    }
+
+    fun generateAvailableExpiries(): List<String> {
+        val expiries = linkedSetOf<String>()
+        for (w in 0..3) {
+            expiries.add(getUpcomingExpiry(w))
+        }
+        for (m in 0..2) {
+            expiries.add(getUpcomingMonthlyExpiry(m))
+        }
+        return expiries.toList()
+    }
+
+    fun setStrategyExpiry(expiry: String) {
+        _uiState.update { state ->
+            val updatedLegs = state.activeLegs.map { leg ->
+                leg.copy(expiry = expiry)
+            }
+            state.copy(selectedExpiry = expiry, activeLegs = updatedLegs)
+        }
+        recalculateLivePnlAndMetrics()
+    }
+
+    fun updateLegExpiry(legId: String, expiry: String) {
+        _uiState.update { state ->
+            val updatedLegs = state.activeLegs.map { leg ->
+                if (leg.id == legId) leg.copy(expiry = expiry) else leg
+            }
+            state.copy(activeLegs = updatedLegs)
+        }
+        recalculateLivePnlAndMetrics()
+    }
+
+    fun setNumberOfLots(lots: Int) {
+        val validLots = max(1, lots)
+        val baseLot = getLotSize(_uiState.value.selectedAsset)
+        _uiState.update { state ->
+            val prevLots = state.numberOfLots.coerceAtLeast(1)
+            val updatedLegs = state.activeLegs.map { leg ->
+                val ratio = max(1, leg.qty / (baseLot * prevLots).coerceAtLeast(1))
+                val newQty = ratio * validLots * baseLot
+                leg.copy(qty = newQty, lots = validLots, lotSize = baseLot)
+            }
+            state.copy(numberOfLots = validLots, activeLegs = updatedLegs)
+        }
+        recalculateLivePnlAndMetrics()
     }
 
     fun getLotSize(symbol: String): Int {
-        val s = symbol.uppercase()
+        val s = symbol.uppercase().trim().removeSuffix(".NS").removeSuffix(".BO").replace("-", "").replace(" ", "")
         return when {
             s.contains("BANKNIFTY") -> 15
-            s.contains("NIFTY") && !s.contains("BANK") && !s.contains("FIN") -> 25
             s.contains("FINNIFTY") -> 40
+            s.contains("MIDCPNIFTY") -> 75
+            s.contains("NIFTY") -> 65 // REQUIRED: NIFTY lot size is 65
             s.contains("SENSEX") -> 10
+            s.contains("BANKEX") -> 15
+            // Global US Indices & Equities (Standard US Option contract lot size is 100 shares)
+            s.contains("SPX") || s.contains("SP500") -> 100
+            s.contains("NDX") || s.contains("QQQ") || s.contains("NASDAQ") -> 100
+            s.contains("DJI") || s.contains("DOW") -> 100
+            s.contains("AAPL") || s.contains("NVDA") || s.contains("MSFT") ||
+            s.contains("GOOG") || s.contains("AMZN") || s.contains("TSLA") || s.contains("META") -> 100
+            // UAE Indices & Equities
+            s.contains("DFMGI") || s.contains("ADX") -> 100
+            s.contains("EMAAR") || s.contains("FAB") || s.contains("DEWA") || s.contains("ALDAR") -> 100
+            // European & Global Indices
+            s.contains("FTSE") || s.contains("DAX") || s.contains("NIKKEI") || s.contains("HSI") -> 100
+            // Commodities
+            s.contains("GOLD") || s.contains("XAU") -> 100
+            s.contains("SILVER") || s.contains("XAG") -> 30
+            s.contains("CRUDE") || s.contains("WTI") || s.contains("BRENT") -> 100
+            s.contains("NATURALGAS") || s.contains("NATGAS") -> 1250
+            // Cryptocurrencies (Standard 1 unit)
+            s in listOf("BTC", "ETH", "SOL", "BNB", "DOGE", "XRP") ||
+            s.contains("BTC") || s.contains("ETH") || s.contains("SOL") -> 1
+            // Indian Stocks
             s.contains("RELIANCE") -> 250
             s.contains("HDFCBANK") -> 550
             s.contains("TCS") -> 175
             s.contains("ICICIBANK") -> 700
             s.contains("SBIN") -> 750
             s.contains("INFY") -> 400
-            s.contains("SPX") || s.contains("DFMGI") -> 1
-            else -> 50
+            s.contains("TATASTEEL") -> 5500
+            s.contains("TATAMOTORS") -> 1425
+            s.contains("ITC") -> 1600
+            s.contains("LT") -> 150
+            s.contains("AXISBANK") -> 625
+            s.contains("KOTAKBANK") -> 400
+            s.contains("WIPRO") -> 1500
+            s.contains("MARUTI") -> 50
+            s.contains("BAJFINANCE") -> 125
+            s.contains("BHARTIARTL") -> 475
+            else -> 65
         }
     }
 
     fun getStrikeStepForSymbol(symbol: String, spot: Double): Double {
-        val s = symbol.uppercase()
+        val s = symbol.uppercase().trim().removeSuffix(".NS").removeSuffix(".BO").replace("-", "").replace(" ", "")
         return when {
             s.contains("BANKNIFTY") || s.contains("SENSEX") -> 100.0
             s.contains("NIFTY") || s.contains("FINNIFTY") -> 50.0
+            s.contains("MIDCPNIFTY") -> 25.0
+            s.contains("SPX") || s.contains("SP500") -> 25.0
+            s.contains("NDX") || s.contains("QQQ") || s.contains("NASDAQ") -> 50.0
+            s.contains("DJI") || s.contains("DOW") || s.contains("NIKKEI") -> 100.0
+            s.contains("DFMGI") || s.contains("ADX") || s.contains("FTSE") || s.contains("DAX") -> 25.0
+            s.contains("BTC") -> 500.0
+            s.contains("ETH") -> 50.0
+            s.contains("SOL") -> 5.0
+            s.contains("GOLD") -> 10.0
+            s.contains("SILVER") -> 0.5
+            s.contains("CRUDE") -> 1.0
+            s.contains("TATASTEEL") -> 2.5
             s.contains("TCS") -> 50.0
             s.contains("RELIANCE") || s.contains("INFY") || s.contains("ICICIBANK") -> 20.0
             s.contains("SBIN") || s.contains("HDFCBANK") -> 10.0
@@ -352,10 +445,11 @@ class FnoViewModel @Inject constructor(
 
     fun selectPredefinedStrategy(strategyName: String) {
         val spot = _uiState.value.spotPrice
-        val nearExpiry = getUpcomingExpiry(0)
-        val nextExpiry = getUpcomingMonthlyExpiry(1)
+        val nearExpiry = _uiState.value.selectedExpiry.ifBlank { getUpcomingExpiry(0) }
+        val nextExpiry = _uiState.value.availableExpiries.getOrNull(3) ?: getUpcomingMonthlyExpiry(1)
         val step = _uiState.value.strikeStep
-        val lot = getLotSize(_uiState.value.selectedAsset)
+        val baseLot = getLotSize(_uiState.value.selectedAsset)
+        val lot = baseLot * _uiState.value.numberOfLots
         
         val legs = when(strategyName) {
             // --- BULLISH STRATEGIES ---
@@ -509,7 +603,27 @@ class FnoViewModel @Inject constructor(
         _uiState.update { it.copy(customStrategyName = name) }
     }
     
-    private fun createLeg(type: String, instrument: String, strike: Double, expiry: String, qty: Int = getLotSize(_uiState.value.selectedAsset)): StrategyLeg {
+    fun calculateMoneyness(strike: Double, spotPrice: Double, instrument: String, strikeStep: Double = 50.0): String {
+        if (instrument.equals("FUT", ignoreCase = true)) return "FUT"
+        val halfStep = (strikeStep / 2.0).coerceAtLeast(0.5)
+        val isAtm = abs(strike - spotPrice) <= halfStep
+        if (isAtm) return "ATM"
+        val isCall = instrument.equals("CALL", ignoreCase = true) || instrument.equals("CE", ignoreCase = true)
+        return if (isCall) {
+            if (strike < spotPrice) "ITM" else "OTM"
+        } else {
+            if (strike > spotPrice) "ITM" else "OTM"
+        }
+    }
+
+    private fun createLeg(
+        type: String,
+        instrument: String,
+        strike: Double,
+        expiry: String = _uiState.value.selectedExpiry.ifBlank { getUpcomingExpiry(0) },
+        qty: Int = getLotSize(_uiState.value.selectedAsset) * _uiState.value.numberOfLots,
+        underlying: String = _uiState.value.selectedAsset
+    ): StrategyLeg {
         val spot = _uiState.value.spotPrice
         val currentIv = (_uiState.value.summary.iv).coerceAtLeast(5.0) / 100.0
         val timeYears = 5.0 / 365.0
@@ -527,6 +641,9 @@ class FnoViewModel @Inject constructor(
             )
             round(max(0.5, g.price) * 100.0) / 100.0
         }
+        val baseLot = getLotSize(underlying)
+        val lots = max(1, qty / baseLot.coerceAtLeast(1))
+        val moneyness = calculateMoneyness(strike, spot, instrument, _uiState.value.strikeStep)
         return StrategyLeg(
             id = UUID.randomUUID().toString(),
             type = type,
@@ -535,13 +652,20 @@ class FnoViewModel @Inject constructor(
             expiry = expiry,
             qty = qty,
             entryPrice = entry,
-            currentPrice = entry
+            currentPrice = entry,
+            lotSize = baseLot,
+            lots = lots,
+            underlying = underlying,
+            moneyness = moneyness
         )
     }
 
-    fun addLeg(instrument: String, type: String, strike: Double) {
-        val lot = getLotSize(_uiState.value.selectedAsset)
-        val newLeg = createLeg(type, instrument, strike, getUpcomingExpiry(0), qty = lot)
+    fun addLeg(instrument: String, type: String, strike: Double, expiry: String? = null) {
+        val underlying = _uiState.value.selectedAsset
+        val baseLot = getLotSize(underlying)
+        val totalQty = baseLot * _uiState.value.numberOfLots
+        val legExpiry = expiry?.ifBlank { null } ?: _uiState.value.selectedExpiry.ifBlank { getUpcomingExpiry(0) }
+        val newLeg = createLeg(type, instrument, strike, legExpiry, qty = totalQty, underlying = underlying)
         _uiState.update { it.copy(activeLegs = it.activeLegs + newLeg) }
         recalculateLivePnlAndMetrics()
     }
@@ -675,12 +799,23 @@ class FnoViewModel @Inject constructor(
 
         val totalPnlPct = if (abs(netPrem) > 0.01) (totalPnl / abs(netPrem)) * 100.0 else 0.0
 
+        val hasShortLegs = state.activeLegs.any { it.type.equals("SELL", ignoreCase = true) }
+        val capReq = if (!hasShortLegs) {
+            max(0.0, netPrem)
+        } else {
+            val shortQty = state.activeLegs.filter { it.type.equals("SELL", ignoreCase = true) }.sumOf { it.qty }
+            val baseMargin = shortQty * (state.spotPrice * 0.12)
+            val netDebitOutlay = if (netPrem > 0.0) netPrem else 0.0
+            baseMargin + netDebitOutlay
+        }
+
         _uiState.update {
             it.copy(
                 totalStrategyPnl = round(totalPnl * 10.0) / 10.0,
                 totalStrategyPnlPct = round(totalPnlPct * 10.0) / 10.0,
                 netPremium = round(netPrem * 10.0) / 10.0,
-                currentStrategyValue = round(currentVal * 10.0) / 10.0
+                currentStrategyValue = round(currentVal * 10.0) / 10.0,
+                capitalRequired = round(capReq * 10.0) / 10.0
             )
         }
 
@@ -1040,10 +1175,20 @@ class FnoViewModel @Inject constructor(
                 breakeven = breakevens,
                 probability = (prob * 10).toInt() / 10.0,
                 roi = if (abs(maxLossValue) > 1.0) abs(maxProfitValue / maxLossValue) * 100 else 0.0,
-                legs = state.activeLegs.map { l -> val b = baseLot.toInt(); "${if (b > 0 && l.qty > b) "${l.qty / b}x " else ""}${l.type} ${l.strike.toInt()} ${l.instrument}" },
+                legs = state.activeLegs.map { l ->
+                    val b = if (l.lotSize > 0) l.lotSize else baseLot.toInt()
+                    val lotsMultiplier = if (b > 0 && l.qty > b) "${l.qty / b}x " else ""
+                    val mStr = if (l.moneyness.isNotBlank()) " [${l.moneyness}]" else ""
+                    "$lotsMultiplier${l.type} ${l.strike.toInt()} ${l.instrument}$mStr"
+                },
                 payoffPoints = expiryPoints,
                 todayPayoffPoints = todayPoints,
-                rawLegs = state.activeLegs
+                rawLegs = state.activeLegs,
+                expiry = state.selectedExpiry.ifBlank { state.activeLegs.firstOrNull()?.expiry ?: getUpcomingExpiry(0) },
+                lotSize = baseLot.toInt(),
+                lots = state.numberOfLots,
+                capitalRequired = state.capitalRequired,
+                underlying = state.selectedAsset
             ),
             strategyGreeks = Greeks(
                 delta = (portfolioDelta * 100).toInt() / 100.0,
@@ -1215,10 +1360,16 @@ class FnoViewModel @Inject constructor(
             )
             intelligenceBus.postFnoSignal(signal)
 
+            val expiries = generateAvailableExpiries()
+            val selectedExp = expiries.firstOrNull() ?: getUpcomingExpiry(0)
+
             _uiState.update { it.copy(
                 isLoading = false,
                 spotPrice = spot,
                 strikeStep = strikeStep,
+                lotSize = lotSize,
+                availableExpiries = expiries,
+                selectedExpiry = if (it.selectedExpiry.isBlank() || !expiries.contains(it.selectedExpiry)) selectedExp else it.selectedExpiry,
                 optionChain = domainChain,
                 summary = FnoSummary(
                     changePercent = liveChangePct,

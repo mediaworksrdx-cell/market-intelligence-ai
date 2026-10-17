@@ -462,24 +462,20 @@ fun main() {
                     return@get
                 }
 
-                // ── 2. US Equities & Indices ──
+                // ── 2. US Equities & Indices (Twelve Data EOD Integration) ──
                 val isUsMarket = type.equals("US", ignoreCase = true) ||
-                        cleanUpperSymbol in listOf("SPX", "NDX", "DJI", "AAPL", "TSLA", "NVDA", "MSFT", "AMZN", "GOOGL", "META")
+                        cleanUpperSymbol in TwelveDataClient.supportedSymbols ||
+                        cleanUpperSymbol in listOf("SPX", "NDX", "DJI", "AAPL", "TSLA", "NVDA", "MSFT", "AMZN", "GOOGL", "META", "SPY", "QQQ", "DIA", "IWM")
 
                 if (isUsMarket) {
-                    val usBasePrice = when (cleanUpperSymbol) {
-                        "SPX" -> 5500.0
-                        "NDX" -> 19200.0
-                        "DJI" -> 39500.0
-                        "AAPL" -> 225.0
-                        "TSLA" -> 210.0
-                        "NVDA" -> 118.0
-                        "MSFT" -> 420.0
-                        "AMZN" -> 175.0
-                        "GOOGL" -> 165.0
-                        "META" -> 495.0
-                        else -> 200.0
+                    val twelveCandles = TwelveDataClient.getDailyCandles(cleanUpperSymbol)
+                    if (twelveCandles.isNotEmpty()) {
+                        candleService.addCandles(symbol, timeframe, twelveCandles)
+                        call.respond(twelveCandles)
+                        return@get
                     }
+
+                    val usBasePrice = TwelveDataClient.getFallbackPrice(cleanUpperSymbol)
                     val usCandles = generateFallbackCandles(symbol, timeframe, usBasePrice)
                     candleService.addCandles(symbol, timeframe, usCandles)
                     call.respond(usCandles)
@@ -571,14 +567,7 @@ fun main() {
                 call.respond(tickCache.values.toList())
             }
             get("/macro-data") {
-                val macroData = listOf(
-                    MacroData("DXY", "104.20"),
-                    MacroData("XAU/USD", "2150.50"),
-                    MacroData("XAG/USD", "24.80"),
-                    MacroData("US10Y", "4.25%"),
-                    MacroData("BRENT", "82.50"),
-                    MacroData("VIX", "13.40")
-                )
+                val macroData = TwelveDataClient.getLiveMacroData()
                 call.respond(macroData)
             }
             get("/crypto-prices") {
@@ -727,6 +716,23 @@ fun main() {
                 } catch (e: Exception) {
                     logger.error("Error fetching Coingecko OHLC: ${e.message}", e)
                     call.respond(HttpStatusCode.InternalServerError, ErrorResponse(e.message ?: "Failed to fetch OHLC"))
+                }
+            }
+
+            // ── Twelve Data US Equities & Indices EOD ──
+            get("/us/eod") {
+                val symbol = call.request.queryParameters["symbol"] ?: return@get call.respond(HttpStatusCode.BadRequest, ErrorResponse("Missing symbol"))
+                val candles = TwelveDataClient.getDailyCandles(symbol)
+                call.respond(candles)
+            }
+
+            get("/us/quote") {
+                val symbol = call.request.queryParameters["symbol"] ?: return@get call.respond(HttpStatusCode.BadRequest, ErrorResponse("Missing symbol"))
+                val quote = TwelveDataClient.getQuote(symbol)
+                if (quote != null) {
+                    call.respond(quote)
+                } else {
+                    call.respond(HttpStatusCode.NotFound, ErrorResponse("Quote not found"))
                 }
             }
 

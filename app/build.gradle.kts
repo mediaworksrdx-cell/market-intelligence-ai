@@ -87,6 +87,10 @@ android {
         exclude("org/apache/commons/codec/language/bm/gen_approx_greeklatin.txt")
     }
 
+    testOptions {
+        unitTests.isReturnDefaultValues = true
+    }
+
     lint {
         checkReleaseBuilds = false
         abortOnError = false

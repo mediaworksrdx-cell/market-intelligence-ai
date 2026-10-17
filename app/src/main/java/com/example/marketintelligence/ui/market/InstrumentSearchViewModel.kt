@@ -100,13 +100,36 @@ class InstrumentSearchViewModel @Inject constructor(
         SearchResult("AVAX", "Avalanche", "CRYPTO")
     )
 
+    // User's added instruments across all types
+    private val userAddedInstruments: Flow<List<SearchResult>> = combine(
+        marketRepository.getIndices(),
+        marketRepository.getWatchlist(),
+        marketRepository.getCryptos()
+    ) { indices, stocks, cryptos ->
+        val list = mutableListOf<SearchResult>()
+        // Stocks added to Watchlist
+        stocks.forEach { list.add(SearchResult(it.symbol, it.name, "STOCK")) }
+        // Core Indices
+        indices.forEach { list.add(SearchResult(it.symbol, it.name, "INDEX")) }
+        // Cryptos
+        cryptos.forEach { list.add(SearchResult(it.symbol, it.name, "CRYPTO")) }
+        list
+    }
+
     // Filtered search results based on query & category
     val searchResults: StateFlow<List<SearchResult>> = combine(
         _rawResults,
         _searchQuery,
-        _selectedCategory
-    ) { raw, query, category ->
-        val sourceList = if (query.isBlank()) defaultSuggestions else raw
+        _selectedCategory,
+        userAddedInstruments
+    ) { raw, query, category, userAdded ->
+        val sourceList = if (query.isBlank()) {
+            val userSymbols = userAdded.map { it.symbol.uppercase() }.toSet()
+            val remainingSuggestions = defaultSuggestions.filterNot { userSymbols.contains(it.symbol.uppercase()) }
+            userAdded + remainingSuggestions
+        } else {
+            raw
+        }
         if (category == "ALL") {
             sourceList
         } else {

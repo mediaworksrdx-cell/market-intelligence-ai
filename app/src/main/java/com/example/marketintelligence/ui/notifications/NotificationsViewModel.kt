@@ -33,6 +33,10 @@ class NotificationsViewModel @Inject constructor(
         notificationRepository.markAllAsRead()
     }
 
+    fun markAsRead(id: String) {
+        notificationRepository.markAsRead(id)
+    }
+
     fun dismissNotification(id: String) {
         notificationRepository.dismissNotification(id)
     }

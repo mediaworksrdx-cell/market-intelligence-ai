@@ -84,6 +84,18 @@ class MarketViewModel @Inject constructor(
         viewModelScope.launch {
             startPollingCryptoPrices()
         }
+
+        // Fetch live macro ticker data for Hub
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val macro = marketRepository.getMacroData()
+                if (macro.isNotEmpty()) {
+                    _uiState.update { it.copy(macroData = macro) }
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to load macro data", e)
+            }
+        }
     }
 
     fun startListeningForLivePrices() {

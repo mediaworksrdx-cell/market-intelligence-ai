@@ -40,8 +40,11 @@ fun DrawScope.drawCurrentPriceLineLayer(
     val chartWidth = size.width - rightMargin
     if (chartWidth <= 0f) return
 
+    // Only draw real-time guideline when current price is within visible chart bounds
+    if (currentPrice < priceMin || currentPrice > priceMax) return
+
     val isBullish = currentPrice >= currentCandle.open
-    val accentColor = if (isBullish) Color(0xFF00E676) else Color(0xFFFF1744)
+    val accentColor = if (isBullish) Color(0xFF089981) else Color(0xFFF23645)
 
     // Calculate Y on canvas (inverted: higher price = lower y)
     val rawY = chartAreaHeight - ((currentPrice - priceMin) / priceRange * chartAreaHeight).toFloat()
@@ -49,10 +52,10 @@ fun DrawScope.drawCurrentPriceLineLayer(
 
     // 1. Soft glow halo line across the chart
     drawLine(
-        color = accentColor.copy(alpha = 0.28f),
+        color = accentColor.copy(alpha = 0.20f),
         start = Offset(0f, clampedY),
         end = Offset(chartWidth, clampedY),
-        strokeWidth = 3.5.dp.toPx()
+        strokeWidth = 3.dp.toPx()
     )
 
     // 2. Core horizontal dashed guideline across the chart
@@ -61,13 +64,13 @@ fun DrawScope.drawCurrentPriceLineLayer(
         color = accentColor,
         start = Offset(0f, clampedY),
         end = Offset(chartWidth, clampedY),
-        strokeWidth = 1.6.dp.toPx(),
+        strokeWidth = 1.5.dp.toPx(),
         pathEffect = dashEffect
     )
 
     // 3. Right-Axis High-Visibility Pill Badge
     val priceStr = formatPrice(currentPrice)
-    val textColor = if (isBullish) Color.Black else Color.White
+    val textColor = Color.White
     val priceTextStyle = TextStyle(
         color = textColor,
         fontSize = 9.sp,

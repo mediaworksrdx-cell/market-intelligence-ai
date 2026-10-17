@@ -15,7 +15,7 @@ data class ChartState(
     val activeDrawingTool: DrawingToolType = DrawingToolType.NONE,
     val currentDrawing: DrawingData? = null,
     val selectedDrawingId: String? = null,
-    val cursorMode: CursorMode = CursorMode.HAND,
+    val cursorMode: CursorMode = CursorMode.CROSSHAIR,
     val showVolume: Boolean = true,
     val showGrid: Boolean = true,
 
@@ -29,12 +29,16 @@ data class ChartState(
     val showSmcOverlay: Boolean = true,
     val showStrategyOverlay: Boolean = false,
 
-    // Computed indicator data (cached for performance)
-    val indicatorResults: Map<IndicatorType, Any> = emptyMap(),
+    // Computed indicator data (cached for performance, mapped by indicator config id & type)
+    val indicatorResults: Map<String, Any> = emptyMap(),
     
     val drawingHistory: MutableList<List<DrawingData>> = mutableListOf(),
     val redoStack: MutableList<List<DrawingData>> = mutableListOf()
 ) {
+    fun getIndicatorResult(config: IndicatorConfig): Any? {
+        return indicatorResults[config.id] ?: indicatorResults[config.type.name]
+    }
+
     val hasOverlayIndicators: Boolean
         get() = activeIndicators.any { it.type.isOverlay && it.enabled }
 

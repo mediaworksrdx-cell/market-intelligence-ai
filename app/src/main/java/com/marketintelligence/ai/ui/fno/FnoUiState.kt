@@ -15,6 +15,9 @@ data class FnoUiState(
     
     // 2. Options Study
     val optionChain: OptionChain? = null,
+    val selectedStrikeForDetail: OptionChainData? = null,
+    val selectedOptionSide: String? = null,
+    val strikeChartState: StrikeChartState = StrikeChartState(),
     val maxPainHistory: List<Double> = emptyList(),
     val ivHistory: List<Double> = emptyList(),
     val gexProfile: com.example.marketintelligence.domain.engine.GexProfile? = null,
@@ -38,6 +41,11 @@ data class FnoUiState(
     val totalStrategyPnlPct: Double = 0.0,
     val netPremium: Double = 0.0,
     val currentStrategyValue: Double = 0.0,
+    val selectedExpiry: String = "",
+    val availableExpiries: List<String> = emptyList(),
+    val lotSize: Int = 65,
+    val numberOfLots: Int = 1,
+    val capitalRequired: Double = 0.0,
     val strikeStep: Double = 50.0,
     val isLiveConnected: Boolean = true,
 
@@ -90,3 +98,21 @@ data class HeatmapItem(
     val changePercent: Double,
     val weight: Float
 )
+
+data class StrikeChartState(
+    val assetSymbol: String = "",
+    val strikePrice: Double = 0.0,
+    val optionType: String = "CE", // "CE" or "PE"
+    val expiry: String = "",
+    val contractDisplayName: String = "",
+    val ltp: Double = 0.0,
+    val changePercent: Double = 0.0,
+    val iv: Double = 0.0,
+    val oi: Double = 0.0,
+    val greeks: Greeks = Greeks(0.0, 0.0, 0.0, 0.0),
+    val candles: List<com.marketintelligence.tradeengine.models.Candle> = emptyList(),
+    val selectedTimeframe: String = "5m",
+    val isLoading: Boolean = false,
+    val error: String? = null
+)
+

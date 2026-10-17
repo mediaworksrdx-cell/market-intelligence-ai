@@ -6,8 +6,17 @@ object IndicatorCalculations {
 
     fun calculateSMA(candles: List<Candle>, period: Int): IndicatorOutput {
         val smaValues = mutableMapOf<Long, List<Float?>>()
-        for (i in period - 1 until candles.size) {
-            val avg = candles.subList(i - period + 1, i + 1).map { it.close }.average().toFloat()
+        if (candles.isEmpty()) return IndicatorOutput(smaValues)
+        val p = period.coerceAtLeast(1)
+        if (candles.size < p) {
+            for (i in candles.indices) {
+                val avg = candles.subList(0, i + 1).map { it.close }.average().toFloat()
+                smaValues[candles[i].openTime] = listOf(avg)
+            }
+            return IndicatorOutput(smaValues)
+        }
+        for (i in p - 1 until candles.size) {
+            val avg = candles.subList(i - p + 1, i + 1).map { it.close }.average().toFloat()
             smaValues[candles[i].openTime] = listOf(avg)
         }
         return IndicatorOutput(smaValues)
@@ -31,10 +40,12 @@ object IndicatorCalculations {
 
     fun calculateBollingerBands(candles: List<Candle>, period: Int, multiplier: Double): IndicatorOutput {
         val bbValues = mutableMapOf<Long, List<Float?>>()
-        if (candles.size < period) return IndicatorOutput(bbValues)
+        if (candles.isEmpty()) return IndicatorOutput(bbValues)
+        val p = period.coerceIn(1, candles.size)
 
-        for (i in period - 1 until candles.size) {
-            val sublist = candles.subList(i - period + 1, i + 1)
+        for (i in 0 until candles.size) {
+            val window = minOf(p, i + 1)
+            val sublist = candles.subList(i - window + 1, i + 1)
             val sma = sublist.map { it.close }.average().toFloat()
             val stdDev = kotlin.math.sqrt(sublist.map { (it.close - sma) * (it.close - sma) }.average().toFloat()).toFloat()
             val upperBand = sma + stdDev * multiplier.toFloat()

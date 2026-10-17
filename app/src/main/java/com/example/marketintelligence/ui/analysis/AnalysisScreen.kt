@@ -3,6 +3,7 @@ package com.example.marketintelligence.ui.analysis
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
@@ -15,6 +16,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -25,6 +27,7 @@ import androidx.compose.ui.window.DialogProperties
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.marketintelligence.domain.engine.EngineRouter
 import com.example.marketintelligence.domain.model.StockData
+import com.example.marketintelligence.domain.chart.DrawingToolType
 import com.example.marketintelligence.ui.chart.*
 import com.example.marketintelligence.ui.market.MarketViewModel
 import com.example.marketintelligence.ui.theme.AppGreen
@@ -34,14 +37,11 @@ import com.example.marketintelligence.ui.theme.AppRed
 fun AnalysisScreen(
     viewModel: AnalysisViewModel = hiltViewModel(),
     marketViewModel: MarketViewModel = hiltViewModel(),
-    engineRouter: EngineRouter
+    engineRouter: EngineRouter? = null
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val marketUiState by marketViewModel.uiState.collectAsState()
-    val _activeChartEngine by engineRouter.activeChartEngine.collectAsState(initial = null)
     var isFullScreen by remember { mutableStateOf(false) }
-
-    val scrollState = rememberScrollState()
 
     DisposableEffect(Unit) {
         marketViewModel.startListeningForLivePrices()
@@ -77,27 +77,114 @@ fun AnalysisScreen(
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(MaterialTheme.colorScheme.background)
+                    .background(Color.White)
             ) {
-                AdvancedCandleStickChart(
-                    chartState = uiState.chartState,
-                    modifier = Modifier.fillMaxSize(),
-                    timeframe = uiState.selectedTimeframe,
-                    currentPrice = currentLivePrice,
-                    onAddDrawingPoint = { point -> viewModel.addDrawingPoint(point) },
-                    onSelectDrawing = { viewModel.selectDrawing(it) },
-                    onDeleteDrawing = { viewModel.deleteDrawing(it) },
-                    onContinueDrawing = { viewModel.continueDrawing(it) },
-                    onMoveDrawingPoint = { id, idx, pt -> viewModel.moveDrawingPoint(id, idx, pt) },
-                    onOpenIndicatorSettingsFor = { viewModel.openIndicatorSettings(it) },
-                    onToggleIndicator = { viewModel.toggleIndicator(it) }
-                )
+                Column(modifier = Modifier.fillMaxSize()) {
+                    // Fullscreen Toolbar Row with Close Button
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(Color.White)
+                            .padding(horizontal = 4.dp, vertical = 2.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(modifier = Modifier.weight(1f)) {
+                            ChartToolbar(
+                                selectedTimeframe = uiState.selectedTimeframe,
+                                chartType = uiState.chartState.chartType,
+                                activeDrawingTool = uiState.chartState.activeDrawingTool,
+                                activeIndicatorCount = uiState.chartState.activeIndicators.count { it.enabled },
+                                activeIndicators = uiState.chartState.activeIndicators,
+                                cursorMode = uiState.chartState.cursorMode,
+                                showVolume = uiState.chartState.showVolume,
+                                showVolumeProfile = uiState.chartState.showVolumeProfile,
+                                showFnoOverlay = uiState.chartState.showFnoOverlay,
+                                showSmcOverlay = uiState.chartState.showSmcOverlay,
+                                onTimeframeSelected = { viewModel.onTimeframeSelected(it) },
+                                onChartTypeSelected = { viewModel.onChartTypeSelected(it) },
+                                onCursorModeChanged = { viewModel.setCursorMode(it) },
+                                onToggleIndicator = { viewModel.toggleIndicator(it) },
+                                onOpenIndicatorSettings = { viewModel.toggleIndicatorSheet() },
+                                onOpenIndicatorSettingsFor = { viewModel.openIndicatorSettings(it) },
+                                onDrawingToolSelected = { viewModel.selectDrawingTool(it) },
+                                onClearDrawings = { viewModel.clearDrawings() },
+                                onToggleIndicators = { viewModel.toggleIndicatorSheet() },
+                                onToggleDrawingTools = { viewModel.toggleDrawingPalette() },
+                                onToggleVolume = { viewModel.toggleVolume() },
+                                onToggleVolumeProfile = { viewModel.toggleVolumeProfile() },
+                                onToggleFnoOverlay = { viewModel.toggleFnoOverlay() },
+                                onToggleSmcOverlay = { viewModel.toggleSmcOverlay() },
+                                onUndo = { viewModel.undoDrawing() },
+                                onRedo = { viewModel.redoDrawing() },
+                                onToggleFullScreen = { isFullScreen = false }
+                            )
+                        }
+                        IconButton(
+                            onClick = { isFullScreen = false },
+                            modifier = Modifier.size(34.dp).padding(end = 2.dp)
+                        ) {
+                            Icon(Icons.Filled.Close, contentDescription = "Close", tint = Color(0xFF344054))
+                        }
+                    }
 
-                IconButton(
-                    onClick = { isFullScreen = false },
-                    modifier = Modifier.align(Alignment.TopEnd).padding(16.dp)
+                    Box(modifier = Modifier.fillMaxSize().weight(1f)) {
+                        AdvancedCandleStickChart(
+                            chartState = uiState.chartState,
+                            modifier = Modifier.fillMaxSize(),
+                            timeframe = uiState.selectedTimeframe,
+                            currentPrice = currentLivePrice,
+                            onAddDrawingPoint = { point -> viewModel.addDrawingPoint(point) },
+                            onSelectDrawing = { viewModel.selectDrawing(it) },
+                            onDeleteDrawing = { viewModel.deleteDrawing(it) },
+                            onContinueDrawing = { viewModel.continueDrawing(it) },
+                            onMoveDrawingPoint = { id, idx, pt -> viewModel.moveDrawingPoint(id, idx, pt) },
+                            onUpdateDrawingPoints = { id, pts -> viewModel.updateDrawingPoints(id, pts) },
+                            onUpdateDrawingText = { id, text -> viewModel.updateDrawingText(id, text) },
+                            onDrawingDragStart = { viewModel.recordDrawingStateSnapshot() },
+                            onCancelDrawing = { viewModel.selectDrawingTool(DrawingToolType.NONE) },
+                            onOpenIndicatorSettingsFor = { viewModel.openIndicatorSettings(it) },
+                            onToggleIndicator = { viewModel.toggleIndicator(it) },
+                            onRemoveIndicator = { viewModel.removeIndicator(it) },
+                            onRemoveIndicatorConfig = { viewModel.removeIndicatorConfig(it) }
+                        )
+                    }
+                }
+
+                // Indicator Settings Sheet in Fullscreen
+                AnimatedVisibility(
+                    visible = uiState.showIndicatorSheet,
+                    enter = slideInVertically(initialOffsetY = { it }),
+                    exit = slideOutVertically(targetOffsetY = { it }),
+                    modifier = Modifier.align(Alignment.BottomCenter)
                 ) {
-                    Icon(Icons.Filled.Close, contentDescription = "Close", tint = MaterialTheme.colorScheme.onBackground)
+                    IndicatorSettingsSheet(
+                        activeIndicators = uiState.chartState.activeIndicators,
+                        targetIndicatorType = uiState.targetIndicatorType,
+                        onToggleIndicator = { viewModel.toggleIndicator(it) },
+                        onUpdateIndicator = { viewModel.updateIndicator(it) },
+                        onRemoveIndicator = { viewModel.removeIndicator(it) },
+                        onAddIndicatorInstance = { viewModel.addIndicatorInstance(it) },
+                        onRemoveIndicatorConfig = { viewModel.removeIndicatorConfig(it) },
+                        onDismiss = { viewModel.toggleIndicatorSheet() }
+                    )
+                }
+
+                // Drawing Tool Palette in Fullscreen
+                AnimatedVisibility(
+                    visible = uiState.showDrawingPalette,
+                    enter = slideInVertically(initialOffsetY = { it }),
+                    exit = slideOutVertically(targetOffsetY = { it }),
+                    modifier = Modifier.align(Alignment.BottomCenter)
+                ) {
+                    DrawingToolPalette(
+                        activeDrawingTool = uiState.chartState.activeDrawingTool,
+                        onToolSelected = {
+                            viewModel.selectDrawingTool(it)
+                            viewModel.toggleDrawingPalette()
+                        },
+                        onClearDrawings = { viewModel.clearDrawings() },
+                        onDismiss = { viewModel.toggleDrawingPalette() }
+                    )
                 }
             }
         }
@@ -107,17 +194,18 @@ fun AnalysisScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .background(MaterialTheme.colorScheme.background)
-                .padding(horizontal = 16.dp)
-                .verticalScroll(scrollState)
+                .background(Color.White)
+                .padding(horizontal = 4.dp)
         ) {
-            InstitutionalHeader(
-                symbol = uiState.symbol,
-                liveData = liveInstrumentData,
-                currentPrice = uiState.currentPrice,
-                priceChange = uiState.priceChange,
-                priceChangePercent = uiState.priceChangePercent
-            )
+            Box(modifier = Modifier.padding(horizontal = 8.dp)) {
+                InstitutionalHeader(
+                    symbol = uiState.symbol,
+                    liveData = liveInstrumentData,
+                    currentPrice = uiState.currentPrice,
+                    priceChange = uiState.priceChange,
+                    priceChangePercent = uiState.priceChangePercent
+                )
+            }
 
             // ── Chart Toolbar ──
             ChartToolbar(
@@ -150,16 +238,18 @@ fun AnalysisScreen(
                 onToggleFullScreen = { isFullScreen = true }
             )
 
-            Spacer(modifier = Modifier.height(4.dp))
+            Spacer(modifier = Modifier.height(2.dp))
 
-            // ── Chart Card ──
+            // ── Chart Card (Fills Remaining Screen Space - No Swiping Down Required) ──
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(470.dp),
-                shape = RoundedCornerShape(12.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                    .weight(1f)
+                    .padding(bottom = 2.dp),
+                shape = RoundedCornerShape(8.dp),
+                colors = CardDefaults.cardColors(containerColor = Color.White),
+                border = BorderStroke(1.dp, Color(0xFFEAECF0)),
+                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
             ) {
                 Box(
                     modifier = Modifier.fillMaxSize(),
@@ -178,14 +268,18 @@ fun AnalysisScreen(
                             onDeleteDrawing = { viewModel.deleteDrawing(it) },
                             onContinueDrawing = { viewModel.continueDrawing(it) },
                             onMoveDrawingPoint = { id, idx, pt -> viewModel.moveDrawingPoint(id, idx, pt) },
+                            onUpdateDrawingPoints = { id, pts -> viewModel.updateDrawingPoints(id, pts) },
+                            onUpdateDrawingText = { id, text -> viewModel.updateDrawingText(id, text) },
+                            onDrawingDragStart = { viewModel.recordDrawingStateSnapshot() },
+                            onCancelDrawing = { viewModel.selectDrawingTool(DrawingToolType.NONE) },
                             onOpenIndicatorSettingsFor = { viewModel.openIndicatorSettings(it) },
-                            onToggleIndicator = { viewModel.toggleIndicator(it) }
+                            onToggleIndicator = { viewModel.toggleIndicator(it) },
+                            onRemoveIndicator = { viewModel.removeIndicator(it) },
+                            onRemoveIndicatorConfig = { viewModel.removeIndicatorConfig(it) }
                         )
                     }
                 }
             }
-
-            Spacer(modifier = Modifier.height(16.dp))
         }
 
         // ── Indicator Settings Sheet (slides up from bottom) ──
@@ -200,6 +294,9 @@ fun AnalysisScreen(
                 targetIndicatorType = uiState.targetIndicatorType,
                 onToggleIndicator = { viewModel.toggleIndicator(it) },
                 onUpdateIndicator = { viewModel.updateIndicator(it) },
+                onRemoveIndicator = { viewModel.removeIndicator(it) },
+                onAddIndicatorInstance = { viewModel.addIndicatorInstance(it) },
+                onRemoveIndicatorConfig = { viewModel.removeIndicatorConfig(it) },
                 onDismiss = { viewModel.toggleIndicatorSheet() }
             )
         }
@@ -213,7 +310,10 @@ fun AnalysisScreen(
         ) {
             DrawingToolPalette(
                 activeDrawingTool = uiState.chartState.activeDrawingTool,
-                onToolSelected = { viewModel.selectDrawingTool(it) },
+                onToolSelected = {
+                    viewModel.selectDrawingTool(it)
+                    viewModel.toggleDrawingPalette()
+                },
                 onClearDrawings = { viewModel.clearDrawings() },
                 onDismiss = { viewModel.toggleDrawingPalette() }
             )
@@ -255,15 +355,15 @@ fun InstitutionalHeader(
             Column {
                 Text(
                     text = symbol.uppercase(),
-                    color = MaterialTheme.colorScheme.onBackground,
+                    color = Color(0xFF131722),
                     fontSize = 18.sp,
                     fontWeight = FontWeight.ExtraBold,
                     fontFamily = FontFamily.Monospace
                 )
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(modifier = Modifier.size(5.dp).background(MaterialTheme.colorScheme.primary, RoundedCornerShape(2.5.dp)))
+                    Box(modifier = Modifier.size(5.dp).background(Color(0xFF089981), RoundedCornerShape(2.5.dp)))
                     Spacer(Modifier.width(4.dp))
-                    Text("LIVE DATA ACTIVE", color = MaterialTheme.colorScheme.primary, fontSize = 8.5.sp, fontWeight = FontWeight.Bold)
+                    Text("LIVE DATA ACTIVE", color = Color(0xFF089981), fontSize = 8.5.sp, fontWeight = FontWeight.Bold)
                 }
             }
 
@@ -280,14 +380,14 @@ fun InstitutionalHeader(
                 }
                 Text(
                     text = formattedPrice,
-                    color = MaterialTheme.colorScheme.onBackground,
+                    color = Color(0xFF131722),
                     fontSize = 18.sp,
                     fontWeight = FontWeight.ExtraBold,
                     fontFamily = FontFamily.Monospace
                 )
                 Text(
                     text = "${if (isPositive) "+" else ""}$formattedChange (${if (isPositive) "+" else ""}${"%.2f".format(changePercent)}%)",
-                    color = if (isPositive) AppGreen else AppRed,
+                    color = if (isPositive) Color(0xFF089981) else Color(0xFFF23645),
                     fontSize = 10.5.sp,
                     fontWeight = FontWeight.Bold,
                     fontFamily = FontFamily.Monospace

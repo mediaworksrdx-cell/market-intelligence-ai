@@ -42,7 +42,17 @@ class AarkaAiMentorEngineImpl @Inject constructor(
     }
 
     override suspend fun explainSignal(signal: AiTradeSignal): String {
-        return "Aarka AI Analysis: Educational study on ${signal.underlyingSymbol} with ${signal.strategyName} framework. Market regime is ${signal.marketRegime}. Institutional structure indicates confidence score of ${signal.confidenceScore}%."
+        val query = "Provide an institutional market study on ${signal.underlyingSymbol} with ${signal.strategyName} in ${signal.marketRegime} market regime. Strike levels: ${signal.optionLegs.joinToString { "${it.strike} ${it.type}" }}. Confidence: ${signal.confidenceScore}%."
+        return try {
+            val resp = aarkaApiService.promptEngine(AarkaPromptRequest(query = query))
+            if (resp.response.isNotBlank() && resp.response.length > 30) {
+                sanitizeEducational(resp.response) + "\n\n🧠 *Powered by Aarka AI 7B*"
+            } else {
+                "Aarka AI Analysis: Educational study on ${signal.underlyingSymbol} with ${signal.strategyName} framework. Market regime is ${signal.marketRegime}. Institutional structure indicates confidence score of ${signal.confidenceScore}%."
+            }
+        } catch (_: Exception) {
+            "Aarka AI Analysis: Educational study on ${signal.underlyingSymbol} with ${signal.strategyName} framework. Market regime is ${signal.marketRegime}. Institutional structure indicates confidence score of ${signal.confidenceScore}%."
+        }
     }
 
     override suspend fun ask(query: String): String {
@@ -90,7 +100,7 @@ class AarkaAiMentorEngineImpl @Inject constructor(
 
         return try {
             val resp = aarkaApiService.promptEngine(AarkaPromptRequest(query = promptPayload))
-            if (resp.response.isNotBlank()) {
+            if (resp.response.isNotBlank() && !resp.response.contains("Analyzing") && resp.response.length > 50) {
                 val cleanText = sanitizeEducational(resp.response)
                 val sourcesTag = if (resp.sources.isNotEmpty()) {
                     "\n\n🧠 *Powered by Aarka AI 7B (${resp.sources.joinToString(", ")})*"
@@ -99,11 +109,25 @@ class AarkaAiMentorEngineImpl @Inject constructor(
                 }
                 "$cleanText$sourcesTag"
             } else {
-                fallbackLocalKnowledge(query, fno.regime, niftyPrice)
+                // Direct retry to Aarka AI without verbose wrapper
+                val directResp = aarkaApiService.promptEngine(AarkaPromptRequest(query = query))
+                if (directResp.response.isNotBlank()) {
+                    sanitizeEducational(directResp.response) + "\n\n🧠 *Powered by Aarka AI 7B*"
+                } else {
+                    "Aarka AI 7B is synthesizing institutional market data for '$query'. Please resubmit with specific timeframe or ticker context."
+                }
             }
         } catch (e: Exception) {
-            // Graceful fallback to local institutional intelligence when offline/timing out
-            fallbackLocalKnowledge(query, fno.regime, niftyPrice)
+            try {
+                val directResp = aarkaApiService.promptEngine(AarkaPromptRequest(query = query))
+                if (directResp.response.isNotBlank()) {
+                    sanitizeEducational(directResp.response) + "\n\n🧠 *Powered by Aarka AI 7B*"
+                } else {
+                    "Aarka AI was unable to complete the analysis at this moment. Please verify server connectivity and retry."
+                }
+            } catch (retryEx: Exception) {
+                "Aarka AI connection issue: ${retryEx.localizedMessage ?: "Request timed out"}. Please check server connectivity at ${com.marketintelligence.ai.BuildConfig.BASE_URL}."
+            }
         }
     }
 
@@ -120,24 +144,6 @@ class AarkaAiMentorEngineImpl @Inject constructor(
             .replace(Regex("\\b[tT][pP]\\b"), "projection")
             .replace(Regex("\\b[rR]:[rR]\\b"), "risk-to-projection ratio")
             .replace(Regex("\\b[rR][rR]\\b"), "risk ratio")
-    }
-
-    private fun fallbackLocalKnowledge(query: String, regime: String, niftyPrice: Double): String {
-        val lower = query.lowercase(Locale.ROOT)
-        val matchedEntry = RedXKnowledgeBase.entries.sortedByDescending { entry ->
-            var score = 0
-            if (entry.title.lowercase(Locale.ROOT).contains(lower)) score += 10
-            score += entry.keywords.count { lower.contains(it) }
-            score
-        }.firstOrNull {
-            it.title.lowercase(Locale.ROOT).contains(lower) || it.keywords.any { k -> lower.contains(k) }
-        }
-
-        return if (matchedEntry != null) {
-            "**${matchedEntry.title}**\n\n${sanitizeEducational(matchedEntry.content)}\n\n---\n*Aarka AI Live Context: F&O Regime $regime • NIFTY at ₹$niftyPrice*"
-        } else {
-            "Aarka AI Mentor: Analyzing '$query' through our institutional Smart Money and fundamental framework. Active F&O market regime is $regime with NIFTY at ₹$niftyPrice. Ask about company quarterly results, fundamental valuation metrics, or technical SMC studies for detailed insights."
-        }
     }
 }
 

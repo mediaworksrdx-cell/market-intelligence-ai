@@ -4,9 +4,11 @@ import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.marketintelligence.data.local.MockData
+import com.example.marketintelligence.data.util.MarketPriceCatalog
 import com.example.marketintelligence.domain.engine.Black76QuantEngine
 import com.example.marketintelligence.domain.engine.DealerGammaExposureEngine
 import com.example.marketintelligence.domain.model.*
+import com.example.tradeengine.models.Candle
 import com.example.marketintelligence.domain.repository.SettingsRepository
 import com.example.redxfnoscanner.domain.MarketRegime
 import com.example.redxfnoscanner.domain.MarketRegimeIdentifier
@@ -32,6 +34,7 @@ import kotlin.math.round
 class FnoViewModel @Inject constructor(
     private val settingsRepository: SettingsRepository,
     private val quantEngine: Black76QuantEngine,
+    private val strategyEngine: com.example.marketintelligence.domain.engine.OptionsStrategyEngine,
     private val gexEngine: DealerGammaExposureEngine,
     private val marketRepository: com.example.marketintelligence.domain.repository.MarketRepository,
     private val intelligenceBus: com.example.marketintelligence.domain.engine.LiveIntelligenceBus,
@@ -124,13 +127,17 @@ class FnoViewModel @Inject constructor(
         val coveringCount = initialBuildup.count { it.buildupType == BuildupType.SHORT_COVERING }
         val unwindingCount = initialBuildup.count { it.buildupType == BuildupType.LONG_UNWINDING }
 
+        val initialExpiries = generateAvailableExpiries()
         _uiState.update {
             it.copy(
                 buildupStocks = initialBuildup,
                 longBuildupCount = longCount,
                 shortBuildupCount = shortCount,
                 shortCoveringCount = coveringCount,
-                longUnwindingCount = unwindingCount
+                longUnwindingCount = unwindingCount,
+                availableExpiries = initialExpiries,
+                selectedExpiry = initialExpiries.firstOrNull() ?: "",
+                lotSize = getLotSize(it.selectedAsset)
             )
         }
 
@@ -196,57 +203,6 @@ class FnoViewModel @Inject constructor(
                 }
             }
         }
-
-        // 2. Continuous real-time active micro-tick loop (ensures live P&L moves dynamically)
-        viewModelScope.launch(Dispatchers.IO) {
-            val rnd = java.util.Random()
-            while (isActive) {
-                delay(2000)
-                try {
-                    val currentSymbol = _uiState.value.selectedAsset
-                    if (currentSymbol.isNotBlank()) {
-                        val currentSpot = _uiState.value.spotPrice
-                        if (currentSpot > 0.0) {
-                            val deltaPct = (rnd.nextDouble() - 0.495) * 0.0004
-                            val tickedPrice = round((currentSpot * (1.0 + deltaPct)) * 100.0) / 100.0
-                            val currentChangePct = _uiState.value.summary.changePercent + (deltaPct * 10.0)
-                            val roundedChange = round(currentChangePct * 100.0) / 100.0
-                            
-                            intelligenceBus.updateLivePrice(currentSymbol, tickedPrice, (tickedPrice - currentSpot), roundedChange)
-                            onSpotPriceTick(tickedPrice, roundedChange)
-                        }
-                    }
-
-                    // Dynamically micro-tick 1-2 random stocks in Buildup Scanner
-                    val currentBuildup = _uiState.value.buildupStocks
-                    if (currentBuildup.isNotEmpty()) {
-                        val pickIndex = rnd.nextInt(currentBuildup.size)
-                        val target = currentBuildup[pickIndex]
-                        val dPct = (rnd.nextDouble() - 0.49) * 0.0006
-                        val newPrice = round((target.ltp * (1.0 + dPct)) * 100.0) / 100.0
-                        val newPriceChange = round((target.priceChange + (newPrice - target.ltp)) * 100.0) / 100.0
-                        val newPriceChangePct = round((target.priceChangePct + (dPct * 10.0)) * 100.0) / 100.0
-                        val newType = buildupRepository.classifyBuildup(newPriceChange, target.oiChange)
-                        val updatedStock = target.copy(
-                            ltp = newPrice,
-                            priceChange = newPriceChange,
-                            priceChangePct = newPriceChangePct,
-                            buildupType = newType
-                        )
-                        val newList = currentBuildup.toMutableList().also { it[pickIndex] = updatedStock }
-                        _uiState.update { s ->
-                            s.copy(
-                                buildupStocks = newList,
-                                longBuildupCount = newList.count { it.buildupType == BuildupType.LONG_BUILDUP },
-                                shortBuildupCount = newList.count { it.buildupType == BuildupType.SHORT_BUILDUP },
-                                shortCoveringCount = newList.count { it.buildupType == BuildupType.SHORT_COVERING },
-                                longUnwindingCount = newList.count { it.buildupType == BuildupType.LONG_UNWINDING }
-                            )
-                        }
-                    }
-                } catch (e: Exception) { Log.e("FnoVM", "Error: ${e.message}") }
-            }
-        }
     }
 
     // --- Buildup Scanner Handlers ---
@@ -279,15 +235,41 @@ class FnoViewModel @Inject constructor(
         _uiState.update { it.copy(searchQuery = query) }
     }
 
+    fun getSearchSuggestions(query: String): List<FnoBuildupStock> {
+        val q = query.trim()
+        if (q.isBlank() || q.length < 2) return emptyList()
+        val qUpper = q.uppercase()
+        val qClean = qUpper.replace("-", "").replace(" ", "")
+
+        val catalog = if (_uiState.value.buildupStocks.isNotEmpty()) {
+            _uiState.value.buildupStocks
+        } else {
+            buildupRepository.getInitialBuildupList()
+        }
+
+        return catalog.filter { stock ->
+            val symClean = stock.symbol.uppercase().replace("-", "").replace(" ", "")
+            val nameClean = stock.name.uppercase().replace("-", "").replace(" ", "")
+            symClean.contains(qClean) ||
+            nameClean.contains(qClean) ||
+            stock.symbol.contains(q, ignoreCase = true) ||
+            stock.name.contains(q, ignoreCase = true)
+        }.take(5)
+    }
+
     fun addAsset() {
-        loadAssetData(_uiState.value.searchQuery)
+        val query = _uiState.value.searchQuery.trim()
+        if (query.isNotBlank()) {
+            loadAssetData(query)
+            _uiState.update { it.copy(searchQuery = "") }
+        }
     }
     
     fun setStrategyCategory(category: StrategyCategory) {
         _uiState.update { it.copy(selectedCategory = category) }
     }
 
-    private fun getUpcomingExpiry(weeksAhead: Int = 0): String {
+    fun getUpcomingExpiry(weeksAhead: Int = 0): String {
         val calendar = Calendar.getInstance()
         var daysToAdd = (Calendar.THURSDAY - calendar.get(Calendar.DAY_OF_WEEK) + 7) % 7
         if (daysToAdd == 0 && calendar.get(Calendar.HOUR_OF_DAY) >= 15) {
@@ -297,11 +279,11 @@ class FnoViewModel @Inject constructor(
         val day = calendar.get(Calendar.DAY_OF_MONTH).toString().padStart(2, '0')
         val monthNames = arrayOf("JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC")
         val month = monthNames[calendar.get(Calendar.MONTH)]
-        val year = (calendar.get(Calendar.YEAR) % 100).toString().padStart(2, '0')
-        return "$day$month$year"
+        val year = calendar.get(Calendar.YEAR).toString()
+        return "$day $month $year"
     }
 
-    private fun getUpcomingMonthlyExpiry(monthsAhead: Int = 0): String {
+    fun getUpcomingMonthlyExpiry(monthsAhead: Int = 0): String {
         val calendar = Calendar.getInstance()
         if (monthsAhead > 0) {
             calendar.add(Calendar.MONTH, monthsAhead)
@@ -313,183 +295,414 @@ class FnoViewModel @Inject constructor(
         val day = calendar.get(Calendar.DAY_OF_MONTH).toString().padStart(2, '0')
         val monthNames = arrayOf("JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC")
         val month = monthNames[calendar.get(Calendar.MONTH)]
-        val year = (calendar.get(Calendar.YEAR) % 100).toString().padStart(2, '0')
-        return "$day$month$year"
+        val year = calendar.get(Calendar.YEAR).toString()
+        return "$day $month $year"
+    }
+
+    fun generateAvailableExpiries(): List<String> {
+        val expiries = linkedSetOf<String>()
+        for (w in 0..3) {
+            expiries.add(getUpcomingExpiry(w))
+        }
+        for (m in 0..2) {
+            expiries.add(getUpcomingMonthlyExpiry(m))
+        }
+        return expiries.toList()
+    }
+
+    fun getWeeklyExpiries(): List<String> = (0..3).map { getUpcomingExpiry(it) }
+
+    fun getMonthlyExpiries(): List<String> = (0..2).map { getUpcomingMonthlyExpiry(it) }
+
+    fun setStrategyExpiry(expiry: String) {
+        _uiState.update { state ->
+            val updatedLegs = state.activeLegs.map { leg ->
+                leg.copy(expiry = expiry)
+            }
+            state.copy(selectedExpiry = expiry, activeLegs = updatedLegs)
+        }
+        recalculateLivePnlAndMetrics()
+    }
+
+    fun updateLegExpiry(legId: String, expiry: String) {
+        _uiState.update { state ->
+            val updatedLegs = state.activeLegs.map { leg ->
+                if (leg.id == legId) leg.copy(expiry = expiry) else leg
+            }
+            state.copy(activeLegs = updatedLegs)
+        }
+        recalculateLivePnlAndMetrics()
+    }
+
+    fun setNumberOfLots(lots: Int) {
+        val validLots = max(1, lots)
+        val baseLot = getLotSize(_uiState.value.selectedAsset)
+        _uiState.update { state ->
+            val prevLots = state.numberOfLots.coerceAtLeast(1)
+            val updatedLegs = state.activeLegs.map { leg ->
+                val ratio = max(1, leg.qty / (baseLot * prevLots).coerceAtLeast(1))
+                val newQty = ratio * validLots * baseLot
+                leg.copy(qty = newQty, lots = validLots, lotSize = baseLot)
+            }
+            state.copy(numberOfLots = validLots, activeLegs = updatedLegs)
+        }
+        recalculateLivePnlAndMetrics()
     }
 
     fun getLotSize(symbol: String = _uiState.value.selectedAsset): Int {
-        val clean = symbol.uppercase().trim().removeSuffix(".NS").removeSuffix(".BO")
+        val clean = symbol.uppercase().trim().removeSuffix(".NS").removeSuffix(".BO").replace("-", "").replace(" ", "")
         return when {
             clean.contains("BANKNIFTY") -> 15
             clean.contains("FINNIFTY") -> 40
-            clean.contains("NIFTY") -> 25
+            clean.contains("MIDCPNIFTY") -> 75
+            clean.contains("NIFTY") -> 65 // REQUIRED: NIFTY lot size is 65
             clean.contains("SENSEX") -> 10
+            clean.contains("BANKEX") -> 15
+            // Global US Indices & Equities (Standard US Option contract lot size is 100 shares)
+            clean.contains("SPX") || clean.contains("SP500") -> 100
+            clean.contains("NDX") || clean.contains("QQQ") || clean.contains("NASDAQ") -> 100
+            clean.contains("DJI") || clean.contains("DOW") -> 100
+            clean.contains("AAPL") || clean.contains("NVDA") || clean.contains("MSFT") ||
+            clean.contains("GOOG") || clean.contains("AMZN") || clean.contains("TSLA") || clean.contains("META") -> 100
+            // UAE Indices & Equities
+            clean.contains("DFMGI") || clean.contains("ADX") -> 100
+            clean.contains("EMAAR") || clean.contains("FAB") || clean.contains("DEWA") || clean.contains("ALDAR") -> 100
+            // European & Global Indices
+            clean.contains("FTSE") || clean.contains("DAX") || clean.contains("NIKKEI") || clean.contains("HSI") -> 100
+            // Commodities
+            clean.contains("GOLD") || clean.contains("XAU") -> 100
+            clean.contains("SILVER") || clean.contains("XAG") -> 30
+            clean.contains("CRUDE") || clean.contains("WTI") || clean.contains("BRENT") -> 100
+            clean.contains("NATURALGAS") || clean.contains("NATGAS") -> 1250
+            // Cryptocurrencies (Standard 1 unit)
+            clean in listOf("BTC", "ETH", "SOL", "BNB", "DOGE", "XRP") ||
+            clean.contains("BTC") || clean.contains("ETH") || clean.contains("SOL") -> 1
+            // Indian Stocks
+            clean.contains("TATASTEEL") -> 5500
+            clean.contains("TATAMOTORS") -> 1425
+            clean.contains("MARUTI") -> 50
+            clean.contains("BAJFINANCE") -> 125
             clean.contains("RELIANCE") -> 250
             clean.contains("HDFCBANK") -> 550
             clean.contains("TCS") -> 175
             clean.contains("ICICIBANK") -> 700
             clean.contains("SBIN") -> 750
             clean.contains("INFY") -> 400
-            clean.contains("SPX") -> 100
-            clean.contains("DFMGI") -> 100
-            clean in listOf("BTC", "ETH", "SOL", "BNB", "DOGE", "XRP") -> 1
-            else -> 250
+            clean.contains("ITC") -> 1600
+            clean.contains("LT") -> 150
+            clean.contains("AXISBANK") -> 625
+            clean.contains("KOTAKBANK") -> 400
+            clean.contains("WIPRO") -> 1500
+            clean.contains("HCLTECH") -> 350
+            clean.contains("TECHM") -> 600
+            clean.contains("BAJAJAUTO") -> 75
+            clean.contains("ONGC") -> 3850
+            clean.contains("BPCL") -> 1800
+            clean.contains("NTPC") -> 1500
+            clean.contains("JSWSTEEL") -> 675
+            clean.contains("HINDALCO") -> 1400
+            clean.contains("SUNPHARMA") -> 350
+            clean.contains("DRREDDY") -> 125
+            clean.contains("HINDUNILVR") -> 300
+            clean.contains("TITAN") -> 175
+            clean.contains("BHARTIARTL") -> 475
+            else -> 65
         }
     }
 
     fun getStrikeStepForSymbol(symbol: String, spot: Double): Double {
-        val clean = symbol.uppercase().trim().removeSuffix(".NS").removeSuffix(".BO")
+        val clean = symbol.uppercase().trim().removeSuffix(".NS").removeSuffix(".BO").replace("-", "").replace(" ", "")
         return when {
             clean.contains("BANKNIFTY") || clean.contains("SENSEX") -> 100.0
             clean.contains("NIFTY") || clean.contains("FINNIFTY") -> 50.0
-            clean.contains("TCS") -> 50.0
-            clean.contains("RELIANCE") || clean.contains("INFY") || clean.contains("ICICIBANK") -> 20.0
-            clean.contains("SBIN") || clean.contains("HDFCBANK") -> 10.0
-            spot > 5000 -> 100.0
-            spot > 2000 -> 50.0
-            spot > 1000 -> 20.0
-            spot > 500 -> 10.0
-            else -> 5.0
+            clean.contains("MIDCPNIFTY") -> 25.0
+            clean.contains("SPX") || clean.contains("SP500") -> 25.0
+            clean.contains("NDX") || clean.contains("QQQ") || clean.contains("NASDAQ") -> 50.0
+            clean.contains("DJI") || clean.contains("DOW") || clean.contains("NIKKEI") -> 100.0
+            clean.contains("DFMGI") || clean.contains("ADX") || clean.contains("FTSE") || clean.contains("DAX") -> 25.0
+            clean.contains("BTC") -> 500.0
+            clean.contains("ETH") -> 50.0
+            clean.contains("SOL") -> 5.0
+            clean.contains("GOLD") -> 10.0
+            clean.contains("SILVER") -> 0.5
+            clean.contains("CRUDE") -> 1.0
+            clean.contains("TATASTEEL") -> 2.5
+            spot < 100.0 -> 1.0
+            spot < 250.0 -> 2.5
+            spot < 500.0 -> 5.0
+            spot < 1000.0 -> 10.0
+            spot < 2500.0 -> 20.0
+            spot < 5000.0 -> 50.0
+            else -> 100.0
         }
+    }
+
+    data class AssetResolution(
+        val symbol: String,
+        val displayName: String,
+        val spotPrice: Double,
+        val changePercent: Double,
+        val lotSize: Int,
+        val strikeStep: Double
+    )
+
+    fun resolveAssetInfo(query: String): AssetResolution {
+        val qTrimmed = query.trim()
+        val qUpper = qTrimmed.uppercase()
+        val qClean = qUpper.removeSuffix(".NS").removeSuffix(".BO").replace("-", "").replace(" ", "")
+
+        // 1. Try matching from buildup stocks catalog (checks symbol and name like "Tata Steel")
+        val buildupCatalog = if (_uiState.value.buildupStocks.isNotEmpty()) {
+            _uiState.value.buildupStocks
+        } else {
+            buildupRepository.getInitialBuildupList()
+        }
+
+        val buildupMatch = buildupCatalog.firstOrNull { stock ->
+            val symClean = stock.symbol.uppercase().replace("-", "").replace(" ", "")
+            val nameClean = stock.name.uppercase().replace("-", "").replace(" ", "")
+            symClean == qClean ||
+            nameClean == qClean ||
+            stock.symbol.equals(qTrimmed, ignoreCase = true) ||
+            stock.name.equals(qTrimmed, ignoreCase = true) ||
+            stock.name.contains(qTrimmed, ignoreCase = true) ||
+            qTrimmed.contains(stock.name, ignoreCase = true) ||
+            (qUpper.contains("TATA") && qUpper.contains("STEEL") && stock.symbol == "TATASTEEL") ||
+            (qUpper.contains("TATA") && qUpper.contains("MOTORS") && stock.symbol == "TATAMOTORS")
+        }
+
+        if (buildupMatch != null) {
+            val spot = buildupMatch.ltp
+            val lot = getLotSize(buildupMatch.symbol)
+            val step = getStrikeStepForSymbol(buildupMatch.symbol, spot)
+            return AssetResolution(
+                symbol = buildupMatch.symbol,
+                displayName = "${buildupMatch.symbol} • ${buildupMatch.name}",
+                spotPrice = spot,
+                changePercent = buildupMatch.priceChangePct,
+                lotSize = lot,
+                strikeStep = step
+            )
+        }
+
+        // 2. Check in LiveIntelligenceBus
+        val liveInfo = intelligenceBus.getLivePrice(qClean) ?: intelligenceBus.getLivePrice(qTrimmed)
+        if (liveInfo != null && liveInfo.price > 0.0) {
+            val spot = liveInfo.price
+            val lot = getLotSize(qClean)
+            val step = getStrikeStepForSymbol(qClean, spot)
+            return AssetResolution(
+                symbol = qClean,
+                displayName = qTrimmed,
+                spotPrice = spot,
+                changePercent = liveInfo.changePercent,
+                lotSize = lot,
+                strikeStep = step
+            )
+        }
+
+        // 3. Known dictionary fallbacks
+        val spot = when {
+            qClean.contains("TATASTEEL") || (qUpper.contains("TATA") && qUpper.contains("STEEL")) -> 154.00
+            qClean.contains("TATAMOTORS") || (qUpper.contains("TATA") && qUpper.contains("MOTORS")) -> 985.00
+            qClean.contains("BANKNIFTY") -> 54259.95
+            qClean.contains("NIFTY") -> 22716.20
+            qClean.contains("SENSEX") -> 72529.07
+            qClean.contains("FINNIFTY") -> 24648.50
+            qClean.contains("MIDCPNIFTY") -> 12280.0
+            qClean.contains("RELIANCE") -> 1182.00
+            qClean.contains("HDFCBANK") || qClean == "HDFC" -> 722.70
+            qClean.contains("TCS") -> 2032.40
+            qClean.contains("INFY") || qClean.contains("INFOSYS") -> 1015.40
+            qClean.contains("ICICIBANK") || qClean == "ICICI" -> 1292.20
+            qClean.contains("SBIN") || qClean == "SBI" || qUpper.contains("STATE BANK") -> 964.70
+            qClean.contains("BHARTIARTL") || qClean.contains("AIRTEL") -> 1425.00
+            qClean.contains("ITC") -> 438.00
+            qClean.contains("LT") || qUpper.contains("LARSEN") -> 3560.00
+            qClean.contains("AXISBANK") || qClean == "AXIS" -> 1175.00
+            qClean.contains("KOTAKBANK") || qClean == "KOTAK" -> 1775.00
+            qClean.contains("MARUTI") -> 12380.00
+            qClean.contains("BAJFINANCE") -> 6940.00
+            qClean.contains("WIPRO") -> 528.00
+            qClean.contains("HCLTECH") -> 1680.00
+            qClean.contains("TECHM") -> 1490.00
+            qClean.contains("ONGC") -> 295.00
+            qClean.contains("BPCL") -> 345.00
+            qClean.contains("NTPC") -> 398.00
+            qClean.contains("JSWSTEEL") -> 945.00
+            qClean.contains("HINDALCO") -> 675.00
+            qClean.contains("SUNPHARMA") -> 1695.00
+            qClean.contains("DRREDDY") -> 6450.00
+            qClean.contains("HINDUNILVR") -> 2465.00
+            qClean.contains("TITAN") -> 3485.00
+            qClean.contains("SPX") || qClean.contains("SP500") -> 5500.00
+            qClean.contains("NDX") || qClean.contains("NASDAQ") || qClean.contains("QQQ") -> 19200.00
+            qClean.contains("DJI") || qClean.contains("DOW") -> 39500.00
+            qClean.contains("DFMGI") -> 4849.37
+            qClean.contains("ADX") -> 9250.00
+            qClean.contains("FTSE") -> 8250.00
+            qClean.contains("DAX") -> 18500.00
+            qClean.contains("NIKKEI") -> 38800.00
+            qClean.contains("GOLD") || qClean.contains("XAU") -> 2450.00
+            qClean.contains("SILVER") || qClean.contains("XAG") -> 28.50
+            qClean.contains("CRUDE") || qClean.contains("WTI") || qClean.contains("BRENT") -> 78.50
+            qClean.contains("BTC") || qClean.contains("BITCOIN") -> 68500.00
+            qClean.contains("ETH") || qClean.contains("ETHEREUM") -> 3450.00
+            qClean.contains("SOL") || qClean.contains("SOLANA") -> 145.00
+            else -> MarketPriceCatalog.getFallbackPrice(qClean)
+        }
+
+        val lot = getLotSize(qClean)
+        val step = getStrikeStepForSymbol(qClean, spot)
+        return AssetResolution(
+            symbol = qClean,
+            displayName = qTrimmed,
+            spotPrice = spot,
+            changePercent = 1.15,
+            lotSize = lot,
+            strikeStep = step
+        )
     }
 
     fun selectPredefinedStrategy(strategyName: String) {
         val spot = _uiState.value.spotPrice
-        val nearExpiry = getUpcomingExpiry(0)
-        val nextExpiry = getUpcomingMonthlyExpiry(1)
-        val step = _uiState.value.strikeStep
-        val lot = getLotSize(_uiState.value.selectedAsset)
+        val nearExpiry = _uiState.value.selectedExpiry.ifBlank { getUpcomingExpiry(0) }
+        val nextExpiry = _uiState.value.availableExpiries.getOrNull(3) ?: getUpcomingMonthlyExpiry(1)
+        val step = _uiState.value.strikeStep.coerceAtLeast(1.0)
+        val atmStrike = round(spot / step) * step
+        val baseLot = getLotSize(_uiState.value.selectedAsset)
+        val lot = baseLot * _uiState.value.numberOfLots
         
         val legs = when(strategyName) {
             // --- BULLISH STRATEGIES ---
             "Long Call" -> listOf(
-                createLeg("BUY", "CALL", spot, nearExpiry, qty = lot)
+                createLeg("BUY", "CALL", atmStrike, nearExpiry, qty = lot)
             )
             "Bull Call Spread" -> listOf(
-                createLeg("BUY", "CALL", spot, nearExpiry, qty = lot),
-                createLeg("SELL", "CALL", spot + (step * 2), nearExpiry, qty = lot)
+                createLeg("BUY", "CALL", atmStrike, nearExpiry, qty = lot),
+                createLeg("SELL", "CALL", atmStrike + (step * 2), nearExpiry, qty = lot)
             )
             "Bull Put Spread" -> listOf(
-                createLeg("SELL", "PUT", spot, nearExpiry, qty = lot),
-                createLeg("BUY", "PUT", spot - (step * 2), nearExpiry, qty = lot)
+                createLeg("SELL", "PUT", atmStrike, nearExpiry, qty = lot),
+                createLeg("BUY", "PUT", atmStrike - (step * 2), nearExpiry, qty = lot)
             )
             "Covered Call" -> listOf(
                 createLeg("BUY", "FUT", 0.0, nearExpiry, qty = lot),
-                createLeg("SELL", "CALL", spot + (step * 2), nearExpiry, qty = lot)
+                createLeg("SELL", "CALL", atmStrike + (step * 2), nearExpiry, qty = lot)
             )
             "Call Ratio Backspread" -> listOf(
-                createLeg("SELL", "CALL", spot, nearExpiry, qty = lot),
-                createLeg("BUY", "CALL", spot + (step * 2), nearExpiry, qty = lot * 2)
+                createLeg("SELL", "CALL", atmStrike, nearExpiry, qty = lot),
+                createLeg("BUY", "CALL", atmStrike + (step * 2), nearExpiry, qty = lot * 2)
             )
             "Bull Calendar Spread" -> listOf(
-                createLeg("SELL", "CALL", spot + (step * 2), nearExpiry, qty = lot),
-                createLeg("BUY", "CALL", spot + (step * 2), nextExpiry, qty = lot)
+                createLeg("SELL", "CALL", atmStrike + (step * 2), nearExpiry, qty = lot),
+                createLeg("BUY", "CALL", atmStrike + (step * 2), nextExpiry, qty = lot)
             )
             "Call Diagonal Spread" -> listOf(
-                createLeg("SELL", "CALL", spot + (step * 2), nearExpiry, qty = lot),
-                createLeg("BUY", "CALL", spot - step, nextExpiry, qty = lot)
+                createLeg("SELL", "CALL", atmStrike + (step * 2), nearExpiry, qty = lot),
+                createLeg("BUY", "CALL", atmStrike - step, nextExpiry, qty = lot)
             )
             "Long Call Butterfly" -> listOf(
-                createLeg("BUY", "CALL", spot - (step * 2), nearExpiry, qty = lot),
-                createLeg("SELL", "CALL", spot, nearExpiry, qty = lot * 2),
-                createLeg("BUY", "CALL", spot + (step * 2), nearExpiry, qty = lot)
+                createLeg("BUY", "CALL", atmStrike - (step * 2), nearExpiry, qty = lot),
+                createLeg("SELL", "CALL", atmStrike, nearExpiry, qty = lot * 2),
+                createLeg("BUY", "CALL", atmStrike + (step * 2), nearExpiry, qty = lot)
             )
 
             // --- BEARISH STRATEGIES ---
             "Long Put" -> listOf(
-                createLeg("BUY", "PUT", spot, nearExpiry, qty = lot)
+                createLeg("BUY", "PUT", atmStrike, nearExpiry, qty = lot)
             )
             "Bear Call Spread" -> listOf(
-                createLeg("SELL", "CALL", spot, nearExpiry, qty = lot),
-                createLeg("BUY", "CALL", spot + (step * 2), nearExpiry, qty = lot)
+                createLeg("SELL", "CALL", atmStrike, nearExpiry, qty = lot),
+                createLeg("BUY", "CALL", atmStrike + (step * 2), nearExpiry, qty = lot)
             )
             "Bear Put Spread" -> listOf(
-                createLeg("BUY", "PUT", spot, nearExpiry, qty = lot),
-                createLeg("SELL", "PUT", spot - (step * 2), nearExpiry, qty = lot)
+                createLeg("BUY", "PUT", atmStrike, nearExpiry, qty = lot),
+                createLeg("SELL", "PUT", atmStrike - (step * 2), nearExpiry, qty = lot)
             )
             "Protective Put" -> listOf(
                 createLeg("BUY", "FUT", 0.0, nearExpiry, qty = lot),
-                createLeg("BUY", "PUT", spot, nearExpiry, qty = lot)
+                createLeg("BUY", "PUT", atmStrike, nearExpiry, qty = lot)
             )
             "Put Ratio Backspread" -> listOf(
-                createLeg("SELL", "PUT", spot, nearExpiry, qty = lot),
-                createLeg("BUY", "PUT", spot - (step * 2), nearExpiry, qty = lot * 2)
+                createLeg("SELL", "PUT", atmStrike, nearExpiry, qty = lot),
+                createLeg("BUY", "PUT", atmStrike - (step * 2), nearExpiry, qty = lot * 2)
             )
             "Bear Calendar Spread" -> listOf(
-                createLeg("SELL", "PUT", spot - (step * 2), nearExpiry, qty = lot),
-                createLeg("BUY", "PUT", spot - (step * 2), nextExpiry, qty = lot)
+                createLeg("SELL", "PUT", atmStrike - (step * 2), nearExpiry, qty = lot),
+                createLeg("BUY", "PUT", atmStrike - (step * 2), nextExpiry, qty = lot)
             )
             "Put Diagonal Spread" -> listOf(
-                createLeg("SELL", "PUT", spot - (step * 2), nearExpiry, qty = lot),
-                createLeg("BUY", "PUT", spot + step, nextExpiry, qty = lot)
+                createLeg("SELL", "PUT", atmStrike - (step * 2), nearExpiry, qty = lot),
+                createLeg("BUY", "PUT", atmStrike + step, nextExpiry, qty = lot)
             )
             "Long Put Butterfly" -> listOf(
-                createLeg("BUY", "PUT", spot + (step * 2), nearExpiry, qty = lot),
-                createLeg("SELL", "PUT", spot, nearExpiry, qty = lot * 2),
-                createLeg("BUY", "PUT", spot - (step * 2), nearExpiry, qty = lot)
+                createLeg("BUY", "PUT", atmStrike + (step * 2), nearExpiry, qty = lot),
+                createLeg("SELL", "PUT", atmStrike, nearExpiry, qty = lot * 2),
+                createLeg("BUY", "PUT", atmStrike - (step * 2), nearExpiry, qty = lot)
             )
 
             // --- NEUTRAL / INCOME STRATEGIES ---
             "Short Straddle" -> listOf(
-                createLeg("SELL", "CALL", spot, nearExpiry, qty = lot),
-                createLeg("SELL", "PUT", spot, nearExpiry, qty = lot)
+                createLeg("SELL", "CALL", atmStrike, nearExpiry, qty = lot),
+                createLeg("SELL", "PUT", atmStrike, nearExpiry, qty = lot)
             )
             "Short Strangle" -> listOf(
-                createLeg("SELL", "CALL", spot + (step * 2), nearExpiry, qty = lot),
-                createLeg("SELL", "PUT", spot - (step * 2), nearExpiry, qty = lot)
+                createLeg("SELL", "CALL", atmStrike + (step * 2), nearExpiry, qty = lot),
+                createLeg("SELL", "PUT", atmStrike - (step * 2), nearExpiry, qty = lot)
             )
             "Iron Condor" -> listOf(
-                createLeg("SELL", "CALL", spot + (step * 2), nearExpiry, qty = lot),
-                createLeg("BUY", "CALL", spot + (step * 4), nearExpiry, qty = lot),
-                createLeg("SELL", "PUT", spot - (step * 2), nearExpiry, qty = lot),
-                createLeg("BUY", "PUT", spot - (step * 4), nearExpiry, qty = lot)
+                createLeg("SELL", "CALL", atmStrike + (step * 2), nearExpiry, qty = lot),
+                createLeg("BUY", "CALL", atmStrike + (step * 4), nearExpiry, qty = lot),
+                createLeg("SELL", "PUT", atmStrike - (step * 2), nearExpiry, qty = lot),
+                createLeg("BUY", "PUT", atmStrike - (step * 4), nearExpiry, qty = lot)
             )
             "Iron Butterfly" -> listOf(
-                createLeg("SELL", "CALL", spot, nearExpiry, qty = lot),
-                createLeg("BUY", "CALL", spot + (step * 2), nearExpiry, qty = lot),
-                createLeg("SELL", "PUT", spot, nearExpiry, qty = lot),
-                createLeg("BUY", "PUT", spot - (step * 2), nearExpiry, qty = lot)
+                createLeg("SELL", "CALL", atmStrike, nearExpiry, qty = lot),
+                createLeg("BUY", "CALL", atmStrike + (step * 2), nearExpiry, qty = lot),
+                createLeg("SELL", "PUT", atmStrike, nearExpiry, qty = lot),
+                createLeg("BUY", "PUT", atmStrike - (step * 2), nearExpiry, qty = lot)
             )
             "Jade Lizard" -> listOf(
-                createLeg("SELL", "PUT", spot - (step * 2), nearExpiry, qty = lot),
-                createLeg("SELL", "CALL", spot + (step * 2), nearExpiry, qty = lot),
-                createLeg("BUY", "CALL", spot + (step * 4), nearExpiry, qty = lot)
+                createLeg("SELL", "PUT", atmStrike - (step * 2), nearExpiry, qty = lot),
+                createLeg("SELL", "CALL", atmStrike + (step * 2), nearExpiry, qty = lot),
+                createLeg("BUY", "CALL", atmStrike + (step * 4), nearExpiry, qty = lot)
             )
             "Reverse Jade Lizard" -> listOf(
-                createLeg("SELL", "CALL", spot + (step * 2), nearExpiry, qty = lot),
-                createLeg("SELL", "PUT", spot - (step * 2), nearExpiry, qty = lot),
-                createLeg("BUY", "PUT", spot - (step * 4), nearExpiry, qty = lot)
+                createLeg("SELL", "CALL", atmStrike + (step * 2), nearExpiry, qty = lot),
+                createLeg("SELL", "PUT", atmStrike - (step * 2), nearExpiry, qty = lot),
+                createLeg("BUY", "PUT", atmStrike - (step * 4), nearExpiry, qty = lot)
             )
             "Calendar Spread" -> listOf(
-                createLeg("SELL", "CALL", spot, nearExpiry, qty = lot),
-                createLeg("BUY", "CALL", spot, nextExpiry, qty = lot)
+                createLeg("SELL", "CALL", atmStrike, nearExpiry, qty = lot),
+                createLeg("BUY", "CALL", atmStrike, nextExpiry, qty = lot)
             )
             "Broken Wing Butterfly" -> listOf(
-                createLeg("BUY", "CALL", spot - (step * 2), nearExpiry, qty = lot),
-                createLeg("SELL", "CALL", spot, nearExpiry, qty = lot * 2),
-                createLeg("BUY", "CALL", spot + (step * 3), nearExpiry, qty = lot)
+                createLeg("BUY", "CALL", atmStrike - (step * 2), nearExpiry, qty = lot),
+                createLeg("SELL", "CALL", atmStrike, nearExpiry, qty = lot * 2),
+                createLeg("BUY", "CALL", atmStrike + (step * 3), nearExpiry, qty = lot)
             )
 
             // --- VOLATILITY / BREAKOUT STRATEGIES ---
             "Long Straddle" -> listOf(
-                createLeg("BUY", "CALL", spot, nearExpiry),
-                createLeg("BUY", "PUT", spot, nearExpiry)
+                createLeg("BUY", "CALL", atmStrike, nearExpiry, qty = lot),
+                createLeg("BUY", "PUT", atmStrike, nearExpiry, qty = lot)
             )
             "Long Strangle" -> listOf(
-                createLeg("BUY", "CALL", spot + (step * 2), nearExpiry),
-                createLeg("BUY", "PUT", spot - (step * 2), nearExpiry)
+                createLeg("BUY", "CALL", atmStrike + (step * 2), nearExpiry, qty = lot),
+                createLeg("BUY", "PUT", atmStrike - (step * 2), nearExpiry, qty = lot)
             )
             "Reverse Iron Condor" -> listOf(
-                createLeg("BUY", "CALL", spot + (step * 2), nearExpiry),
-                createLeg("SELL", "CALL", spot + (step * 4), nearExpiry),
-                createLeg("BUY", "PUT", spot - (step * 2), nearExpiry),
-                createLeg("SELL", "PUT", spot - (step * 4), nearExpiry)
+                createLeg("BUY", "CALL", atmStrike + (step * 2), nearExpiry, qty = lot),
+                createLeg("SELL", "CALL", atmStrike + (step * 4), nearExpiry, qty = lot),
+                createLeg("BUY", "PUT", atmStrike - (step * 2), nearExpiry, qty = lot),
+                createLeg("SELL", "PUT", atmStrike - (step * 4), nearExpiry, qty = lot)
             )
             "Reverse Iron Butterfly" -> listOf(
-                createLeg("BUY", "CALL", spot, nearExpiry),
-                createLeg("SELL", "CALL", spot + (step * 2), nearExpiry),
-                createLeg("BUY", "PUT", spot, nearExpiry),
-                createLeg("SELL", "PUT", spot - (step * 2), nearExpiry)
+                createLeg("BUY", "CALL", atmStrike, nearExpiry, qty = lot),
+                createLeg("SELL", "CALL", atmStrike + (step * 2), nearExpiry, qty = lot),
+                createLeg("BUY", "PUT", atmStrike, nearExpiry, qty = lot),
+                createLeg("SELL", "PUT", atmStrike - (step * 2), nearExpiry, qty = lot)
             )
             else -> emptyList()
         }
@@ -512,8 +725,34 @@ class FnoViewModel @Inject constructor(
         _uiState.update { it.copy(customStrategyName = name) }
     }
     
-    private fun createLeg(type: String, instrument: String, strike: Double, expiry: String, qty: Int = getLotSize(_uiState.value.selectedAsset)): StrategyLeg {
+    fun calculateMoneyness(strike: Double, spotPrice: Double, instrument: String, strikeStep: Double = 50.0): String {
+        if (instrument.equals("FUT", ignoreCase = true)) return "FUT"
+        val halfStep = (strikeStep / 2.0).coerceAtLeast(0.5)
+        val isAtm = abs(strike - spotPrice) <= halfStep
+        if (isAtm) return "ATM"
+        val isCall = instrument.equals("CALL", ignoreCase = true) || instrument.equals("CE", ignoreCase = true)
+        return if (isCall) {
+            if (strike < spotPrice) "ITM" else "OTM"
+        } else {
+            if (strike > spotPrice) "ITM" else "OTM"
+        }
+    }
+
+    private fun createLeg(
+        type: String,
+        instrument: String,
+        strike: Double,
+        expiry: String = _uiState.value.selectedExpiry.ifBlank { getUpcomingExpiry(0) },
+        qty: Int = getLotSize(_uiState.value.selectedAsset) * _uiState.value.numberOfLots,
+        underlying: String = _uiState.value.selectedAsset
+    ): StrategyLeg {
         val spot = _uiState.value.spotPrice
+        val step = _uiState.value.strikeStep.coerceAtLeast(1.0)
+        val resolvedStrike = if (instrument.equals("FUT", ignoreCase = true)) {
+            0.0
+        } else {
+            round(strike / step) * step
+        }
         val currentIv = (_uiState.value.summary.iv).coerceAtLeast(5.0) / 100.0
         val timeYears = 5.0 / 365.0
         val entry = if (instrument == "FUT") {
@@ -522,7 +761,7 @@ class FnoViewModel @Inject constructor(
             val isCall = instrument.equals("CALL", ignoreCase = true)
             val g = quantEngine.calculate(
                 forward = spot,
-                strike = strike,
+                strike = resolvedStrike,
                 rate = 0.065,
                 timeToExpiryYears = timeYears,
                 volatility = currentIv,
@@ -530,22 +769,223 @@ class FnoViewModel @Inject constructor(
             )
             round(max(0.5, g.price) * 100.0) / 100.0
         }
+        val baseLot = getLotSize(underlying)
+        val lots = max(1, qty / baseLot.coerceAtLeast(1))
+        val moneyness = calculateMoneyness(resolvedStrike, spot, instrument, step)
         return StrategyLeg(
             id = UUID.randomUUID().toString(),
             type = type,
             instrument = instrument,
-            strike = strike,
+            strike = resolvedStrike,
             expiry = expiry,
             qty = qty,
             entryPrice = entry,
-            currentPrice = entry
+            currentPrice = entry,
+            lotSize = baseLot,
+            lots = lots,
+            underlying = underlying,
+            moneyness = moneyness
         )
     }
 
-    fun addLeg(instrument: String, type: String, strike: Double) {
-        val lot = getLotSize(_uiState.value.selectedAsset)
-        val newLeg = createLeg(type, instrument, strike, getUpcomingExpiry(0), qty = lot)
+    fun addLeg(instrument: String, type: String, strike: Double, expiry: String? = null) {
+        val underlying = _uiState.value.selectedAsset
+        val baseLot = getLotSize(underlying)
+        val totalQty = baseLot * _uiState.value.numberOfLots
+        val legExpiry = expiry?.ifBlank { null } ?: _uiState.value.selectedExpiry.ifBlank { getUpcomingExpiry(0) }
+        val newLeg = createLeg(type, instrument, strike, legExpiry, qty = totalQty, underlying = underlying)
         _uiState.update { it.copy(activeLegs = it.activeLegs + newLeg) }
+        recalculateLivePnlAndMetrics()
+    }
+
+    fun selectStrikeForDetail(strike: OptionChainData?, side: String? = null) {
+        if (strike == null) {
+            dismissStrikeDetail()
+            return
+        }
+        val isPut = side?.equals("PUT", ignoreCase = true) == true || side?.equals("PE", ignoreCase = true) == true
+        val optionType = if (isPut) "PE" else "CE"
+        val optionSide = if (isPut) "PUT" else "CALL"
+
+        _uiState.update {
+            it.copy(
+                selectedStrikeForDetail = strike,
+                selectedOptionSide = optionSide
+            )
+        }
+        loadStrikeChart(
+            strike = strike,
+            optionType = optionType,
+            timeframe = _uiState.value.strikeChartState.selectedTimeframe.ifBlank { "5m" }
+        )
+    }
+
+    fun onStrikeOptionTypeChanged(optionType: String) {
+        val currentStrike = _uiState.value.selectedStrikeForDetail ?: return
+        val isPut = optionType.equals("PUT", ignoreCase = true) || optionType.equals("PE", ignoreCase = true)
+        val normType = if (isPut) "PE" else "CE"
+        val optionSide = if (isPut) "PUT" else "CALL"
+
+        _uiState.update {
+            it.copy(selectedOptionSide = optionSide)
+        }
+        loadStrikeChart(
+            strike = currentStrike,
+            optionType = normType,
+            timeframe = _uiState.value.strikeChartState.selectedTimeframe.ifBlank { "5m" }
+        )
+    }
+
+    fun onStrikeTimeframeChanged(timeframe: String) {
+        val currentStrike = _uiState.value.selectedStrikeForDetail ?: return
+        val isPut = _uiState.value.selectedOptionSide.equals("PUT", ignoreCase = true) ||
+                    _uiState.value.selectedOptionSide.equals("PE", ignoreCase = true)
+        val normType = if (isPut) "PE" else "CE"
+        loadStrikeChart(
+            strike = currentStrike,
+            optionType = normType,
+            timeframe = timeframe
+        )
+    }
+
+    fun retryLoadStrikeChart() {
+        val currentStrike = _uiState.value.selectedStrikeForDetail ?: return
+        val isPut = _uiState.value.selectedOptionSide.equals("PUT", ignoreCase = true) ||
+                    _uiState.value.selectedOptionSide.equals("PE", ignoreCase = true)
+        val normType = if (isPut) "PE" else "CE"
+        loadStrikeChart(
+            strike = currentStrike,
+            optionType = normType,
+            timeframe = _uiState.value.strikeChartState.selectedTimeframe.ifBlank { "5m" }
+        )
+    }
+
+    fun loadStrikeChart(
+        strike: OptionChainData,
+        optionType: String,
+        timeframe: String = "5m"
+    ) {
+        val asset = _uiState.value.selectedAsset
+        val expiry = _uiState.value.selectedExpiry.ifBlank { getUpcomingExpiry(0) }
+        val isCall = !optionType.equals("PE", ignoreCase = true) && !optionType.equals("PUT", ignoreCase = true)
+        val normType = if (isCall) "CE" else "PE"
+
+        val ltp = if (isCall) strike.callLTP else strike.putLTP
+        val changePct = if (isCall) strike.callChange else strike.putChange
+        val iv = if (isCall) strike.callIV else strike.putIV
+        val oi = if (isCall) strike.callOI else strike.putOI
+        val greeks = if (isCall) strike.callGreeks else strike.putGreeks
+        val contractDisplayName = "${asset.uppercase()} ${strike.strike.toInt()} $normType"
+
+        // Immediately set loading state and clear stale candles so switching strikes never retains prior data
+        _uiState.update {
+            it.copy(
+                strikeChartState = StrikeChartState(
+                    assetSymbol = asset,
+                    strikePrice = strike.strike,
+                    optionType = normType,
+                    expiry = expiry,
+                    contractDisplayName = contractDisplayName,
+                    ltp = ltp,
+                    changePercent = changePct,
+                    iv = iv,
+                    oi = oi,
+                    greeks = greeks,
+                    candles = emptyList(),
+                    selectedTimeframe = timeframe,
+                    isLoading = true,
+                    error = null
+                )
+            )
+        }
+
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                // Attempt to fetch from repository or database if live option tokens exist
+                val cleanSymbol = "${asset.replace(" ", "")}${strike.strike.toInt()}$normType"
+                var fetchedCandles: List<Candle> = emptyList()
+                try {
+                    fetchedCandles = marketRepository.getHistoricalCandles(cleanSymbol, timeframe)
+                } catch (e: Exception) {
+                    // Fall back to deterministic mathematical option candle generator
+                }
+
+                val finalCandles = if (fetchedCandles.isNotEmpty()) {
+                    fetchedCandles
+                } else {
+                    OptionCandleGenerator.generateOptionCandles(
+                        assetSymbol = asset,
+                        strike = strike.strike,
+                        optionType = normType,
+                        expiry = expiry,
+                        currentLtp = ltp,
+                        changePercent = changePct,
+                        iv = iv,
+                        timeframe = timeframe
+                    )
+                }
+
+                _uiState.update { state ->
+                    if (state.selectedStrikeForDetail?.strike == strike.strike &&
+                        state.strikeChartState.optionType == normType) {
+                        state.copy(
+                            strikeChartState = state.strikeChartState.copy(
+                                candles = finalCandles,
+                                isLoading = false,
+                                error = if (finalCandles.isEmpty()) "No chart data available for $contractDisplayName" else null
+                            )
+                        )
+                    } else {
+                        state
+                    }
+                }
+            } catch (e: Exception) {
+                _uiState.update {
+                    it.copy(
+                        strikeChartState = it.strikeChartState.copy(
+                            isLoading = false,
+                            error = e.message ?: "Failed to load option contract chart"
+                        )
+                    )
+                }
+            }
+        }
+    }
+
+    fun dismissStrikeDetail() {
+        _uiState.update {
+            it.copy(
+                selectedStrikeForDetail = null,
+                selectedOptionSide = null,
+                strikeChartState = StrikeChartState()
+            )
+        }
+    }
+
+    fun addLegFromStrike(strike: Double, instrument: String, type: String = "BUY") {
+        val expiry = _uiState.value.selectedExpiry.ifBlank { getUpcomingExpiry(0) }
+        addLeg(instrument = instrument, type = type, strike = strike, expiry = expiry)
+    }
+
+    fun addStraddleFromStrike(strike: Double) {
+        val underlying = _uiState.value.selectedAsset
+        val baseLot = getLotSize(underlying)
+        val totalQty = baseLot * _uiState.value.numberOfLots
+        val expiry = _uiState.value.selectedExpiry.ifBlank { getUpcomingExpiry(0) }
+        val callLeg = createLeg("BUY", "CALL", strike, expiry, qty = totalQty, underlying = underlying)
+        val putLeg = createLeg("BUY", "PUT", strike, expiry, qty = totalQty, underlying = underlying)
+        _uiState.update { it.copy(activeLegs = it.activeLegs + listOf(callLeg, putLeg)) }
+        recalculateLivePnlAndMetrics()
+    }
+
+    fun addStrangleFromStrikes(callStrike: Double, putStrike: Double) {
+        val underlying = _uiState.value.selectedAsset
+        val baseLot = getLotSize(underlying)
+        val totalQty = baseLot * _uiState.value.numberOfLots
+        val expiry = _uiState.value.selectedExpiry.ifBlank { getUpcomingExpiry(0) }
+        val callLeg = createLeg("BUY", "CALL", callStrike, expiry, qty = totalQty, underlying = underlying)
+        val putLeg = createLeg("BUY", "PUT", putStrike, expiry, qty = totalQty, underlying = underlying)
+        _uiState.update { it.copy(activeLegs = it.activeLegs + listOf(callLeg, putLeg)) }
         recalculateLivePnlAndMetrics()
     }
 
@@ -662,6 +1102,42 @@ class FnoViewModel @Inject constructor(
         recalculateLivePnlAndMetrics()
     }
 
+    fun toggleLegEnabled(legId: String) {
+        _uiState.update { state ->
+            val updated = state.activeLegs.map { leg ->
+                if (leg.id == legId) leg.copy(isEnabled = !leg.isEnabled) else leg
+            }
+            state.copy(activeLegs = updated)
+        }
+        recalculateLivePnlAndMetrics()
+    }
+
+    fun duplicateLeg(legId: String) {
+        val leg = _uiState.value.activeLegs.firstOrNull { it.id == legId } ?: return
+        val newLeg = leg.copy(id = UUID.randomUUID().toString())
+        _uiState.update { it.copy(activeLegs = it.activeLegs + newLeg) }
+        recalculateLivePnlAndMetrics()
+    }
+
+    fun updateLegEntryPrice(legId: String, newEntryPrice: Double) {
+        if (newEntryPrice < 0.0) return
+        _uiState.update { state ->
+            val updated = state.activeLegs.map { leg ->
+                if (leg.id == legId) leg.copy(entryPrice = newEntryPrice, currentPrice = newEntryPrice) else leg
+            }
+            state.copy(activeLegs = updated)
+        }
+        recalculateLivePnlAndMetrics()
+    }
+
+    fun selectAllLegs(enable: Boolean) {
+        _uiState.update { state ->
+            val updated = state.activeLegs.map { it.copy(isEnabled = enable) }
+            state.copy(activeLegs = updated)
+        }
+        recalculateLivePnlAndMetrics()
+    }
+
     fun recalculateLivePnlAndMetrics() {
         val state = _uiState.value
         var netPrem = 0.0
@@ -677,12 +1153,23 @@ class FnoViewModel @Inject constructor(
 
         val totalPnlPct = if (abs(netPrem) > 0.01) (totalPnl / abs(netPrem)) * 100.0 else 0.0
 
+        val hasShortLegs = state.activeLegs.any { it.type.equals("SELL", ignoreCase = true) }
+        val capReq = if (!hasShortLegs) {
+            max(0.0, netPrem)
+        } else {
+            val shortQty = state.activeLegs.filter { it.type.equals("SELL", ignoreCase = true) }.sumOf { it.qty }
+            val baseMargin = shortQty * (state.spotPrice * 0.12)
+            val netDebitOutlay = if (netPrem > 0.0) netPrem else 0.0
+            baseMargin + netDebitOutlay
+        }
+
         _uiState.update {
             it.copy(
                 totalStrategyPnl = round(totalPnl * 10.0) / 10.0,
                 totalStrategyPnlPct = round(totalPnlPct * 10.0) / 10.0,
                 netPremium = round(netPrem * 10.0) / 10.0,
-                currentStrategyValue = round(currentVal * 10.0) / 10.0
+                currentStrategyValue = round(currentVal * 10.0) / 10.0,
+                capitalRequired = round(capReq * 10.0) / 10.0
             )
         }
 
@@ -793,9 +1280,102 @@ class FnoViewModel @Inject constructor(
     }
 
     fun onSimulationChanged(ivShift: Double, timeShift: Int) {
-        _uiState.update { it.copy(ivSimulation = ivShift, timeSimulation = timeShift) }
+        onSimulationChanged(_uiState.value.spotSimulationPct, ivShift, timeShift)
+    }
+
+    fun onSimulationChanged(spotShiftPct: Double, ivShift: Double, timeShift: Int) {
+        _uiState.update { it.copy(spotSimulationPct = spotShiftPct, ivSimulation = ivShift, timeSimulation = timeShift) }
         val name = _uiState.value.customStrategyName.ifBlank { _uiState.value.selectedStrategy?.name ?: "Custom Strategy" }
         calculateStrategyMetrics(name)
+    }
+
+    fun resetSimulation() {
+        _uiState.update { it.copy(spotSimulationPct = 0.0, ivSimulation = 0.0, timeSimulation = 0, selectedCrosshairPrice = null) }
+        val name = _uiState.value.customStrategyName.ifBlank { _uiState.value.selectedStrategy?.name ?: "Custom Strategy" }
+        calculateStrategyMetrics(name)
+    }
+
+    fun setWorkspaceTab(tab: OpstraWorkspaceTab) {
+        _uiState.update { it.copy(selectedWorkspaceTab = tab) }
+    }
+
+    fun setChartPriceRangePct(rangePct: Double) {
+        _uiState.update { it.copy(chartPriceRangePct = rangePct) }
+    }
+
+    fun setSelectedCrosshairPrice(price: Double?) {
+        _uiState.update { it.copy(selectedCrosshairPrice = price) }
+    }
+
+    fun requestResetStrategy() {
+        if (_uiState.value.activeLegs.isEmpty()) return
+        _uiState.update { it.copy(showResetConfirmDialog = true) }
+    }
+
+    fun confirmResetStrategy() {
+        deleteOrClearStrategy()
+        _uiState.update { it.copy(showResetConfirmDialog = false) }
+    }
+
+    fun dismissResetDialog() {
+        _uiState.update { it.copy(showResetConfirmDialog = false) }
+    }
+
+    fun requestDeleteTrackedStrategy(id: String) {
+        _uiState.update { it.copy(showDeleteConfirmDialog = true, pendingDeleteStrategyId = id) }
+    }
+
+    fun confirmDeleteTrackedStrategy() {
+        val id = _uiState.value.pendingDeleteStrategyId ?: return
+        deleteTrackedStrategy(id)
+        _uiState.update { it.copy(showDeleteConfirmDialog = false, pendingDeleteStrategyId = null) }
+    }
+
+    fun dismissDeleteDialog() {
+        _uiState.update { it.copy(showDeleteConfirmDialog = false, pendingDeleteStrategyId = null) }
+    }
+
+    fun openRenameDialog(id: String, currentName: String) {
+        _uiState.update { it.copy(isRenameDialogOpen = true, pendingDeleteStrategyId = id, strategyRenameInput = currentName) }
+    }
+
+    fun setRenameInput(name: String) {
+        _uiState.update { it.copy(strategyRenameInput = name) }
+    }
+
+    fun confirmRenameStrategy() {
+        val id = _uiState.value.pendingDeleteStrategyId ?: return
+        val newName = _uiState.value.strategyRenameInput.trim()
+        if (newName.isNotBlank()) {
+            val updated = _uiState.value.trackedStrategies.map {
+                if (it.id == id) it.copy(name = newName) else it
+            }
+            _uiState.update {
+                it.copy(
+                    trackedStrategies = updated,
+                    isRenameDialogOpen = false,
+                    pendingDeleteStrategyId = null,
+                    selectedStrategyName = if (it.editingStrategyId == id) newName else it.selectedStrategyName
+                )
+            }
+            persistTrackedStrategies(updated)
+        }
+    }
+
+    fun dismissRenameDialog() {
+        _uiState.update { it.copy(isRenameDialogOpen = false, pendingDeleteStrategyId = null) }
+    }
+
+    fun duplicateTrackedStrategy(strategyId: String) {
+        val strategy = _uiState.value.trackedStrategies.firstOrNull { it.id == strategyId } ?: return
+        val duplicated = strategy.copy(
+            id = UUID.randomUUID().toString(),
+            name = "${strategy.name} (Copy)",
+            rawLegs = strategy.rawLegs.map { it.copy(id = UUID.randomUUID().toString()) }
+        )
+        val updated = listOf(duplicated) + _uiState.value.trackedStrategies
+        _uiState.update { it.copy(trackedStrategies = updated) }
+        persistTrackedStrategies(updated)
     }
     
     fun analyzeStrategy() {
@@ -896,13 +1476,18 @@ class FnoViewModel @Inject constructor(
                 editingStrategyId = null,
                 activeLegs = emptyList(),
                 selectedStrategy = null,
+                analysisResult = null,
                 customStrategyName = "",
                 selectedStrategyName = "",
                 isStrategyAnalyzed = false,
                 totalStrategyPnl = 0.0,
                 totalStrategyPnlPct = 0.0,
                 netPremium = 0.0,
-                currentStrategyValue = 0.0
+                currentStrategyValue = 0.0,
+                spotSimulationPct = 0.0,
+                ivSimulation = 0.0,
+                timeSimulation = 0,
+                selectedCrosshairPrice = null
             )
         }
     }
@@ -936,157 +1521,101 @@ class FnoViewModel @Inject constructor(
     private fun calculateStrategyMetrics(name: String) {
         val state = _uiState.value
         if (state.activeLegs.isEmpty()) {
-            _uiState.update { it.copy(selectedStrategy = null) }
+            _uiState.update { it.copy(selectedStrategy = null, analysisResult = null) }
             return
         }
 
-        val spot = state.spotPrice
-        val range = (spot * 0.06).toInt()
-        val expiryPoints = mutableListOf<PayoffPoint>()
-        val todayPoints = mutableListOf<PayoffPoint>()
-        val currentIv = (state.summary.iv + state.ivSimulation).coerceAtLeast(5.0) / 100.0
+        val baseLot = getLotSize(state.selectedAsset)
         val daysRemaining = (5.0 - state.timeSimulation).coerceAtLeast(0.05)
-        val timeYears = daysRemaining / 365.0
+        val futPrice = state.summary.contracts.firstOrNull()?.ltp ?: (state.spotPrice * 1.002)
 
-        var portfolioDelta = 0.0
-        var portfolioGamma = 0.0
-        var portfolioTheta = 0.0
-        var portfolioVega = 0.0
-        val baseLot = getLotSize(state.selectedAsset).toDouble()
-
-        // Compute net Portfolio Greeks
-        state.activeLegs.forEach { leg ->
-            val multiplier = if (leg.type == "BUY") 1.0 else -1.0
-            val lotMultiplier = leg.qty / baseLot
-            if (leg.instrument == "FUT") {
-                portfolioDelta += 1.0 * multiplier * lotMultiplier
-            } else {
-                val isCall = leg.instrument == "CALL"
-                val g = quantEngine.calculate(
-                    forward = spot,
-                    strike = leg.strike,
-                    rate = 0.065,
-                    timeToExpiryYears = timeYears,
-                    volatility = currentIv,
-                    isCall = isCall
-                )
-                portfolioDelta += g.delta * multiplier * lotMultiplier
-                portfolioGamma += g.gamma * multiplier * lotMultiplier
-                portfolioTheta += g.theta * multiplier * lotMultiplier * baseLot
-                portfolioVega += g.vega * multiplier * lotMultiplier * baseLot
-            }
-        }
-
-        val step = max(5, (state.strikeStep / 2).toInt())
-        for (i in -range..range step step) {
-            val price = spot + i
-            var totalPnlExpiry = 0.0
-            var totalPnlToday = 0.0
-            
-            state.activeLegs.forEach { leg ->
-                val multiplier = if(leg.type == "BUY") 1 else -1
-                val profitExpiry = when (leg.instrument) {
-                    "CALL" -> max(0.0, price - leg.strike) - leg.entryPrice
-                    "PUT" -> max(0.0, leg.strike - price) - leg.entryPrice
-                    else -> price - leg.entryPrice
-                }
-                totalPnlExpiry += profitExpiry * leg.qty * multiplier
-
-                // Exact Black-76 theoretical value for Today's T+0 curve
-                val priceToday = if (leg.instrument == "FUT") {
-                    price
-                } else {
-                    val isCall = leg.instrument == "CALL"
-                    val gToday = quantEngine.calculate(
-                        forward = price,
-                        strike = leg.strike,
-                        rate = 0.065,
-                        timeToExpiryYears = timeYears,
-                        volatility = currentIv,
-                        isCall = isCall
-                    )
-                    gToday.price
-                }
-                val profitToday = priceToday - leg.entryPrice
-                totalPnlToday += profitToday * leg.qty * multiplier
-            }
-            expiryPoints.add(PayoffPoint(price, totalPnlExpiry))
-            todayPoints.add(PayoffPoint(price, totalPnlToday))
-        }
-        
-        val breakevens = mutableListOf<Double>()
-        for (i in 0 until expiryPoints.size - 1) {
-            val p1 = expiryPoints[i]
-            val p2 = expiryPoints[i+1]
-            if ((p1.pnl < 0 && p2.pnl >= 0) || (p1.pnl >= 0 && p2.pnl < 0)) {
-                breakevens.add(p1.price)
-            }
-        }
-        
-        val maxProfitValue = expiryPoints.maxOf { it.pnl }
-        val maxLossValue = expiryPoints.minOf { it.pnl }
-        val isDebit = name.contains("Long") || name.contains("Reverse") || name.contains("Backspread")
-        val prob = quantEngine.calculateProbabilityOfProfit(
-            spot = spot,
-            breakevens = breakevens,
-            volatility = currentIv,
-            timeToExpiryYears = timeYears,
-            isDebitOrBreakout = isDebit
+        val analysis = strategyEngine.analyzeStrategy(
+            legs = state.activeLegs,
+            spotPrice = state.spotPrice,
+            impliedVolatility = state.summary.iv.coerceAtLeast(10.0),
+            daysToExpiry = daysRemaining,
+            interestRate = 0.065,
+            lotSize = baseLot,
+            numberOfLots = state.numberOfLots,
+            spotShiftPct = state.spotSimulationPct,
+            ivShiftPct = state.ivSimulation,
+            targetDaysToExpiry = daysRemaining,
+            futuresPrice = futPrice
         )
 
-        _uiState.update { it.copy(
-            selectedStrategy = OptionStrategy(
-                id = it.editingStrategyId ?: UUID.randomUUID().toString(),
-                name = name,
-                description = "Institutional Build",
-                maxProfit = maxProfitValue,
-                maxLoss = maxLossValue,
-                breakeven = breakevens,
-                probability = (prob * 10).toInt() / 10.0,
-                roi = if (abs(maxLossValue) > 1.0) abs(maxProfitValue / maxLossValue) * 100 else 0.0,
-                legs = state.activeLegs.map { l -> val b = baseLot.toInt(); "${if (b > 0 && l.qty > b) "${l.qty / b}x " else ""}${l.type} ${l.strike.toInt()} ${l.instrument}" },
-                payoffPoints = expiryPoints,
-                todayPayoffPoints = todayPoints,
-                rawLegs = state.activeLegs
-            ),
-            strategyGreeks = Greeks(
-                delta = (portfolioDelta * 100).toInt() / 100.0,
-                gamma = (portfolioGamma * 10000).toInt() / 10000.0,
-                theta = (portfolioTheta * 10).toInt() / 10.0,
-                vega = (portfolioVega * 10).toInt() / 10.0
+        _uiState.update {
+            it.copy(
+                analysisResult = analysis,
+                selectedStrategy = OptionStrategy(
+                    id = it.editingStrategyId ?: UUID.randomUUID().toString(),
+                    name = name,
+                    description = "Institutional Strategy Analytics",
+                    maxProfit = analysis.maxProfit,
+                    maxLoss = analysis.maxLoss,
+                    breakeven = analysis.breakevens,
+                    probability = analysis.probabilityOfProfit,
+                    roi = if (abs(analysis.maxLoss) > 1.0 && !analysis.isMaxProfitUnlimited && !analysis.isMaxLossUnlimited) {
+                        (analysis.maxProfit / abs(analysis.maxLoss)) * 100.0
+                    } else 0.0,
+                    legs = state.activeLegs.map { l ->
+                        val b = if (l.lotSize > 0) l.lotSize else baseLot
+                        val lotsMultiplier = if (b > 0 && l.qty > b) "${l.qty / b}x " else ""
+                        val mStr = if (l.moneyness.isNotBlank()) " [${l.moneyness}]" else ""
+                        val disabledStr = if (!l.isEnabled) " (OFF)" else ""
+                        "$lotsMultiplier${l.type} ${l.strike.toInt()} ${l.instrument}$mStr$disabledStr"
+                    },
+                    payoffPoints = analysis.payoffPoints,
+                    todayPayoffPoints = analysis.todayPayoffPoints,
+                    rawLegs = state.activeLegs,
+                    expiry = state.selectedExpiry.ifBlank { state.activeLegs.firstOrNull()?.expiry ?: getUpcomingExpiry(0) },
+                    lotSize = baseLot,
+                    lots = state.numberOfLots,
+                    capitalRequired = analysis.capitalRequired,
+                    underlying = state.selectedAsset,
+                    isMaxProfitUnlimited = analysis.isMaxProfitUnlimited,
+                    isMaxLossUnlimited = analysis.isMaxLossUnlimited,
+                    riskRewardRatio = analysis.riskRewardRatio,
+                    estimatedMargin = analysis.estimatedMargin,
+                    netCreditDebit = analysis.netCreditDebit
+                ),
+                strategyGreeks = analysis.totalGreeks,
+                totalStrategyPnl = analysis.livePnl,
+                totalStrategyPnlPct = analysis.livePnlPercent,
+                netPremium = analysis.netCreditDebit,
+                currentStrategyValue = analysis.currentStrategyValue,
+                capitalRequired = analysis.capitalRequired
             )
-        ) }
+        }
     }
 
-    private fun loadAssetData(symbol: String) {
+    fun loadAssetData(symbol: String) {
         viewModelScope.launch {
-            _uiState.update { it.copy(isLoading = true, selectedAsset = symbol) }
-            kotlinx.coroutines.delay(400)
+            _uiState.update { it.copy(isLoading = true) }
+            kotlinx.coroutines.delay(200)
 
-            // 1. Get live price from LiveIntelligenceBus or fallbacks
-            val liveInfo = intelligenceBus.getLivePrice(symbol)
-            val spot = liveInfo?.price ?: when {
-                symbol.contains("BANKNIFTY", ignoreCase = true) -> 54259.95
-                symbol.contains("NIFTY", ignoreCase = true) -> 22716.20
-                symbol.contains("SENSEX", ignoreCase = true) -> 72529.07
-                symbol.contains("FINNIFTY", ignoreCase = true) -> 24648.50
-                symbol.contains("RELIANCE", ignoreCase = true) -> 1182.00
-                symbol.contains("HDFCBANK", ignoreCase = true) -> 722.70
-                symbol.contains("TCS", ignoreCase = true) -> 2032.40
-                symbol.contains("INFY", ignoreCase = true) -> 1015.40
-                symbol.contains("SPX", ignoreCase = true) -> 5485.88
-                symbol.contains("DFMGI", ignoreCase = true) -> 4849.37
-                else -> 22716.20
-            }
-            val rawChangePct = liveInfo?.changePercent ?: -0.45
-            val liveChangePct = round(rawChangePct * 100.0) / 100.0
+            val resolved = resolveAssetInfo(symbol)
+            val spot = resolved.spotPrice
+            val liveChangePct = resolved.changePercent
+            val actualSymbol = resolved.symbol
+            val strikeStep = resolved.strikeStep
+            val lotSize = resolved.lotSize
+            val isIndex = actualSymbol.contains("NIFTY", ignoreCase = true) || actualSymbol.contains("SENSEX", ignoreCase = true) || actualSymbol.contains("SPX", ignoreCase = true) || actualSymbol.contains("DFMGI", ignoreCase = true)
+
+            // Register with live bus so price updates work consistently
+            intelligenceBus.updateLivePrice(actualSymbol, spot, spot * liveChangePct / 100.0, liveChangePct)
+
+            val expiries = generateAvailableExpiries()
+            val selectedExp = expiries.firstOrNull() ?: getUpcomingExpiry(0)
+            _uiState.update { it.copy(
+                selectedAsset = resolved.displayName,
+                spotPrice = spot,
+                lotSize = lotSize,
+                availableExpiries = expiries,
+                selectedExpiry = if (it.selectedExpiry.isBlank() || !expiries.contains(it.selectedExpiry)) selectedExp else it.selectedExpiry
+            ) }
 
             val nearExpiry = getUpcomingMonthlyExpiry(0)
             val nextExpiry = getUpcomingMonthlyExpiry(1)
-
-            val isIndex = symbol.contains("NIFTY", ignoreCase = true) || symbol.contains("SENSEX", ignoreCase = true) || symbol.contains("SPX", ignoreCase = true) || symbol.contains("DFMGI", ignoreCase = true)
-            val strikeStep = getStrikeStepForSymbol(symbol, spot)
-            val lotSize = getLotSize(symbol)
             val baseStrike = round(spot / strikeStep) * strikeStep
             val strikeIndices = if (isIndex) (-50..50) else (-25..25)
             val timeYears = 5.0 / 365.0

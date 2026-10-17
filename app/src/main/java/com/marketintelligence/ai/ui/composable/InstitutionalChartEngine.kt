@@ -112,6 +112,10 @@ fun InstitutionalChartEngine(
     var scrollOffsetFromRight by remember { mutableFloatStateOf(0f) }
     var crosshairOffset by remember { mutableStateOf<Offset?>(null) }
 
+    LaunchedEffect(timeframe) {
+        scrollOffsetFromRight = 0f
+    }
+
     val density = LocalDensity.current
     val candleBaseWidth = remember(density) { with(density) { 14.dp.toPx() } }
 
@@ -144,7 +148,7 @@ fun InstitutionalChartEngine(
 
     val activeCandle = inspectedCandleIndex?.let { renderCandles.getOrNull(it) } ?: renderCandles.lastOrNull()
 
-    Column(modifier = modifier.fillMaxSize().background(Color(0xFF0D0E12))) {
+    Column(modifier = modifier.fillMaxSize().background(Color.White)) {
         activeCandle?.let { c ->
             val change = c.close - c.open
             val pct = if (c.open > 0) (change / c.open) * 100.0 else 0.0
@@ -153,25 +157,25 @@ fun InstitutionalChartEngine(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(Color(0xFF14161D))
-                    .padding(horizontal = 8.dp, vertical = 5.dp),
+                    .background(Color.White)
+                    .padding(horizontal = 8.dp, vertical = 4.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Row(horizontalArrangement = Arrangement.spacedBy(5.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Text(symbol.uppercase(), color = Color.White, fontSize = 9.sp, fontWeight = FontWeight.ExtraBold, fontFamily = FontFamily.Monospace)
-                    Text("• $timeframe", color = Color(0xFF00E5FF), fontSize = 8.sp, fontWeight = FontWeight.Bold)
+                    Text(symbol.uppercase(), color = Color(0xFF131722), fontSize = 9.sp, fontWeight = FontWeight.ExtraBold, fontFamily = FontFamily.Monospace)
+                    Text("• $timeframe", color = Color(0xFF00897B), fontSize = 8.sp, fontWeight = FontWeight.Bold)
                     val rawT = c.openTime
                     val tMs = if (rawT in 1..99_999_999_999L) rawT * 1000L else rawT
                     val isDaily = timeframe.contains("D", ignoreCase = true) || timeframe.contains("W", ignoreCase = true) || timeframe.contains("M", ignoreCase = true)
                     val dateLabel = if (isDaily) SimpleDateFormat("dd MMM", Locale.US).format(Date(tMs)) else SimpleDateFormat("dd MMM, HH:mm", Locale.US).format(Date(tMs))
-                    Text(dateLabel, color = Color(0xFF8B949E), fontSize = 8.sp, fontFamily = FontFamily.Monospace)
-                    Text("O: %.2f".format(c.open), color = Color(0xFFD1D4DC), fontSize = 8.5.sp, fontFamily = FontFamily.Monospace)
-                    Text("H: %.2f".format(c.high), color = Color(0xFFD1D4DC), fontSize = 8.5.sp, fontFamily = FontFamily.Monospace)
-                    Text("L: %.2f".format(c.low), color = Color(0xFFD1D4DC), fontSize = 8.5.sp, fontFamily = FontFamily.Monospace)
+                    Text(dateLabel, color = Color(0xFF6B7280), fontSize = 8.sp, fontFamily = FontFamily.Monospace)
+                    Text("O: %.2f".format(c.open), color = Color(0xFF131722), fontSize = 8.5.sp, fontFamily = FontFamily.Monospace)
+                    Text("H: %.2f".format(c.high), color = Color(0xFF131722), fontSize = 8.5.sp, fontFamily = FontFamily.Monospace)
+                    Text("L: %.2f".format(c.low), color = Color(0xFF131722), fontSize = 8.5.sp, fontFamily = FontFamily.Monospace)
                     Text("C: %.2f".format(c.close), color = if (isBull) AppGreen else AppRed, fontSize = 8.5.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace)
                     if (c.volume > 0.0) {
-                        Text("V: ${formatEngineVolume(c.volume)}", color = Color(0xFF00E5FF), fontSize = 8.5.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace)
+                        Text("V: ${formatEngineVolume(c.volume)}", color = Color(0xFF00897B), fontSize = 8.5.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace)
                     }
                 }
                 Text(
@@ -188,17 +192,21 @@ fun InstitutionalChartEngine(
             Canvas(
                 modifier = Modifier
                     .fillMaxSize()
+                    .background(Color.White)
                     .pointerInput(renderCandles.size) {
                         detectTransformGestures { _, panAmount, zoomAmount, _ ->
                             zoom = (zoom * zoomAmount).coerceIn(0.15f, 6.0f)
                             val canvasWidth = size.width.toFloat()
-                            val vCount = (50f / zoom).roundToInt().coerceIn(8, renderCandles.size.coerceAtLeast(8))
-                            val rightMargin = with(density) { 65.dp.toPx() }
+                            val vCount = (50f / zoom).roundToInt().coerceIn(16, (renderCandles.size + 30).coerceAtLeast(16))
+                            val rightMargin = with(density) { 40.dp.toPx() }
                             val chartWidth = (canvasWidth - rightMargin).coerceAtLeast(10f)
                             val cWidth = chartWidth / vCount
-                            val mScroll = (renderCandles.size - vCount).coerceAtLeast(0).toFloat()
+                            val maxPastOffsetBars = 25f
+                            val maxFutureOffsetBars = 35f
+                            val mScroll = (renderCandles.size - vCount + 6 + maxPastOffsetBars).coerceAtLeast(0f)
+                            val minScroll = -maxFutureOffsetBars
                             if (cWidth > 0f) {
-                                scrollOffsetFromRight = (scrollOffsetFromRight + panAmount.x / cWidth).coerceIn(0f, mScroll)
+                                scrollOffsetFromRight = (scrollOffsetFromRight + panAmount.x / cWidth).coerceIn(minScroll, mScroll)
                             }
                             if (panAmount.getDistance() > 1.5f || kotlin.math.abs(zoomAmount - 1f) > 0.02f) {
                                 crosshairOffset = null
@@ -220,30 +228,44 @@ fun InstitutionalChartEngine(
                 val canvasHeight = size.height
                 if (renderCandles.isEmpty() || canvasWidth <= 0 || canvasHeight <= 0) return@Canvas
 
-                val baseCount = 50f
-                val visibleCount = (baseCount / zoom).roundToInt().coerceIn(8, renderCandles.size.coerceAtLeast(8))
-                val maxScroll = (renderCandles.size - visibleCount).coerceAtLeast(0).toFloat()
-                val clampedScroll = scrollOffsetFromRight.coerceIn(0f, maxScroll)
+                val baseCount = if (canvasWidth > 1800f) 75f else if (canvasWidth > 1200f) 60f else 45f
+                val visibleCount = (baseCount / zoom).roundToInt().coerceIn(16, (renderCandles.size + 30).coerceAtLeast(16))
+                val maxPastOffsetBars = 25f
+                val maxFutureOffsetBars = 35f
+                val maxScroll = (renderCandles.size - visibleCount + 6 + maxPastOffsetBars).coerceAtLeast(0f)
+                val minScroll = -maxFutureOffsetBars
+                val clampedScroll = scrollOffsetFromRight.coerceIn(minScroll, maxScroll)
 
-                val endIndex = (renderCandles.size - clampedScroll.roundToInt()).coerceIn(visibleCount.coerceAtMost(renderCandles.size), renderCandles.size)
-                val startIndex = (endIndex - visibleCount).coerceAtLeast(0)
+                val endIndex = (renderCandles.size + 6 - clampedScroll.roundToInt())
+                val startIndex = endIndex - visibleCount
+                val safeStart = startIndex.coerceIn(0, renderCandles.size)
+                val safeEnd = endIndex.coerceIn(safeStart, renderCandles.size)
 
-                val visibleCandles = renderCandles.subList(startIndex, endIndex)
+                val visibleCandles = if (safeEnd > safeStart) renderCandles.subList(safeStart, safeEnd) else emptyList()
                 if (visibleCandles.isEmpty()) return@Canvas
 
-                val rightMargin = 65.dp.toPx()
-                val bottomMargin = 18.dp.toPx()
+                val rightMargin = 40.dp.toPx()
+                val bottomMargin = 22.dp.toPx()
                 val chartWidth = (canvasWidth - rightMargin).coerceAtLeast(0f)
                 val chartHeight = (canvasHeight - bottomMargin).coerceAtLeast(0f)
 
                 val candleWidth = chartWidth / visibleCount.coerceAtLeast(1)
 
-                var minPrice = visibleCandles.minOf { it.low } * 0.999
-                var maxPrice = visibleCandles.maxOf { it.high } * 1.001
-                if (effectivePrice > 0.0) {
-                    minPrice = minOf(minPrice, effectivePrice * 0.999)
-                    maxPrice = maxOf(maxPrice, effectivePrice * 1.001)
+                var rawMin = visibleCandles.minOf { it.low }
+                var rawMax = visibleCandles.maxOf { it.high }
+                val isLatestCandleVisible = endIndex >= renderCandles.size
+                if (isLatestCandleVisible && effectivePrice > 0.0) {
+                    val isRealisticPrice = effectivePrice in (rawMin * 0.75)..(rawMax * 1.25)
+                    if (isRealisticPrice) {
+                        rawMin = minOf(rawMin, effectivePrice)
+                        rawMax = maxOf(rawMax, effectivePrice)
+                    }
                 }
+                val rawRange = rawMax - rawMin
+                val minPadding = maxOf(rawMax * 0.005, 0.5)
+                val pricePadding = maxOf(rawRange * 0.08, minPadding)
+                val minPrice = rawMin - pricePadding
+                val maxPrice = rawMax + pricePadding
                 val priceRange = (maxPrice - minPrice).takeIf { it > 0 } ?: 1.0
 
                 fun priceToY(price: Double): Float {
@@ -297,14 +319,14 @@ fun InstitutionalChartEngine(
                 }
             }
 
-            // ── Double Right Arrow "Scroll to Real-time" Button (60% Opacity) ──
+            // ── Double Right Arrow "Scroll to Real-time" Button (Clean White Theme) ──
             if (scrollOffsetFromRight > 3f) {
                 androidx.compose.material3.Surface(
                     onClick = { scrollOffsetFromRight = 0f },
                     shape = CircleShape,
-                    color = Color(0xFF1E222D).copy(alpha = 0.60f),
-                    border = BorderStroke(1.dp, Color(0xFF4A5268).copy(alpha = 0.60f)),
-                    shadowElevation = 2.dp,
+                    color = Color.White.copy(alpha = 0.92f),
+                    border = BorderStroke(1.dp, Color(0xFFE0E3EB)),
+                    shadowElevation = 3.dp,
                     modifier = Modifier
                         .align(Alignment.BottomEnd)
                         .padding(end = 16.dp, bottom = 16.dp)
@@ -316,7 +338,7 @@ fun InstitutionalChartEngine(
                     ) {
                         Text(
                             text = "»",
-                            color = Color.White.copy(alpha = 0.85f),
+                            color = Color(0xFF131722),
                             fontSize = 20.sp,
                             fontWeight = FontWeight.ExtraBold
                         )
@@ -369,7 +391,7 @@ private fun DrawScope.drawPriceAndGrid(
         val y = (chartHeight - ((p - minPrice) / priceRange * chartHeight)).toFloat()
 
         drawLine(
-            color = Color(0xFF20232E),
+            color = Color(0xFFE8ECF2),
             start = Offset(0f, y),
             end = Offset(chartWidth, y),
             strokeWidth = 1f
@@ -379,7 +401,7 @@ private fun DrawScope.drawPriceAndGrid(
             textMeasurer = textMeasurer,
             text = "%.2f".format(p),
             topLeft = Offset(chartWidth + 5.dp.toPx(), y - 7.dp.toPx()),
-            style = TextStyle(color = Color(0xFF8B92A5), fontSize = 9.sp, fontFamily = FontFamily.Monospace)
+            style = TextStyle(color = Color(0xFF6B7280), fontSize = 9.sp, fontFamily = FontFamily.Monospace)
         )
     }
 
@@ -387,7 +409,9 @@ private fun DrawScope.drawPriceAndGrid(
     val visibleCount = endIndex - startIndex
     if (visibleCount <= 0 || candles.isEmpty()) return
 
-    val timeStep = maxOf(1, visibleCount / 5)
+    val minLabelSpacingPx = 75.dp.toPx()
+    val minBarsPerLabel = kotlin.math.ceil(minLabelSpacingPx / candleWidth.coerceAtLeast(1f)).toInt().coerceAtLeast(1)
+    val timeStep = maxOf(minBarsPerLabel, maxOf(1, visibleCount / 6))
     val firstRaw = candles.firstOrNull()?.openTime ?: 0L
     val lastRaw = candles.lastOrNull()?.openTime ?: 0L
     val firstMs = if (firstRaw in 1..99_999_999_999L) firstRaw * 1000L else firstRaw
@@ -396,7 +420,19 @@ private fun DrawScope.drawPriceAndGrid(
         abs(lastMs - firstMs) / (candles.size - 1).coerceAtLeast(1)
     } else 86_400_000L
 
-    val isDailyOrHigher = timeframe.equals("1D", ignoreCase = true) ||
+    val isExplicitIntraday = timeframe.equals("1m", ignoreCase = true) ||
+        timeframe.equals("1min", ignoreCase = true) ||
+        timeframe.equals("5m", ignoreCase = true) ||
+        timeframe.equals("15m", ignoreCase = true) ||
+        timeframe.equals("30m", ignoreCase = true) ||
+        timeframe.equals("1h", ignoreCase = true) ||
+        timeframe.equals("1H", ignoreCase = true) ||
+        timeframe.equals("60m", ignoreCase = true) ||
+        timeframe.equals("4h", ignoreCase = true) ||
+        timeframe.equals("4H", ignoreCase = true)
+
+    val isDailyOrHigher = !isExplicitIntraday && (
+        timeframe.equals("1D", ignoreCase = true) ||
         timeframe.equals("D", ignoreCase = true) ||
         timeframe.equals("1W", ignoreCase = true) ||
         timeframe.equals("W", ignoreCase = true) ||
@@ -406,20 +442,14 @@ private fun DrawScope.drawPriceAndGrid(
         timeframe.contains("week", ignoreCase = true) ||
         timeframe.contains("month", ignoreCase = true) ||
         avgDurationMs >= 20 * 3600 * 1000L
+    )
 
-    val calFirst = Calendar.getInstance().apply { timeInMillis = firstMs }
-    val calLast = Calendar.getInstance().apply { timeInMillis = lastMs }
-    val spansMultipleYears = calFirst.get(Calendar.YEAR) != calLast.get(Calendar.YEAR)
-
-    val dateFormat = if (spansMultipleYears) {
-        SimpleDateFormat("dd MMM ''yy", Locale.US)
-    } else {
-        SimpleDateFormat("dd MMM", Locale.US)
-    }
+    val dateFormat = SimpleDateFormat("dd MMM", Locale.US)
     val timeFormat = SimpleDateFormat("HH:mm", Locale.US)
     val totalSpanMs = abs(lastMs - firstMs)
     val isMultiDayIntraday = !isDailyOrHigher && totalSpanMs > 24 * 3600 * 1000L
     var prevDayOfYear = -1
+    var lastDrawnRightX = -Float.MAX_VALUE
 
     for (i in startIndex until endIndex step timeStep) {
         val localIndex = i - startIndex
@@ -427,7 +457,7 @@ private fun DrawScope.drawPriceAndGrid(
         if (x > chartWidth) break
 
         drawLine(
-            color = Color(0xFF20232E),
+            color = Color(0xFFE8ECF2),
             start = Offset(x, 0f),
             end = Offset(x, chartHeight),
             strokeWidth = 1f
@@ -443,7 +473,7 @@ private fun DrawScope.drawPriceAndGrid(
             val label = when {
                 isDailyOrHigher -> dateFormat.format(date)
                 isMultiDayIntraday -> {
-                    if (prevDayOfYear != currentDayOfYear) dateFormat.format(date)
+                    if (prevDayOfYear != currentDayOfYear) dateFormat.format(date) + " " + timeFormat.format(date)
                     else timeFormat.format(date)
                 }
                 else -> timeFormat.format(date)
@@ -452,12 +482,19 @@ private fun DrawScope.drawPriceAndGrid(
 
             val textResult = textMeasurer.measure(
                 label,
-                TextStyle(color = Color(0xFF8B92A5), fontSize = 8.sp, fontFamily = FontFamily.Monospace)
+                TextStyle(color = Color(0xFF6B7280), fontSize = 8.sp, fontFamily = FontFamily.Monospace)
             )
-            drawText(
-                textResult,
-                topLeft = Offset(x - textResult.size.width / 2f, chartHeight + 3.dp.toPx())
-            )
+            val labelWidth = textResult.size.width.toFloat()
+            val labelStartX = x - labelWidth / 2f
+            val labelEndX = labelStartX + labelWidth
+
+            if (labelStartX > lastDrawnRightX + 12.dp.toPx() && labelEndX <= chartWidth + 10.dp.toPx()) {
+                lastDrawnRightX = labelEndX
+                drawText(
+                    textResult,
+                    topLeft = Offset(labelStartX, chartHeight + 3.dp.toPx())
+                )
+            }
         }
     }
 }
@@ -734,8 +771,8 @@ fun VolumeSubPane(
         modifier = Modifier
             .fillMaxWidth()
             .height(75.dp)
-            .background(Color(0xFF0B0C10))
-            .border(0.5.dp, Color(0xFF1E212B))
+            .background(Color.White)
+            .border(0.5.dp, Color(0xFFE8ECF2))
             .padding(vertical = 4.dp)
     ) {
         Canvas(modifier = Modifier.fillMaxSize()) {
@@ -750,7 +787,7 @@ fun VolumeSubPane(
             val visibleCandles = candles.subList(startIndex, endIndex)
             if (visibleCandles.isEmpty()) return@Canvas
 
-            val rightMargin = 65.dp.toPx()
+            val rightMargin = 40.dp.toPx()
             val chartWidth = (size.width - rightMargin).coerceAtLeast(0f)
             val candleWidth = chartWidth / visibleCount.coerceAtLeast(1)
             val bodyWidth = candleWidth * 0.75f
@@ -796,7 +833,7 @@ fun VolumeSubPane(
                 }
             }
         }
-        Text("VOL", color = Color(0xFF8B949E), fontSize = 8.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(start = 6.dp, top = 2.dp))
+        Text("VOL", color = Color(0xFF6B7280), fontSize = 8.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(start = 6.dp, top = 2.dp))
     }
 }
 
@@ -884,9 +921,9 @@ private fun DrawScope.drawCurrentPriceLine(
 ) {
     val rawY = priceToY(effectivePrice)
     val clampedY = rawY.coerceIn(2f, canvasHeight - 2f)
-    val rightMargin = 65.dp.toPx()
+    val rightMargin = 40.dp.toPx()
     val chartWidth = (canvasWidth - rightMargin).coerceAtLeast(0f)
-    val accentColor = if (isBullish) Color(0xFF00E676) else Color(0xFFFF1744)
+    val accentColor = if (isBullish) Color(0xFF089981) else Color(0xFFF23645)
 
     // 1. Soft glow halo line across chart
     drawLine(
@@ -908,7 +945,7 @@ private fun DrawScope.drawCurrentPriceLine(
 
     // 3. High-Visibility Right-Axis Pill Badge (Vibrant Accent Color)
     val priceStr = formatEnginePrice(effectivePrice)
-    val textColor = if (isBullish) Color.Black else Color.White
+    val textColor = Color.White
     val priceTextStyle = TextStyle(
         color = textColor,
         fontSize = 9.sp,
@@ -979,8 +1016,8 @@ fun RsiSubPane(candles: List<Candle>, rsiData: Map<Long, Double>, scrollOffsetFr
         modifier = Modifier
             .fillMaxWidth()
             .height(75.dp)
-            .background(Color(0xFF0B0C10))
-            .border(0.5.dp, Color(0xFF1E212B))
+            .background(Color.White)
+            .border(0.5.dp, Color(0xFFE8ECF2))
             .padding(vertical = 4.dp)
     ) {
         Canvas(modifier = Modifier.fillMaxSize()) {
@@ -993,7 +1030,8 @@ fun RsiSubPane(candles: List<Candle>, rsiData: Map<Long, Double>, scrollOffsetFr
             val endIndex = (candles.size - clampedScroll.roundToInt()).coerceIn(visibleCount.coerceAtMost(candles.size), candles.size)
             val startIndex = (endIndex - visibleCount).coerceAtLeast(0)
             val visibleCandles = candles.subList(startIndex, endIndex)
-            val candleWidth = size.width / visibleCount.coerceAtLeast(1)
+            val rightMargin = 40.dp.toPx()
+            val candleWidth = (size.width - rightMargin).coerceAtLeast(0f) / visibleCount.coerceAtLeast(1)
 
             val y70 = size.height * (1f - (70f / 100f))
             val y30 = size.height * (1f - (30f / 100f))
@@ -1021,8 +1059,8 @@ fun MacdSubPane(candles: List<Candle>, macdData: Map<Long, MacdResult>, scrollOf
         modifier = Modifier
             .fillMaxWidth()
             .height(85.dp)
-            .background(Color(0xFF0B0C10))
-            .border(0.5.dp, Color(0xFF1E212B))
+            .background(Color.White)
+            .border(0.5.dp, Color(0xFFE8ECF2))
             .padding(vertical = 4.dp)
     ) {
         Canvas(modifier = Modifier.fillMaxSize()) {
@@ -1035,7 +1073,8 @@ fun MacdSubPane(candles: List<Candle>, macdData: Map<Long, MacdResult>, scrollOf
             val endIndex = (candles.size - clampedScroll.roundToInt()).coerceIn(visibleCount.coerceAtMost(candles.size), candles.size)
             val startIndex = (endIndex - visibleCount).coerceAtLeast(0)
             val visibleCandles = candles.subList(startIndex, endIndex)
-            val candleWidth = size.width / visibleCount.coerceAtLeast(1)
+            val rightMargin = 40.dp.toPx()
+            val candleWidth = (size.width - rightMargin).coerceAtLeast(0f) / visibleCount.coerceAtLeast(1)
 
             val maxVal = visibleCandles.maxOfOrNull {
                 val m = macdData[it.openTime]
@@ -1043,7 +1082,7 @@ fun MacdSubPane(candles: List<Candle>, macdData: Map<Long, MacdResult>, scrollOf
             }?.takeIf { it > 0 } ?: 1.0
 
             val zeroY = size.height / 2f
-            drawLine(Color(0xFF37474F), Offset(0f, zeroY), Offset(size.width, zeroY), strokeWidth = 1f)
+            drawLine(Color(0xFFE8ECF2), Offset(0f, zeroY), Offset(size.width, zeroY), strokeWidth = 1f)
 
             val macdPath = Path()
             val signalPath = Path()

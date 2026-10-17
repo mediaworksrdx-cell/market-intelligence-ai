@@ -45,6 +45,7 @@ object MarketPriceCatalog {
             clean in listOf("INFY", "INFOSYS") -> 1015.40
             clean in listOf("BHARTIARTL", "AIRTEL") -> 1771.20
             clean in listOf("TATAMOTORS", "TATAMTR") -> 280.95
+            clean in listOf("TATASTEEL", "TATASTEELTD") -> 154.00
             clean in listOf("ITC") -> 265.10
             clean in listOf("LT", "LARSEN") -> 3749.10
             clean in listOf("AXISBANK", "AXIS") -> 1180.0
@@ -56,10 +57,15 @@ object MarketPriceCatalog {
             clean in listOf("BAJFINANCE") -> 6900.0
             clean in listOf("ADANIENT") -> 2950.0
             clean in listOf("HINDUNILVR") -> 2450.0
+            clean in listOf("HINDPETRO", "HPCL") -> 410.50
 
             // US Tech & Global Indices
             clean in listOf("SPX", "SP500") -> 5500.0
-            clean in listOf("NDX", "NASDAQ") -> 19200.0
+            clean in listOf("NDX", "NASDAQ", "QQQ") -> 19200.0
+            clean in listOf("DJI", "DOW") -> 39500.0
+            clean in listOf("FTSE", "FTSE100") -> 8250.0
+            clean in listOf("DAX") -> 18500.0
+            clean in listOf("NIKKEI", "N225") -> 38800.0
             clean in listOf("AAPL", "APPLE") -> 225.0
             clean in listOf("MSFT", "MICROSOFT") -> 440.0
             clean in listOf("GOOGL", "GOOG", "GOOGLE") -> 175.0
@@ -67,6 +73,12 @@ object MarketPriceCatalog {
             clean in listOf("TSLA", "TESLA") -> 210.0
             clean in listOf("NVDA", "NVIDIA") -> 118.0
             clean in listOf("META") -> 500.0
+
+            // Commodities
+            clean in listOf("GOLD", "XAU", "XAUUSD") -> 2450.0
+            clean in listOf("SILVER", "XAG", "XAGUSD") -> 28.5
+            clean in listOf("CRUDE", "CRUDEOIL", "WTI", "BRENT") -> 78.5
+            clean in listOf("NATURALGAS", "NATGAS") -> 2.45
 
             // UAE Indices & Stocks
             clean in listOf("DFMGI") -> 4850.0
@@ -92,7 +104,7 @@ object MarketPriceCatalog {
             .trim()
 
         return when {
-            clean in listOf("SPX", "SP500", "NDX", "NASDAQ", "DJI", "DOW", "AAPL", "MSFT", "GOOGL", "GOOG", "AMZN", "TSLA", "NVDA", "META") ->
+            clean in listOf("SPX", "SP500", "NDX", "NASDAQ", "QQQ", "DJI", "DOW", "AAPL", "MSFT", "GOOGL", "GOOG", "AMZN", "TSLA", "NVDA", "META", "GOLD", "SILVER", "CRUDE", "CRUDEOIL", "WTI", "BRENT", "NATURALGAS", "FTSE", "DAX", "NIKKEI") ->
                 com.example.marketintelligence.domain.model.MarketType.US
             clean in listOf("DFMGI", "ADX", "ADI", "EMAAR", "DEWA", "FAB", "ALDAR", "EMIRATESNBD") ->
                 com.example.marketintelligence.domain.model.MarketType.UAE
@@ -116,6 +128,7 @@ object MarketPriceCatalog {
         com.example.marketintelligence.domain.model.SearchResult("INFY.NS", "Infosys Ltd", "STOCK"),
         com.example.marketintelligence.domain.model.SearchResult("BHARTIARTL.NS", "Bharti Airtel Ltd", "STOCK"),
         com.example.marketintelligence.domain.model.SearchResult("TATAMOTORS.NS", "Tata Motors Ltd", "STOCK"),
+        com.example.marketintelligence.domain.model.SearchResult("TATASTEEL.NS", "Tata Steel Ltd", "STOCK"),
         com.example.marketintelligence.domain.model.SearchResult("ITC.NS", "ITC Limited", "STOCK"),
         com.example.marketintelligence.domain.model.SearchResult("LT.NS", "Larsen & Toubro Ltd", "STOCK"),
 

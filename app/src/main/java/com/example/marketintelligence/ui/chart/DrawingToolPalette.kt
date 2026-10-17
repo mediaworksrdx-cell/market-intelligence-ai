@@ -67,6 +67,7 @@ fun DrawingToolPalette(
             Spacer(Modifier.height(16.dp))
 
             // ── Tool Grid ──
+            // Row 1: Primary Lines & Channels
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceEvenly
@@ -78,14 +79,6 @@ fun DrawingToolPalette(
                     isActive = activeDrawingTool == DrawingToolType.NONE,
                     accentColor = colors.onSurface,
                     onClick = { onToolSelected(DrawingToolType.NONE) }
-                )
-                DrawingToolButton(
-                    tool = DrawingToolType.TRENDLINE,
-                    label = "Trend",
-                    icon = Icons.AutoMirrored.Filled.TrendingUp,
-                    isActive = activeDrawingTool == DrawingToolType.TRENDLINE,
-                    accentColor = Color(0xFF42A5F5),
-                    onClick = { onToolSelected(DrawingToolType.TRENDLINE) }
                 )
                 DrawingToolButton(
                     tool = DrawingToolType.HORIZONTAL_LINE,
@@ -103,29 +96,46 @@ fun DrawingToolPalette(
                     accentColor = Color(0xFFFF8A65),
                     onClick = { onToolSelected(DrawingToolType.VERTICAL_LINE) }
                 )
+                DrawingToolButton(
+                    tool = DrawingToolType.CHANNEL,
+                    label = "Channel",
+                    icon = Icons.Default.LinearScale,
+                    isActive = activeDrawingTool == DrawingToolType.CHANNEL,
+                    accentColor = Color(0xFF4FC3F7),
+                    onClick = { onToolSelected(DrawingToolType.CHANNEL) }
+                )
             }
 
-            Spacer(Modifier.height(12.dp))
+            Spacer(Modifier.height(10.dp))
 
+            // Row 2: Fibonacci & Trend
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceEvenly
             ) {
                 DrawingToolButton(
-                    tool = DrawingToolType.RAY,
-                    label = "Ray",
-                    icon = Icons.Default.ArrowForward,
-                    isActive = activeDrawingTool == DrawingToolType.RAY,
-                    accentColor = Color(0xFFBA68C8),
-                    onClick = { onToolSelected(DrawingToolType.RAY) }
-                )
-                DrawingToolButton(
                     tool = DrawingToolType.FIBONACCI,
-                    label = "Fib",
+                    label = "Fibonacci",
                     icon = Icons.Default.AutoGraph,
                     isActive = activeDrawingTool == DrawingToolType.FIBONACCI,
                     accentColor = Color(0xFFCE93D8),
                     onClick = { onToolSelected(DrawingToolType.FIBONACCI) }
+                )
+                DrawingToolButton(
+                    tool = DrawingToolType.TRENDLINE,
+                    label = "Trendline",
+                    icon = Icons.AutoMirrored.Filled.TrendingUp,
+                    isActive = activeDrawingTool == DrawingToolType.TRENDLINE,
+                    accentColor = Color(0xFF42A5F5),
+                    onClick = { onToolSelected(DrawingToolType.TRENDLINE) }
+                )
+                DrawingToolButton(
+                    tool = DrawingToolType.HORIZONTAL_RAY,
+                    label = "H-Ray",
+                    icon = Icons.Default.ArrowForward,
+                    isActive = activeDrawingTool == DrawingToolType.HORIZONTAL_RAY,
+                    accentColor = Color(0xFFFFCA28),
+                    onClick = { onToolSelected(DrawingToolType.HORIZONTAL_RAY) }
                 )
                 DrawingToolButton(
                     tool = DrawingToolType.FIBONACCI_EXTENSION,
@@ -135,37 +145,63 @@ fun DrawingToolPalette(
                     accentColor = Color(0xFF9575CD),
                     onClick = { onToolSelected(DrawingToolType.FIBONACCI_EXTENSION) }
                 )
-                DrawingToolButton(
-                    tool = DrawingToolType.PITCHFORK,
-                    label = "Pitch",
-                    icon = Icons.Default.ForkRight,
-                    isActive = activeDrawingTool == DrawingToolType.PITCHFORK,
-                    accentColor = Color(0xFF7986CB),
-                    onClick = { onToolSelected(DrawingToolType.PITCHFORK) }
-                )
             }
 
-            Spacer(Modifier.height(12.dp))
+            Spacer(Modifier.height(10.dp))
 
+            // Row 3: Shapes & Measurement
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceEvenly
             ) {
                 DrawingToolButton(
                     tool = DrawingToolType.RECTANGLE,
-                    label = "Rect",
+                    label = "Rectangle",
                     icon = Icons.Default.CropSquare,
                     isActive = activeDrawingTool == DrawingToolType.RECTANGLE,
                     accentColor = Color(0xFF81C784),
                     onClick = { onToolSelected(DrawingToolType.RECTANGLE) }
                 )
                 DrawingToolButton(
-                    tool = DrawingToolType.CHANNEL,
-                    label = "Channel",
-                    icon = Icons.Default.LinearScale,
-                    isActive = activeDrawingTool == DrawingToolType.CHANNEL,
-                    accentColor = Color(0xFF4FC3F7),
-                    onClick = { onToolSelected(DrawingToolType.CHANNEL) }
+                    tool = DrawingToolType.PRICE_RANGE,
+                    label = "Measure",
+                    icon = Icons.Default.Straighten,
+                    isActive = activeDrawingTool == DrawingToolType.PRICE_RANGE,
+                    accentColor = Color(0xFF26A69A),
+                    onClick = { onToolSelected(DrawingToolType.PRICE_RANGE) }
+                )
+                DrawingToolButton(
+                    tool = DrawingToolType.ARROW,
+                    label = "Arrow",
+                    icon = Icons.Default.NorthEast,
+                    isActive = activeDrawingTool == DrawingToolType.ARROW,
+                    accentColor = Color(0xFFFF7043),
+                    onClick = { onToolSelected(DrawingToolType.ARROW) }
+                )
+                DrawingToolButton(
+                    tool = DrawingToolType.RAY,
+                    label = "Ray",
+                    icon = Icons.Default.ArrowForward,
+                    isActive = activeDrawingTool == DrawingToolType.RAY,
+                    accentColor = Color(0xFFBA68C8),
+                    onClick = { onToolSelected(DrawingToolType.RAY) }
+                )
+            }
+
+            Spacer(Modifier.height(10.dp))
+
+            // Row 4: Advanced, Text & Clear
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceEvenly
+            ) {
+                DrawingToolButton(
+                    tool = DrawingToolType.PITCHFORK,
+                    label = "Pitchfork",
+                    icon = Icons.Default.ForkRight,
+                    isActive = activeDrawingTool == DrawingToolType.PITCHFORK,
+                    accentColor = Color(0xFF7986CB),
+                    onClick = { onToolSelected(DrawingToolType.PITCHFORK) }
                 )
                 DrawingToolButton(
                     tool = DrawingToolType.TEXT_ANNOTATION,
@@ -200,6 +236,9 @@ fun DrawingToolPalette(
                         fontWeight = FontWeight.Medium
                     )
                 }
+
+                // Placeholder for grid alignment
+                Spacer(modifier = Modifier.width(60.dp))
             }
 
             Spacer(Modifier.height(8.dp))

@@ -184,8 +184,18 @@ fun InstrumentSearchScreen(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                val headerText = if (searchQuery.isBlank()) {
+                    when (selectedCategory) {
+                        "STOCKS" -> "MY WATCHLIST & POPULAR STOCKS (${searchResults.size})"
+                        "INDICES" -> "CORE INDICES & POPULAR (${searchResults.size})"
+                        "CRYPTO" -> "CRYPTO INTEL & POPULAR (${searchResults.size})"
+                        else -> "WATCHLIST & POPULAR INSTRUMENTS (${searchResults.size})"
+                    }
+                } else {
+                    "SEARCH RESULTS (${searchResults.size})"
+                }
                 Text(
-                    text = if (searchQuery.isBlank()) "POPULAR INSTRUMENTS (TAP + TO ADD TO HUB)" else "SEARCH RESULTS (${searchResults.size})",
+                    text = headerText,
                     fontSize = 10.sp,
                     fontWeight = FontWeight.ExtraBold,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,

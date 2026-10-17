@@ -106,15 +106,16 @@ class DealerGammaExposureEngine @Inject constructor(
         val callWallStrike = strikeGexList.maxByOrNull { it.callGex }?.strike ?: spotPrice
         val putWallStrike = strikeGexList.minByOrNull { it.putGex }?.strike ?: spotPrice
 
-        var flipStrike = spotPrice
+        val zeroCrossings = mutableListOf<Double>()
         for (i in 0 until strikeGexList.size - 1) {
             val s1 = strikeGexList[i]
             val s2 = strikeGexList[i + 1]
-            if (s1.netGex * s2.netGex <= 0.0) {
-                flipStrike = (s1.strike + s2.strike) / 2.0
-                break
+            if (s1.netGex * s2.netGex <= 0.0 && s1.netGex != s2.netGex) {
+                val crossing = s1.strike + (0.0 - s1.netGex) / (s2.netGex - s1.netGex) * (s2.strike - s1.strike)
+                zeroCrossings.add(crossing)
             }
         }
+        val flipStrike = zeroCrossings.minByOrNull { kotlin.math.abs(it - spotPrice) } ?: spotPrice
 
         val regime = if (totalNetGex >= 0) {
             "LONG GAMMA (Pinning / Mean-Reverting)"

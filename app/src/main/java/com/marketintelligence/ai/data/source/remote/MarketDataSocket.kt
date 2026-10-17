@@ -19,7 +19,7 @@ class MarketDataSocket @Inject constructor(
     private val json: Json
 ) {
     suspend fun connect(symbol: String): Flow<LivePrice> {
-        val baseUrl = BuildConfig.WS_BASE_URL.ifBlank { "ws://20.80.83.151/ws" }
+        val baseUrl = BuildConfig.WS_BASE_URL.ifBlank { "ws://138.91.105.85/ws" }
         val session = client.webSocketSession {
             url(baseUrl)
         }

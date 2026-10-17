@@ -52,13 +52,16 @@ enum class CursorMode(val label: String) {
 enum class DrawingToolType(val label: String) {
     NONE("None"),
     TRENDLINE("Trendline"),
-    HORIZONTAL_LINE("H-Line"),
-    VERTICAL_LINE("V-Line"),
-    RAY("Ray"),
+    HORIZONTAL_LINE("Horizontal Line"),
+    VERTICAL_LINE("Vertical Line"),
+    CHANNEL("Parallel Channel"),
     FIBONACCI("Fibonacci"),
     FIBONACCI_EXTENSION("Fib Ext"),
+    HORIZONTAL_RAY("Horizontal Ray"),
+    RAY("Ray"),
     RECTANGLE("Rectangle"),
-    CHANNEL("Channel"),
+    PRICE_RANGE("Price Range"),
+    ARROW("Arrow"),
     PITCHFORK("Pitchfork"),
     TEXT_ANNOTATION("Text")
 }
@@ -67,6 +70,7 @@ enum class DrawingToolType(val label: String) {
  * Configuration for a single technical indicator instance.
  */
 data class IndicatorConfig(
+    val id: String = java.util.UUID.randomUUID().toString(),
     val type: IndicatorType,
     val period: Int = defaultPeriod(type),
     val secondaryPeriod: Int = defaultSecondaryPeriod(type),
@@ -148,7 +152,8 @@ data class DrawingData(
     val points: List<ChartPoint>,
     val color: Long = 0xFFFFFFFF,
     val lineWidth: Float = 2f,
-    val isComplete: Boolean = false
+    val isComplete: Boolean = false,
+    val text: String = ""
 )
 
 /**

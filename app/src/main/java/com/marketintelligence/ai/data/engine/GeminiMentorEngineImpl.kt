@@ -30,92 +30,27 @@ class GeminiMentorEngineImpl @Inject constructor(
     }
 
     override suspend fun ask(query: String): String {
-        val lower = query.lowercase(Locale.US)
-
-        // ── 1. Portfolio Intelligence ──
-        if (lower.contains("portfolio") || lower.contains("holding") || lower.contains("pnl") || lower.contains("profit") || lower.contains("invest") || lower.contains("my stock")) {
-            val port = intelligenceBus.portfolioIntelligence.value
-            val pnlSign = if (port.totalPnl >= 0) "+" else ""
-            val pnlPct = if (port.totalInvestedValue > 0) (port.totalPnl / port.totalInvestedValue) * 100 else 0.0
-            val holdingsStr = port.holdings.joinToString("\n") { h ->
-                "  • **${h.symbol}**: ${h.quantity} units (Avg: ₹${h.avgPrice} → LTP: ₹${h.currentPrice} | P&L: ₹${h.pnl} [${h.pnlPercent}%])"
-            }
-            return """
-                |💼 **Gemini Portfolio Intelligence**
-                |
-                |• **Total Valuation**: ₹${String.format(Locale.US, "%,.2f", port.totalCurrentValue)}
-                |• **Invested Capital**: ₹${String.format(Locale.US, "%,.2f", port.totalInvestedValue)}
-                |• **Net Unrealized P&L**: ₹$pnlSign${String.format(Locale.US, "%,.2f", port.totalPnl)} ($pnlSign${String.format(Locale.US, "%.2f", pnlPct)}%)
-                |• **Today's Movement**: ₹${String.format(Locale.US, "%,.2f", port.todayPnl)}
-                |
-                |**Current Holdings**:
-                |$holdingsStr
-                |
-                |🤖 *Gemini AI Insight*: Your portfolio balance demonstrates strategic risk distribution. Ensure periodic rebalancing near major resistance levels.
-            """.trimMargin()
+        val apiKey = com.example.marketintelligence.BuildConfig.GEMINI_API_KEY
+        if (apiKey.isNotBlank()) {
+            try {
+                val fno = intelligenceBus.fnoIntelligence.value
+                val contextPrompt = """
+                    You are Gemini Market Intelligence AI Mentor for Indian and Global Equities.
+                    Live Context: NIFTY at ${intelligenceBus.getLivePrice("NIFTY 50")?.price ?: 22716.20}, F&O Regime: ${fno.regime}, PCR: ${fno.pcr}, Max Pain: ${fno.maxPain}.
+                    User Question: $query
+                    Provide an in-depth institutional financial response with clear formatting.
+                """.trimIndent()
+                val model = com.google.ai.client.generativeai.GenerativeModel(
+                    modelName = "gemini-1.5-flash",
+                    apiKey = apiKey
+                )
+                val response = model.generateContent(contextPrompt)
+                val text = response.text
+                if (!text.isNullOrBlank()) {
+                    return text.trim() + "\n\n🧠 *Powered by Gemini 1.5 Flash*"
+                }
+            } catch (_: Exception) {}
         }
-
-        // ── 2. F&O Scanner Intelligence ──
-        if (lower.contains("fno") || lower.contains("option") || lower.contains("pcr") || lower.contains("max pain") || lower.contains("wall") || lower.contains("gex") || lower.contains("strike") || lower.contains("regime")) {
-            val fno = intelligenceBus.fnoIntelligence.value
-            return """
-                |🎯 **Gemini F&O Derivatives Intelligence**
-                |
-                |• **Underlying Asset**: ${fno.symbol} (Spot: ₹${String.format(Locale.US, "%,.2f", fno.spotPrice)})
-                |• **Market Regime**: **${fno.regime}**
-                |• **Put-Call Ratio (PCR)**: **${fno.pcr}** (${if (fno.pcr >= 1.0) "Bullish Bias" else "Bearish Pressure"})
-                |• **Max Pain Strike**: ₹${String.format(Locale.US, "%,.0f", fno.maxPain)}
-                |• **Call Wall (Dealer Resistance)**: ₹${String.format(Locale.US, "%,.0f", fno.callWall)}
-                |• **Put Wall (Dealer Support)**: ₹${String.format(Locale.US, "%,.0f", fno.putWall)}
-                |• **Dealer Footprint**: ${fno.institutionalBias}
-                |
-                |🤖 *Gemini AI Strategy*: F&O open interest clusters suggest hedging pressure near the Call Wall. Look for consolidation around Max Pain.
-            """.trimMargin()
-        }
-
-        // ── 3. AI Scanner Signals ──
-        if (lower.contains("signal") || lower.contains("scanner") || lower.contains("scan") || lower.contains("setup") || lower.contains("breakout") || lower.contains("alert") || lower.contains("confluence")) {
-            val signals = intelligenceBus.scannerSignals.value
-            val signalsStr = signals.joinToString("\n\n") { s ->
-                "• **${s.symbol}** (${s.timeframe} • ${s.bias}):\n  - Study Zone: ₹${s.entryPrice} | Invalidation: ₹${s.stopLoss} | Projection: ₹${s.target}\n  - Confidence: ${s.confidence}%\n  - Rationale: ${s.rationale}"
-            }
-            return """
-                |⚡ **Gemini AI Scanner Confluence Studies**
-                |
-                |$signalsStr
-                |
-                |🤖 *Gemini Study Rule*: Analyze strictly in alignment with higher timeframe structure. Confirm volume surge before drawing conclusions.
-            """.trimMargin()
-        }
-
-        // ── 4. Live Prices / Market Query ──
-        if (lower.contains("price") || lower.contains("quote") || lower.contains("nifty") || lower.contains("sensex") || lower.contains("banknifty") || lower.contains("reliance") || lower.contains("btc") || lower.contains("eth") || lower.contains("spx") || lower.contains("market")) {
-            val prices = intelligenceBus.livePrices.value
-            val nifty = prices["NIFTY 50"] ?: prices["NIFTY"]
-            val sensex = prices["SENSEX"]
-            val banknifty = prices["BANKNIFTY"]
-            val reliance = prices["RELIANCE"]
-            val btc = prices["BTC"]
-            val eth = prices["ETH"]
-            val spx = prices["SPX"]
-            val dfmgi = prices["DFMGI"]
-
-            return """
-                |📊 **Gemini Live Market Pulse**
-                |
-                |• **NIFTY 50**: ₹${nifty?.price ?: 22716.20} (${nifty?.changePercent ?: -0.28}%)
-                |• **SENSEX**: ₹${sensex?.price ?: 72529.07} (${sensex?.changePercent ?: -0.33}%)
-                |• **BANKNIFTY**: ₹${banknifty?.price ?: 54259.95} (${banknifty?.changePercent ?: -0.39}%)
-                |• **RELIANCE**: ₹${reliance?.price ?: 1182.0} (${reliance?.changePercent ?: -1.30}%)
-                |• **BTC / USD**: $${btc?.price ?: 83923.0} (+${btc?.changePercent ?: 1.45}%)
-                |• **ETH / USD**: $${eth?.price ?: 2495.0} (+${eth?.changePercent ?: 0.75}%)
-                |• **S&P 500 (SPX)**: $${spx?.price ?: 5485.88} (${spx?.changePercent ?: -0.26}%)
-                |• **DFM General (UAE)**: ${dfmgi?.price ?: 4849.37} (+${dfmgi?.changePercent ?: 0.11}%)
-                |
-                |🤖 *Gemini Trend Analysis*: Institutional order blocks are active at current price levels across global markets.
-            """.trimMargin()
-        }
-
-        return "Gemini Mentor: Based on Smart Money Concepts (SMC), market structure is exhibiting ${intelligenceBus.fnoIntelligence.value.regime}. Ask for 'live prices', 'scanner signals', 'fno option chain', or 'my portfolio' for real-time live data."
+        return FinancialIntelligenceBrain.generateResponse(query, intelligenceBus)
     }
 }

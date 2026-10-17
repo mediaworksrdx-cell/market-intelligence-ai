@@ -378,6 +378,10 @@ fun OptionsStudyTab(uiState: FnoUiState, viewModel: FnoViewModel, onOpenBuildupS
                         val isCurrentStrike = strike.strike == currentStrike
                         val isITMCall = strike.strike < uiState.spotPrice
                         val isITMPut = strike.strike > uiState.spotPrice
+                        val callMoneyness = if (isCurrentStrike) "ATM" else if (isITMCall) "ITM" else "OTM"
+                        val putMoneyness = if (isCurrentStrike) "ATM" else if (isITMPut) "ITM" else "OTM"
+                        val callMoneynessColor = if (isCurrentStrike) Color(0xFF00E5FF) else if (isITMCall) Color(0xFFFFB300) else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                        val putMoneynessColor = if (isCurrentStrike) Color(0xFF00E5FF) else if (isITMPut) Color(0xFFFFB300) else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
 
                         val rowModifier = if (isCurrentStrike) {
                             Modifier
@@ -403,12 +407,12 @@ fun OptionsStudyTab(uiState: FnoUiState, viewModel: FnoViewModel, onOpenBuildupS
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 if (viewMode == "OI") {
-                                    // CALL OI
+                                    // CALL OI WITH MONEYNESS BADGE
                                     Box(
                                         modifier = Modifier
                                             .weight(1f)
                                             .then(
-                                                if (isITMCall && !isCurrentStrike) Modifier.background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.25f), RoundedCornerShape(2.dp))
+                                                if (isITMCall && !isCurrentStrike) Modifier.background(Color(0xFFFFB300).copy(alpha = 0.08f), RoundedCornerShape(2.dp))
                                                 else Modifier
                                             )
                                     ) {
@@ -418,14 +422,31 @@ fun OptionsStudyTab(uiState: FnoUiState, viewModel: FnoViewModel, onOpenBuildupS
                                                 .height(14.dp)
                                                 .background(AppRed.copy(if (isCurrentStrike) 0.30f else 0.15f), RoundedCornerShape(2.dp))
                                         )
-                                        Text(
-                                            "${(strike.callOI / 1000).toInt()}k",
-                                            color = MaterialTheme.colorScheme.onSurface,
-                                            fontSize = 10.sp,
-                                            fontWeight = if (isCurrentStrike) FontWeight.ExtraBold else FontWeight.Bold,
-                                            modifier = Modifier.padding(start = 2.dp),
-                                            fontFamily = FontFamily.Monospace
-                                        )
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(3.dp),
+                                            modifier = Modifier.padding(start = 2.dp)
+                                        ) {
+                                            Surface(
+                                                color = callMoneynessColor.copy(alpha = 0.15f),
+                                                shape = RoundedCornerShape(2.dp)
+                                            ) {
+                                                Text(
+                                                    callMoneyness,
+                                                    color = callMoneynessColor,
+                                                    fontSize = 6.5.sp,
+                                                    fontWeight = FontWeight.ExtraBold,
+                                                    modifier = Modifier.padding(horizontal = 2.5.dp, vertical = 0.5.dp)
+                                                )
+                                            }
+                                            Text(
+                                                "${(strike.callOI / 1000).toInt()}k",
+                                                color = MaterialTheme.colorScheme.onSurface,
+                                                fontSize = 9.5.sp,
+                                                fontWeight = if (isCurrentStrike) FontWeight.ExtraBold else FontWeight.Bold,
+                                                fontFamily = FontFamily.Monospace
+                                            )
+                                        }
                                     }
                                     // CALL LTP
                                     val callLtpStr = if (strike.callLTP >= 10.0) "${strike.callLTP.toInt()}" else "%.1f".format(strike.callLTP)
@@ -438,7 +459,7 @@ fun OptionsStudyTab(uiState: FnoUiState, viewModel: FnoViewModel, onOpenBuildupS
                                         textAlign = androidx.compose.ui.text.style.TextAlign.Center,
                                         fontFamily = FontFamily.Monospace
                                     )
-                                    // STRIKE (CURRENT / ATM HIGHLIGHTED - SIMPLE OVERLAY)
+                                    // STRIKE (CURRENT / ATM HIGHLIGHTED + MONEYNESS INDICATOR)
                                     Column(
                                         modifier = Modifier.weight(1f),
                                         horizontalAlignment = Alignment.CenterHorizontally,
@@ -453,13 +474,27 @@ fun OptionsStudyTab(uiState: FnoUiState, viewModel: FnoViewModel, onOpenBuildupS
                                             fontFamily = FontFamily.Monospace
                                         )
                                         if (isCurrentStrike) {
+                                            Surface(
+                                                color = Color(0xFF00E5FF).copy(alpha = 0.15f),
+                                                shape = RoundedCornerShape(2.dp)
+                                            ) {
+                                                Text(
+                                                    "ATM",
+                                                    color = Color(0xFF00E5FF),
+                                                    fontSize = 7.sp,
+                                                    fontWeight = FontWeight.ExtraBold,
+                                                    fontFamily = FontFamily.Monospace,
+                                                    letterSpacing = 0.5.sp,
+                                                    modifier = Modifier.padding(horizontal = 3.dp, vertical = 0.5.dp)
+                                                )
+                                            }
+                                        } else {
                                             Text(
-                                                "ATM",
-                                                color = Color(0xFF00E5FF),
-                                                fontSize = 7.sp,
-                                                fontWeight = FontWeight.ExtraBold,
-                                                fontFamily = FontFamily.Monospace,
-                                                letterSpacing = 0.5.sp
+                                                "C:$callMoneyness • P:$putMoneyness",
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                                                fontSize = 6.5.sp,
+                                                fontWeight = FontWeight.SemiBold,
+                                                fontFamily = FontFamily.Monospace
                                             )
                                         }
                                     }
@@ -474,12 +509,12 @@ fun OptionsStudyTab(uiState: FnoUiState, viewModel: FnoViewModel, onOpenBuildupS
                                         textAlign = androidx.compose.ui.text.style.TextAlign.Center,
                                         fontFamily = FontFamily.Monospace
                                     )
-                                    // PUT OI
+                                    // PUT OI WITH MONEYNESS BADGE
                                     Box(
                                         modifier = Modifier
                                             .weight(1f)
                                             .then(
-                                                if (isITMPut && !isCurrentStrike) Modifier.background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.25f), RoundedCornerShape(2.dp))
+                                                if (isITMPut && !isCurrentStrike) Modifier.background(Color(0xFFFFB300).copy(alpha = 0.08f), RoundedCornerShape(2.dp))
                                                 else Modifier
                                             ),
                                         contentAlignment = Alignment.CenterEnd
@@ -490,31 +525,65 @@ fun OptionsStudyTab(uiState: FnoUiState, viewModel: FnoViewModel, onOpenBuildupS
                                                 .height(14.dp)
                                                 .background(AppGreen.copy(if (isCurrentStrike) 0.30f else 0.15f), RoundedCornerShape(2.dp))
                                         )
-                                        Text(
-                                            "${(strike.putOI / 1000).toInt()}k",
-                                            color = MaterialTheme.colorScheme.onSurface,
-                                            fontSize = 10.sp,
-                                            fontWeight = if (isCurrentStrike) FontWeight.ExtraBold else FontWeight.Bold,
-                                            modifier = Modifier.padding(end = 2.dp),
-                                            fontFamily = FontFamily.Monospace
-                                        )
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(3.dp),
+                                            modifier = Modifier.padding(end = 2.dp)
+                                        ) {
+                                            Text(
+                                                "${(strike.putOI / 1000).toInt()}k",
+                                                color = MaterialTheme.colorScheme.onSurface,
+                                                fontSize = 9.5.sp,
+                                                fontWeight = if (isCurrentStrike) FontWeight.ExtraBold else FontWeight.Bold,
+                                                fontFamily = FontFamily.Monospace
+                                            )
+                                            Surface(
+                                                color = putMoneynessColor.copy(alpha = 0.15f),
+                                                shape = RoundedCornerShape(2.dp)
+                                            ) {
+                                                Text(
+                                                    putMoneyness,
+                                                    color = putMoneynessColor,
+                                                    fontSize = 6.5.sp,
+                                                    fontWeight = FontWeight.ExtraBold,
+                                                    modifier = Modifier.padding(horizontal = 2.5.dp, vertical = 0.5.dp)
+                                                )
+                                            }
+                                        }
                                     }
                                 } else {
                                     // GREEKS VIEW
-                                    // CALL DELTA
-                                    Text(
-                                        "%.2f".format(strike.callGreeks.delta),
-                                        color = Color.Cyan,
-                                        fontSize = 10.sp,
-                                        fontWeight = if (isCurrentStrike) FontWeight.ExtraBold else FontWeight.Normal,
+                                    // CALL DELTA WITH MONEYNESS BADGE
+                                    Row(
                                         modifier = Modifier
                                             .weight(1f)
                                             .then(
                                                 if (isITMCall && !isCurrentStrike) Modifier.background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.25f), RoundedCornerShape(2.dp))
                                                 else Modifier
                                             ),
-                                        fontFamily = FontFamily.Monospace
-                                    )
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(3.dp)
+                                    ) {
+                                        Surface(
+                                            color = callMoneynessColor.copy(alpha = 0.15f),
+                                            shape = RoundedCornerShape(2.dp)
+                                        ) {
+                                            Text(
+                                                callMoneyness,
+                                                color = callMoneynessColor,
+                                                fontSize = 6.5.sp,
+                                                fontWeight = FontWeight.ExtraBold,
+                                                modifier = Modifier.padding(horizontal = 2.5.dp, vertical = 0.5.dp)
+                                            )
+                                        }
+                                        Text(
+                                            "%.2f".format(strike.callGreeks.delta),
+                                            color = Color.Cyan,
+                                            fontSize = 9.5.sp,
+                                            fontWeight = if (isCurrentStrike) FontWeight.ExtraBold else FontWeight.Normal,
+                                            fontFamily = FontFamily.Monospace
+                                        )
+                                    }
                                     // CALL THETA
                                     Text(
                                         "%.1f".format(strike.callGreeks.theta),
@@ -525,7 +594,7 @@ fun OptionsStudyTab(uiState: FnoUiState, viewModel: FnoViewModel, onOpenBuildupS
                                         textAlign = androidx.compose.ui.text.style.TextAlign.Center,
                                         fontFamily = FontFamily.Monospace
                                     )
-                                    // STRIKE (CURRENT / ATM HIGHLIGHTED - SIMPLE OVERLAY)
+                                    // STRIKE (CURRENT / ATM HIGHLIGHTED + MONEYNESS INDICATOR)
                                     Column(
                                         modifier = Modifier.weight(1f),
                                         horizontalAlignment = Alignment.CenterHorizontally,
@@ -540,13 +609,27 @@ fun OptionsStudyTab(uiState: FnoUiState, viewModel: FnoViewModel, onOpenBuildupS
                                             fontFamily = FontFamily.Monospace
                                         )
                                         if (isCurrentStrike) {
+                                            Surface(
+                                                color = Color(0xFF00E5FF).copy(alpha = 0.15f),
+                                                shape = RoundedCornerShape(2.dp)
+                                            ) {
+                                                Text(
+                                                    "ATM",
+                                                    color = Color(0xFF00E5FF),
+                                                    fontSize = 7.sp,
+                                                    fontWeight = FontWeight.ExtraBold,
+                                                    fontFamily = FontFamily.Monospace,
+                                                    letterSpacing = 0.5.sp,
+                                                    modifier = Modifier.padding(horizontal = 3.dp, vertical = 0.5.dp)
+                                                )
+                                            }
+                                        } else {
                                             Text(
-                                                "ATM",
-                                                color = Color(0xFF00E5FF),
-                                                fontSize = 7.sp,
-                                                fontWeight = FontWeight.ExtraBold,
-                                                fontFamily = FontFamily.Monospace,
-                                                letterSpacing = 0.5.sp
+                                                "C:$callMoneyness • P:$putMoneyness",
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                                                fontSize = 6.5.sp,
+                                                fontWeight = FontWeight.SemiBold,
+                                                fontFamily = FontFamily.Monospace
                                             )
                                         }
                                     }
@@ -560,21 +643,38 @@ fun OptionsStudyTab(uiState: FnoUiState, viewModel: FnoViewModel, onOpenBuildupS
                                         textAlign = androidx.compose.ui.text.style.TextAlign.Center,
                                         fontFamily = FontFamily.Monospace
                                     )
-                                    // PUT DELTA
-                                    Text(
-                                        "%.2f".format(strike.putGreeks.delta),
-                                        color = Color.Cyan,
-                                        fontSize = 10.sp,
-                                        fontWeight = if (isCurrentStrike) FontWeight.ExtraBold else FontWeight.Normal,
+                                    // PUT DELTA WITH MONEYNESS BADGE
+                                    Row(
                                         modifier = Modifier
                                             .weight(1f)
                                             .then(
                                                 if (isITMPut && !isCurrentStrike) Modifier.background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.25f), RoundedCornerShape(2.dp))
                                                 else Modifier
                                             ),
-                                        textAlign = androidx.compose.ui.text.style.TextAlign.End,
-                                        fontFamily = FontFamily.Monospace
-                                    )
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.End
+                                    ) {
+                                        Text(
+                                            "%.2f".format(strike.putGreeks.delta),
+                                            color = Color.Cyan,
+                                            fontSize = 9.5.sp,
+                                            fontWeight = if (isCurrentStrike) FontWeight.ExtraBold else FontWeight.Normal,
+                                            fontFamily = FontFamily.Monospace
+                                        )
+                                        Spacer(Modifier.width(3.dp))
+                                        Surface(
+                                            color = putMoneynessColor.copy(alpha = 0.15f),
+                                            shape = RoundedCornerShape(2.dp)
+                                        ) {
+                                            Text(
+                                                putMoneyness,
+                                                color = putMoneynessColor,
+                                                fontSize = 6.5.sp,
+                                                fontWeight = FontWeight.ExtraBold,
+                                                modifier = Modifier.padding(horizontal = 2.5.dp, vertical = 0.5.dp)
+                                            )
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -594,10 +694,60 @@ fun StrategyBuilderTab(uiState: FnoUiState, viewModel: FnoViewModel) {
     val scrollState = rememberScrollState()
     var isCategoryDropdownExpanded by remember { mutableStateOf(false) }
     var isStrategyDropdownExpanded by remember { mutableStateOf(false) }
+    var isStrikePickerOpen by remember { mutableStateOf(false) }
 
     Column(modifier = Modifier.fillMaxSize().verticalScroll(scrollState)) {
         Text("INSTITUTIONAL STRATEGY BUILDER", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 10.sp, fontWeight = FontWeight.Bold)
-        Spacer(Modifier.height(12.dp))
+        Spacer(Modifier.height(10.dp))
+
+        // --- INSTITUTIONAL CONTRACT & UNDERLYING INFORMATION CARD ---
+        Card(
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)),
+            shape = RoundedCornerShape(10.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .border(0.5.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.5f), RoundedCornerShape(10.dp))
+        ) {
+            Column(modifier = Modifier.padding(10.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column {
+                        Text("UNDERLYING INSTRUMENT", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 7.5.sp, fontWeight = FontWeight.Bold)
+                        Text(uiState.selectedAsset, color = MaterialTheme.colorScheme.onSurface, fontSize = 13.sp, fontWeight = FontWeight.Black)
+                    }
+                    Column(horizontalAlignment = Alignment.End) {
+                        Text("SPOT PRICE", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 7.5.sp, fontWeight = FontWeight.Bold)
+                        Text("₹${"%,.2f".format(uiState.spotPrice)}", color = MaterialTheme.colorScheme.primary, fontSize = 12.sp, fontWeight = FontWeight.Black, fontFamily = FontFamily.Monospace)
+                    }
+                }
+                Spacer(Modifier.height(6.dp))
+                HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f), thickness = 0.5.dp)
+                Spacer(Modifier.height(6.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column {
+                        Text("ACTIVE EXPIRY", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 7.5.sp, fontWeight = FontWeight.Bold)
+                        Text(uiState.selectedExpiry.ifBlank { "CURRENT" }, color = MaterialTheme.colorScheme.primary, fontSize = 9.5.sp, fontWeight = FontWeight.ExtraBold, fontFamily = FontFamily.Monospace)
+                    }
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text("LOT SIZE", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 7.5.sp, fontWeight = FontWeight.Bold)
+                        Text("${uiState.lotSize} units", color = MaterialTheme.colorScheme.onSurface, fontSize = 9.5.sp, fontWeight = FontWeight.ExtraBold, fontFamily = FontFamily.Monospace)
+                    }
+                    Column(horizontalAlignment = Alignment.End) {
+                        val currentAtm = uiState.optionChain?.strikes?.minByOrNull { abs(it.strike - uiState.spotPrice) }?.strike ?: (kotlin.math.round(uiState.spotPrice / uiState.strikeStep) * uiState.strikeStep)
+                        Text("ATM STRIKE", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 7.5.sp, fontWeight = FontWeight.Bold)
+                        Text("₹${currentAtm.toInt()}", color = Color(0xFF00E5FF), fontSize = 9.5.sp, fontWeight = FontWeight.ExtraBold, fontFamily = FontFamily.Monospace)
+                    }
+                }
+            }
+        }
+        Spacer(Modifier.height(10.dp))
 
         // --- LIVE STRATEGY P&L & GREEKS BANNER ---
         if (uiState.activeLegs.isNotEmpty()) {
@@ -758,7 +908,169 @@ fun StrategyBuilderTab(uiState: FnoUiState, viewModel: FnoViewModel) {
             Spacer(Modifier.height(12.dp))
         }
 
+        // 1. Institutional Parameters: Settlement Expiry & Lot Sizing / Capital Required
+        Card(
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)),
+            shape = RoundedCornerShape(10.dp),
+            modifier = Modifier.fillMaxWidth().border(0.5.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(10.dp))
+        ) {
+            Column(modifier = Modifier.padding(12.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        "SETTLEMENT EXPIRY",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontSize = 8.5.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        letterSpacing = 0.5.sp
+                    )
+                    Text(
+                        uiState.selectedExpiry.ifBlank { "NEAR WEEKLY" },
+                        color = MaterialTheme.colorScheme.primary,
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        fontFamily = FontFamily.Monospace
+                    )
+                }
 
+                Spacer(Modifier.height(8.dp))
+
+                // Expiry Chips
+                val expiries = if (uiState.availableExpiries.isNotEmpty()) uiState.availableExpiries else listOf("28 MAR", "04 APR", "11 APR", "25 APR")
+                LazyRow(
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    items(expiries) { exp ->
+                        val isSelected = uiState.selectedExpiry == exp
+                        Surface(
+                            color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surface,
+                            shape = RoundedCornerShape(6.dp),
+                            modifier = Modifier
+                                .clickable { viewModel.setStrategyExpiry(exp) }
+                                .border(
+                                    width = if (isSelected) 1.dp else 0.5.dp,
+                                    color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline,
+                                    shape = RoundedCornerShape(6.dp)
+                                )
+                        ) {
+                            Text(
+                                text = exp,
+                                color = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface,
+                                fontSize = 9.sp,
+                                fontWeight = if (isSelected) FontWeight.ExtraBold else FontWeight.Bold,
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
+                            )
+                        }
+                    }
+                }
+
+                Spacer(Modifier.height(10.dp))
+                Divider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.4f), thickness = 0.5.dp)
+                Spacer(Modifier.height(10.dp))
+
+                // Lot Size & Multiplier
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column {
+                        Text("CONTRACT LOT SIZE", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 8.sp, fontWeight = FontWeight.Bold)
+                        Text(
+                            "${uiState.lotSize} Qty / Lot",
+                            color = MaterialTheme.colorScheme.onSurface,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            fontFamily = FontFamily.Monospace
+                        )
+                    }
+
+                    // Stepper: [-] Lots [+]
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Surface(
+                            color = MaterialTheme.colorScheme.surface,
+                            shape = RoundedCornerShape(4.dp),
+                            modifier = Modifier
+                                .size(28.dp)
+                                .clickable { viewModel.setNumberOfLots(uiState.numberOfLots - 1) }
+                                .border(0.5.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(4.dp))
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Text("-", color = MaterialTheme.colorScheme.primary, fontSize = 16.sp, fontWeight = FontWeight.Black)
+                            }
+                        }
+
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text(
+                                "${uiState.numberOfLots} Lot${if (uiState.numberOfLots > 1) "s" else ""}",
+                                color = MaterialTheme.colorScheme.primary,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Black,
+                                fontFamily = FontFamily.Monospace
+                            )
+                            Text(
+                                "= ${uiState.numberOfLots * uiState.lotSize} Qty",
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                fontSize = 8.sp,
+                                fontFamily = FontFamily.Monospace
+                            )
+                        }
+
+                        Surface(
+                            color = MaterialTheme.colorScheme.surface,
+                            shape = RoundedCornerShape(4.dp),
+                            modifier = Modifier
+                                .size(28.dp)
+                                .clickable { viewModel.setNumberOfLots(uiState.numberOfLots + 1) }
+                                .border(0.5.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(4.dp))
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Text("+", color = MaterialTheme.colorScheme.primary, fontSize = 16.sp, fontWeight = FontWeight.Black)
+                            }
+                        }
+                    }
+                }
+
+                Spacer(Modifier.height(10.dp))
+
+                // Capital / Margin Required Banner
+                Surface(
+                    color = MaterialTheme.colorScheme.surface.copy(alpha = 0.8f),
+                    shape = RoundedCornerShape(6.dp),
+                    modifier = Modifier.fillMaxWidth().border(0.5.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.5f), RoundedCornerShape(6.dp))
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 8.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Icon(Icons.Default.AccountBalanceWallet, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(16.dp))
+                            Column {
+                                Text("CAPITAL / MARGIN REQUIRED", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 7.5.sp, fontWeight = FontWeight.ExtraBold)
+                                Text("SPAN + Exposure / Outlay", color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f), fontSize = 7.sp)
+                            }
+                        }
+                        Text(
+                            "₹${"%,d".format(uiState.capitalRequired.toLong())}",
+                            color = MaterialTheme.colorScheme.primary,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Black,
+                            fontFamily = FontFamily.Monospace
+                        )
+                    }
+                }
+            }
+        }
+
+        Spacer(Modifier.height(12.dp))
         
         // 2. Category & Strategy Architecture Selection Dropdowns
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -837,7 +1149,10 @@ fun StrategyBuilderTab(uiState: FnoUiState, viewModel: FnoViewModel) {
             uiState.activeLegs.forEach { leg ->
                 StrategyLegRow(
                     leg = leg,
-                    lotSize = uiState.summary.lotSize,
+                    lotSize = uiState.lotSize,
+                    spotPrice = uiState.spotPrice,
+                    strikeStep = uiState.strikeStep,
+                    underlying = uiState.selectedAsset,
                     onShiftStrike = { delta -> viewModel.shiftLegStrike(leg.id, delta) },
                     onToggleType = { viewModel.toggleLegType(leg.id) },
                     onToggleInstrument = { viewModel.toggleLegInstrument(leg.id) },
@@ -872,16 +1187,41 @@ fun StrategyBuilderTab(uiState: FnoUiState, viewModel: FnoViewModel) {
         }
         
         Spacer(Modifier.height(4.dp))
-        Button(
-            onClick = { viewModel.addLeg("CALL", "BUY", uiState.spotPrice) },
-            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-            modifier = Modifier.fillMaxWidth().height(34.dp),
-            shape = RoundedCornerShape(6.dp),
-            border = BorderStroke(0.5.dp, MaterialTheme.colorScheme.primary)
-        ) {
-            Icon(Icons.Default.Add, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(14.dp))
-            Spacer(Modifier.width(4.dp))
-            Text("ADD CUSTOM LEG", color = MaterialTheme.colorScheme.primary, fontSize = 9.5.sp, fontWeight = FontWeight.Bold)
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Button(
+                onClick = { viewModel.addLeg("CALL", "BUY", uiState.spotPrice) },
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+                modifier = Modifier.weight(1f).height(36.dp),
+                shape = RoundedCornerShape(6.dp),
+                border = BorderStroke(0.5.dp, MaterialTheme.colorScheme.primary)
+            ) {
+                Icon(Icons.Default.Add, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(14.dp))
+                Spacer(Modifier.width(4.dp))
+                Text("ADD ATM LEG", color = MaterialTheme.colorScheme.primary, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+            }
+
+            Button(
+                onClick = { isStrikePickerOpen = true },
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+                modifier = Modifier.weight(1.3f).height(36.dp),
+                shape = RoundedCornerShape(6.dp),
+                border = BorderStroke(0.5.dp, MaterialTheme.colorScheme.primary)
+            ) {
+                Icon(Icons.Default.AutoGraph, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(14.dp))
+                Spacer(Modifier.width(4.dp))
+                Text("PICK FROM CHAIN", color = MaterialTheme.colorScheme.primary, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+            }
+        }
+
+        if (isStrikePickerOpen) {
+            StrikeChainPickerDialog(
+                chain = uiState.optionChain,
+                spotPrice = uiState.spotPrice,
+                onDismiss = { isStrikePickerOpen = false },
+                onAddLeg = { strike, instrument, action ->
+                    viewModel.addLeg(instrument, action, strike)
+                }
+            )
         }
 
         // 4. Action Buttons (ANALYZE, SAVE / UPDATE, DELETE)
@@ -985,7 +1325,52 @@ fun StrategyBuilderTab(uiState: FnoUiState, viewModel: FnoViewModel) {
                             }
                         }
                     }
-                    Spacer(Modifier.height(14.dp))
+                    Spacer(Modifier.height(10.dp))
+
+                    // Institutional Execution Summary (Expiry, Lots, Capital)
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f), RoundedCornerShape(6.dp))
+                            .padding(horizontal = 8.dp, vertical = 6.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column {
+                            Text("EXPIRY DATE", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 7.5.sp, fontWeight = FontWeight.Bold)
+                            Text(
+                                strategy.expiry.ifBlank { uiState.selectedExpiry },
+                                color = MaterialTheme.colorScheme.primary,
+                                fontSize = 9.5.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                fontFamily = FontFamily.Monospace
+                            )
+                        }
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            val effLotSize = if (strategy.lotSize > 0) strategy.lotSize else uiState.lotSize
+                            val effLots = if (strategy.lots > 0) strategy.lots else uiState.numberOfLots
+                            Text("LOT SIZING", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 7.5.sp, fontWeight = FontWeight.Bold)
+                            Text(
+                                "$effLots Lot${if (effLots > 1) "s" else ""} • Lot: $effLotSize",
+                                color = MaterialTheme.colorScheme.onSurface,
+                                fontSize = 9.5.sp,
+                                fontWeight = FontWeight.Bold,
+                                fontFamily = FontFamily.Monospace
+                            )
+                        }
+                        Column(horizontalAlignment = Alignment.End) {
+                            Text("CAPITAL REQUIRED", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 7.5.sp, fontWeight = FontWeight.Bold)
+                            val effCap = if (strategy.capitalRequired > 0) strategy.capitalRequired else uiState.capitalRequired
+                            Text(
+                                "₹${"%,d".format(effCap.toLong())}",
+                                color = MaterialTheme.colorScheme.primary,
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Black,
+                                fontFamily = FontFamily.Monospace
+                            )
+                        }
+                    }
+                    Spacer(Modifier.height(12.dp))
                     
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                         StrategyMetric("MAX PROFIT", if(strategy.maxProfit > 1000000) "UNLIMITED" else "₹${strategy.maxProfit.toInt()}", AppGreen)
@@ -1167,7 +1552,10 @@ fun StrategyBuilderTab(uiState: FnoUiState, viewModel: FnoViewModel) {
 @Composable
 fun StrategyLegRow(
     leg: StrategyLeg,
-    lotSize: Int = 50,
+    lotSize: Int = 65,
+    spotPrice: Double = 0.0,
+    strikeStep: Double = 50.0,
+    underlying: String = "",
     onShiftStrike: (Int) -> Unit,
     onToggleType: () -> Unit,
     onToggleInstrument: () -> Unit,
@@ -1175,6 +1563,29 @@ fun StrategyLegRow(
 ) {
     val legPnlColor = if (leg.pnl >= 0.0) AppGreen else AppRed
     val legPnlSign = if (leg.pnl >= 0.0) "+" else ""
+    val effLotSize = if (leg.lotSize > 0) leg.lotSize else if (lotSize > 0) lotSize else 65
+    val effLots = if (leg.lots > 0) leg.lots else (leg.qty / effLotSize).coerceAtLeast(1)
+    val legUnderlying = leg.underlying.ifBlank { underlying }
+    val halfStep = (strikeStep / 2.0).coerceAtLeast(0.5)
+    val isAtm = spotPrice > 0.0 && abs(leg.strike - spotPrice) <= halfStep
+    val isCall = leg.instrument.equals("CALL", ignoreCase = true)
+    val isPut = leg.instrument.equals("PUT", ignoreCase = true)
+    val computedMoneyness = when {
+        leg.moneyness.isNotBlank() -> leg.moneyness
+        leg.instrument == "FUT" -> "FUT"
+        isAtm -> "ATM"
+        isCall && spotPrice > 0.0 && leg.strike < spotPrice -> "ITM"
+        isCall && spotPrice > 0.0 && leg.strike > spotPrice -> "OTM"
+        isPut && spotPrice > 0.0 && leg.strike > spotPrice -> "ITM"
+        isPut && spotPrice > 0.0 && leg.strike < spotPrice -> "OTM"
+        else -> "ATM"
+    }
+    val moneynessColor = when (computedMoneyness) {
+        "ATM" -> Color(0xFF00E5FF)
+        "ITM" -> Color(0xFFFFB300)
+        else -> MaterialTheme.colorScheme.onSurfaceVariant
+    }
+
     Surface(
         color = MaterialTheme.colorScheme.surfaceVariant,
         shape = RoundedCornerShape(8.dp),
@@ -1183,7 +1594,7 @@ fun StrategyLegRow(
             .border(0.5.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(8.dp))
     ) {
         Column(modifier = Modifier.padding(8.dp)) {
-            // Top Row: Type & Instrument chips + Strike Stepper + Remove
+            // Top Row: Type & Instrument chips + Moneyness Chip + Expiry + Strike Stepper + Remove
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
@@ -1224,10 +1635,42 @@ fun StrategyLegRow(
                         )
                     }
 
-                    val baseLot = if (lotSize > 0) lotSize else 50
-                    if (leg.qty > baseLot) {
+                    // Moneyness Chip (ITM / ATM / OTM)
+                    Surface(
+                        color = moneynessColor.copy(alpha = 0.15f),
+                        shape = RoundedCornerShape(4.dp),
+                        modifier = Modifier.border(0.5.dp, moneynessColor.copy(alpha = 0.6f), RoundedCornerShape(4.dp))
+                    ) {
                         Text(
-                            "${leg.qty / baseLot}x",
+                            computedMoneyness,
+                            color = moneynessColor,
+                            fontSize = 8.sp,
+                            fontWeight = FontWeight.Black,
+                            fontFamily = FontFamily.Monospace,
+                            modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
+                        )
+                    }
+
+                    // Expiry Chip
+                    if (leg.expiry.isNotBlank()) {
+                        Surface(
+                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
+                            shape = RoundedCornerShape(4.dp),
+                            modifier = Modifier.border(0.5.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.4f), RoundedCornerShape(4.dp))
+                        ) {
+                            Text(
+                                leg.expiry,
+                                color = MaterialTheme.colorScheme.primary,
+                                fontSize = 8.sp,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp)
+                            )
+                        }
+                    }
+
+                    if (effLots > 1) {
+                        Text(
+                            "${effLots}x",
                             color = MaterialTheme.colorScheme.primary,
                             fontSize = 9.sp,
                             fontWeight = FontWeight.ExtraBold
@@ -1279,7 +1722,34 @@ fun StrategyLegRow(
                 }
             }
 
-            Spacer(Modifier.height(6.dp))
+            Spacer(Modifier.height(4.dp))
+
+            // Middle Row: Institutional Contract Details (Underlying, Lot Size, Lots, Leg Outlay)
+            val legOutlay = leg.entryPrice * leg.qty
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 2.dp, vertical = 2.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    "${if (legUnderlying.isNotBlank()) "${legUnderlying.uppercase()} • " else ""}Lot: $effLotSize • $effLots Lot(s) (${leg.qty} Qty)",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontSize = 8.5.sp,
+                    fontFamily = FontFamily.Monospace,
+                    fontWeight = FontWeight.Medium
+                )
+                Text(
+                    "Outlay: ₹${"%,d".format(legOutlay.toLong())}",
+                    color = MaterialTheme.colorScheme.onSurface,
+                    fontSize = 8.5.sp,
+                    fontFamily = FontFamily.Monospace,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+
+            Spacer(Modifier.height(4.dp))
 
             // Bottom Row: Entry vs LTP & Live Leg PnL
             Row(
@@ -1694,3 +2164,218 @@ fun GexAnalyticsView(profile: com.example.marketintelligence.domain.engine.GexPr
         Spacer(Modifier.height(60.dp))
     }
 }
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun StrikeChainPickerDialog(
+    chain: OptionChain?,
+    spotPrice: Double,
+    onDismiss: () -> Unit,
+    onAddLeg: (strike: Double, instrument: String, action: String) -> Unit
+) {
+    if (chain == null) return
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        containerColor = MaterialTheme.colorScheme.surface
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 8.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column {
+                    Text(
+                        "SELECT STRIKE FOR STRATEGY",
+                        color = MaterialTheme.colorScheme.onSurface,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.ExtraBold
+                    )
+                    Text(
+                        "Spot: ₹${"%.2f".format(spotPrice)} • Tap to add leg",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontSize = 10.sp
+                    )
+                }
+                IconButton(onClick = onDismiss) {
+                    Icon(Icons.Default.Close, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+
+            Spacer(Modifier.height(10.dp))
+
+            // Column Header
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(6.dp))
+                    .padding(horizontal = 8.dp, vertical = 6.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text("CALL (+ / -)", color = AppRed, fontSize = 9.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1.25f))
+                Text("STRIKE", color = MaterialTheme.colorScheme.onSurface, fontSize = 9.sp, fontWeight = FontWeight.ExtraBold, modifier = Modifier.weight(0.9f), textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+                Text("PUT (+ / -)", color = AppGreen, fontSize = 9.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1.25f), textAlign = androidx.compose.ui.text.style.TextAlign.End)
+            }
+
+            Spacer(Modifier.height(6.dp))
+
+            val currentStrike = chain.strikes.minByOrNull { abs(it.strike - spotPrice) }?.strike
+            val listState = rememberLazyListState()
+            LaunchedEffect(currentStrike) {
+                if (currentStrike != null) {
+                    val idx = chain.strikes.indexOfFirst { it.strike == currentStrike }
+                    if (idx >= 0) listState.scrollToItem((idx - 3).coerceAtLeast(0))
+                }
+            }
+
+            LazyColumn(
+                state = listState,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(max = 420.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                items(chain.strikes) { strike ->
+                    val isAtm = strike.strike == currentStrike
+                    val isITMCall = strike.strike < spotPrice
+                    val isITMPut = strike.strike > spotPrice
+                    val callMoneyness = if (isAtm) "ATM" else if (isITMCall) "ITM" else "OTM"
+                    val putMoneyness = if (isAtm) "ATM" else if (isITMPut) "ITM" else "OTM"
+                    val callMoneynessColor = if (isAtm) Color(0xFF00E5FF) else if (isITMCall) Color(0xFFFFB300) else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                    val putMoneynessColor = if (isAtm) Color(0xFF00E5FF) else if (isITMPut) Color(0xFFFFB300) else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                    
+                    Surface(
+                        color = if (isAtm) MaterialTheme.colorScheme.surfaceVariant else MaterialTheme.colorScheme.surface,
+                        shape = RoundedCornerShape(6.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .border(
+                                width = if (isAtm) 1.dp else 0.5.dp,
+                                color = if (isAtm) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline.copy(alpha = 0.5f),
+                                shape = RoundedCornerShape(6.dp)
+                            )
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 6.dp, vertical = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            // CALL BUTTONS & MONEYNESS
+                            Row(
+                                modifier = Modifier.weight(1.25f),
+                                horizontalArrangement = Arrangement.spacedBy(3.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Surface(
+                                    color = callMoneynessColor.copy(alpha = 0.15f),
+                                    shape = RoundedCornerShape(3.dp),
+                                    modifier = Modifier.border(0.5.dp, callMoneynessColor.copy(alpha = 0.5f), RoundedCornerShape(3.dp))
+                                ) {
+                                    Text(
+                                        callMoneyness,
+                                        color = callMoneynessColor,
+                                        fontSize = 7.5.sp,
+                                        fontWeight = FontWeight.ExtraBold,
+                                        modifier = Modifier.padding(horizontal = 3.dp, vertical = 2.dp)
+                                    )
+                                }
+                                Surface(
+                                    color = AppGreen.copy(alpha = 0.15f),
+                                    shape = RoundedCornerShape(4.dp),
+                                    modifier = Modifier
+                                        .clickable { onAddLeg(strike.strike, "CALL", "BUY") }
+                                        .border(0.5.dp, AppGreen, RoundedCornerShape(4.dp))
+                                ) {
+                                    Text("+B", color = AppGreen, fontSize = 9.sp, fontWeight = FontWeight.Black, modifier = Modifier.padding(horizontal = 4.dp, vertical = 3.dp))
+                                }
+                                Surface(
+                                    color = AppRed.copy(alpha = 0.15f),
+                                    shape = RoundedCornerShape(4.dp),
+                                    modifier = Modifier
+                                        .clickable { onAddLeg(strike.strike, "CALL", "SELL") }
+                                        .border(0.5.dp, AppRed, RoundedCornerShape(4.dp))
+                                ) {
+                                    Text("-S", color = AppRed, fontSize = 9.sp, fontWeight = FontWeight.Black, modifier = Modifier.padding(horizontal = 4.dp, vertical = 3.dp))
+                                }
+                                Text("₹${strike.callLTP.toInt()}", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 9.sp, fontFamily = FontFamily.Monospace)
+                            }
+
+                            // STRIKE & MONEYNESS HINT
+                            Column(
+                                modifier = Modifier.weight(0.9f),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Text("₹${strike.strike.toInt()}", color = MaterialTheme.colorScheme.onSurface, fontSize = 10.5.sp, fontWeight = FontWeight.ExtraBold, fontFamily = FontFamily.Monospace)
+                                if (isAtm) {
+                                    Surface(
+                                        color = Color(0xFF00E5FF).copy(alpha = 0.15f),
+                                        shape = RoundedCornerShape(3.dp),
+                                        modifier = Modifier.border(0.5.dp, Color(0xFF00E5FF).copy(alpha = 0.6f), RoundedCornerShape(3.dp))
+                                    ) {
+                                        Text("ATM", color = Color(0xFF00E5FF), fontSize = 7.sp, fontWeight = FontWeight.Black, modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp))
+                                    }
+                                } else {
+                                    Text("C:$callMoneyness • P:$putMoneyness", color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f), fontSize = 6.5.sp, fontWeight = FontWeight.SemiBold)
+                                }
+                            }
+
+                            // PUT BUTTONS & MONEYNESS
+                            Row(
+                                modifier = Modifier.weight(1.25f),
+                                horizontalArrangement = Arrangement.End,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text("₹${strike.putLTP.toInt()}", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 9.sp, fontFamily = FontFamily.Monospace)
+                                Spacer(Modifier.width(3.dp))
+                                Surface(
+                                    color = AppGreen.copy(alpha = 0.15f),
+                                    shape = RoundedCornerShape(4.dp),
+                                    modifier = Modifier
+                                        .clickable { onAddLeg(strike.strike, "PUT", "BUY") }
+                                        .border(0.5.dp, AppGreen, RoundedCornerShape(4.dp))
+                                ) {
+                                    Text("+B", color = AppGreen, fontSize = 9.sp, fontWeight = FontWeight.Black, modifier = Modifier.padding(horizontal = 4.dp, vertical = 3.dp))
+                                }
+                                Spacer(Modifier.width(3.dp))
+                                Surface(
+                                    color = AppRed.copy(alpha = 0.15f),
+                                    shape = RoundedCornerShape(4.dp),
+                                    modifier = Modifier
+                                        .clickable { onAddLeg(strike.strike, "PUT", "SELL") }
+                                        .border(0.5.dp, AppRed, RoundedCornerShape(4.dp))
+                                ) {
+                                    Text("-S", color = AppRed, fontSize = 9.sp, fontWeight = FontWeight.Black, modifier = Modifier.padding(horizontal = 4.dp, vertical = 3.dp))
+                                }
+                                Spacer(Modifier.width(3.dp))
+                                Surface(
+                                    color = putMoneynessColor.copy(alpha = 0.15f),
+                                    shape = RoundedCornerShape(3.dp),
+                                    modifier = Modifier.border(0.5.dp, putMoneynessColor.copy(alpha = 0.5f), RoundedCornerShape(3.dp))
+                                ) {
+                                    Text(
+                                        putMoneyness,
+                                        color = putMoneynessColor,
+                                        fontSize = 7.5.sp,
+                                        fontWeight = FontWeight.ExtraBold,
+                                        modifier = Modifier.padding(horizontal = 3.dp, vertical = 2.dp)
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            Spacer(Modifier.height(16.dp))
+        }
+    }
+}
+

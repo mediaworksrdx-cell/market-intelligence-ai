@@ -305,12 +305,12 @@ fun MarketIntelligenceWelcomeScreen(
 
             // Subtitle / Tagline
             Text(
-                text = "AUTONOMOUS MARKET INTELLIGENCE",
+                text = "Intelligence Beyond the Noise.",
                 color = slateMuted,
-                fontSize = 11.5.sp,
+                fontSize = 12.sp,
                 fontWeight = FontWeight.Bold,
                 fontFamily = FontFamily.Monospace,
-                letterSpacing = 1.8.sp,
+                letterSpacing = 1.2.sp,
                 maxLines = 1,
                 softWrap = false,
                 modifier = Modifier.alpha(subtitleAlpha.value)

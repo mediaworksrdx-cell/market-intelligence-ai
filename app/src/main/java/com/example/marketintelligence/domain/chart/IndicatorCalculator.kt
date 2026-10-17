@@ -14,32 +14,42 @@ import kotlin.math.sqrt
 object IndicatorCalculator {
 
     // ── Simple Moving Average ──
+    // ── Simple Moving Average ──
     fun calculateSMA(candles: List<Candle>, period: Int): List<Double?> {
-        if (candles.size < period) return List(candles.size) { null }
+        if (candles.isEmpty()) return emptyList()
+        val p = period.coerceAtLeast(1)
+        if (candles.size < p) {
+            // Progressive cumulative moving average over available history so line renders gracefully
+            return List(candles.size) { i ->
+                var sum = 0.0
+                for (j in 0..i) sum += candles[j].close
+                sum / (i + 1)
+            }
+        }
         return List(candles.size) { i ->
-            if (i < period - 1) null
+            if (i < p - 1) null
             else {
                 var sum = 0.0
-                for (j in (i - period + 1)..i) sum += candles[j].close
-                sum / period
+                for (j in (i - p + 1)..i) sum += candles[j].close
+                sum / p
             }
         }
     }
 
     // ── Exponential Moving Average ──
     fun calculateEMA(candles: List<Candle>, period: Int): List<Double?> {
-        if (candles.size < period) return List(candles.size) { null }
-        val multiplier = 2.0 / (period + 1)
+        if (candles.isEmpty()) return emptyList()
+        val p = period.coerceAtLeast(1)
+        val multiplier = 2.0 / (p + 1)
         val result = MutableList<Double?>(candles.size) { null }
 
-        // Seed with SMA for the first valid point
+        val effectiveSeed = minOf(p, candles.size)
         var sum = 0.0
-        for (i in 0 until period) sum += candles[i].close
-        result[period - 1] = sum / period
+        for (i in 0 until effectiveSeed) sum += candles[i].close
+        result[effectiveSeed - 1] = sum / effectiveSeed
 
-        // Calculate EMA from seed forward
-        for (i in period until candles.size) {
-            val prevEma = result[i - 1]!!
+        for (i in effectiveSeed until candles.size) {
+            val prevEma = result[i - 1] ?: candles[i - 1].close
             result[i] = (candles[i].close - prevEma) * multiplier + prevEma
         }
         return result
@@ -47,28 +57,29 @@ object IndicatorCalculator {
 
     // ── Relative Strength Index ──
     fun calculateRSI(candles: List<Candle>, period: Int): List<Double?> {
-        if (candles.size < period + 1) return List(candles.size) { null }
+        if (candles.size < 2) return List(candles.size) { null }
+        val p = period.coerceIn(1, maxOf(1, candles.size - 1))
         val result = MutableList<Double?>(candles.size) { null }
 
         // Calculate initial average gains and losses
         var avgGain = 0.0
         var avgLoss = 0.0
-        for (i in 1..period) {
+        for (i in 1..p) {
             val change = candles[i].close - candles[i - 1].close
             if (change > 0) avgGain += change else avgLoss += abs(change)
         }
-        avgGain /= period
-        avgLoss /= period
+        avgGain /= p
+        avgLoss /= p
 
-        result[period] = if (avgLoss == 0.0) 100.0 else 100.0 - (100.0 / (1.0 + avgGain / avgLoss))
+        result[p] = if (avgLoss == 0.0) 100.0 else 100.0 - (100.0 / (1.0 + avgGain / avgLoss))
 
         // Smoothed RSI
-        for (i in (period + 1) until candles.size) {
+        for (i in (p + 1) until candles.size) {
             val change = candles[i].close - candles[i - 1].close
             val gain = if (change > 0) change else 0.0
             val loss = if (change < 0) abs(change) else 0.0
-            avgGain = (avgGain * (period - 1) + gain) / period
-            avgLoss = (avgLoss * (period - 1) + loss) / period
+            avgGain = (avgGain * (p - 1) + gain) / p
+            avgLoss = (avgLoss * (p - 1) + loss) / p
             result[i] = if (avgLoss == 0.0) 100.0 else 100.0 - (100.0 / (1.0 + avgGain / avgLoss))
         }
         return result
@@ -128,21 +139,21 @@ object IndicatorCalculator {
         period: Int = 20,
         deviation: Double = 2.0
     ): BollingerResult {
-        val sma = calculateSMA(candles, period)
+        if (candles.isEmpty()) return BollingerResult(emptyList(), emptyList(), emptyList())
+        val p = period.coerceIn(1, maxOf(1, candles.size))
+        val sma = calculateSMA(candles, p)
         val upper = MutableList<Double?>(candles.size) { null }
         val lower = MutableList<Double?>(candles.size) { null }
 
         for (i in candles.indices) {
             val mid = sma[i] ?: continue
-            if (i < period - 1) continue
-
-            // Calculate standard deviation
+            val window = minOf(p, i + 1)
             var sumSqDiff = 0.0
-            for (j in (i - period + 1)..i) {
+            for (j in (i - window + 1)..i) {
                 val diff = candles[j].close - mid
                 sumSqDiff += diff * diff
             }
-            val stdDev = sqrt(sumSqDiff / period)
+            val stdDev = sqrt(sumSqDiff / window)
             upper[i] = mid + deviation * stdDev
             lower[i] = mid - deviation * stdDev
         }
@@ -155,13 +166,27 @@ object IndicatorCalculator {
         val result = MutableList<Double?>(candles.size) { null }
         var cumulativeTPV = 0.0  // Typical Price × Volume
         var cumulativeVolume = 0.0
+        var lastDayKey = -1L
 
         for (i in candles.indices) {
             val candle = candles[i]
+            val rawTime = candle.openTime
+            val timeMs = if (rawTime in 1..99_999_999_999L) rawTime * 1000L else rawTime
+            // Detect daily session boundary (IST UTC+5:30 offset = 19,800,000 ms)
+            val dayKey = if (timeMs > 0L) (timeMs + 19_800_000L) / 86_400_000L else 0L
+
+            if (lastDayKey != -1L && dayKey != lastDayKey) {
+                // Session reset: start fresh each trading day as standard in financial charting
+                cumulativeTPV = 0.0
+                cumulativeVolume = 0.0
+            }
+            lastDayKey = dayKey
+
             val typicalPrice = (candle.high + candle.low + candle.close) / 3.0
-            cumulativeTPV += typicalPrice * candle.volume
-            cumulativeVolume += candle.volume
-            result[i] = if (cumulativeVolume > 0) cumulativeTPV / cumulativeVolume else null
+            val volume = if (candle.volume > 0.0) candle.volume else 1.0
+            cumulativeTPV += typicalPrice * volume
+            cumulativeVolume += volume
+            result[i] = if (cumulativeVolume > 0.0) cumulativeTPV / cumulativeVolume else typicalPrice
         }
         return result
     }
@@ -172,25 +197,27 @@ object IndicatorCalculator {
         period: Int = 10,
         multiplier: Double = 3.0
     ): SupertrendResult {
-        val atr = calculateATR(candles, period)
+        val p = period.coerceIn(1, maxOf(1, candles.size))
+        val atr = calculateATR(candles, p)
         val values = MutableList<Double?>(candles.size) { null }
         val directions = MutableList<Boolean?>(candles.size) { null }
 
-        if (candles.size < period) return SupertrendResult(values, directions)
+        if (candles.isEmpty()) return SupertrendResult(values, directions)
+        val startIdx = (p - 1).coerceIn(0, candles.size - 1)
 
         var prevUpperBand = 0.0
         var prevLowerBand = 0.0
         var prevSupertrend = 0.0
         var _prevDirection = true
 
-        for (i in (period - 1) until candles.size) {
+        for (i in startIdx until candles.size) {
             val atrVal = atr[i] ?: continue
             val hl2 = (candles[i].high + candles[i].low) / 2.0
             var upperBand = hl2 + multiplier * atrVal
             var lowerBand = hl2 - multiplier * atrVal
 
             // Band continuity
-            if (i > period - 1) {
+            if (i > startIdx) {
                 if (lowerBand > prevLowerBand || candles[i - 1].close < prevLowerBand) {
                     // keep lowerBand
                 } else {
@@ -232,6 +259,7 @@ object IndicatorCalculator {
     // ── Average True Range ──
     fun calculateATR(candles: List<Candle>, period: Int = 14): List<Double?> {
         if (candles.size < 2) return List(candles.size) { null }
+        val p = period.coerceIn(1, maxOf(1, candles.size - 1))
         val result = MutableList<Double?>(candles.size) { null }
 
         // Calculate True Range values
@@ -245,16 +273,14 @@ object IndicatorCalculator {
         }
 
         // First ATR is simple average
-        if (candles.size >= period) {
-            var sum = 0.0
-            for (i in 0 until period) sum += trValues[i]
-            result[period - 1] = sum / period
+        var sum = 0.0
+        for (i in 0 until p) sum += trValues[i]
+        result[p - 1] = sum / p
 
-            // Smoothed ATR
-            for (i in period until candles.size) {
-                val prevAtr = result[i - 1]!!
-                result[i] = (prevAtr * (period - 1) + trValues[i]) / period
-            }
+        // Smoothed ATR
+        for (i in p until candles.size) {
+            val prevAtr = result[i - 1] ?: (sum / p)
+            result[i] = (prevAtr * (p - 1) + trValues[i]) / p
         }
         return result
     }
@@ -268,12 +294,16 @@ object IndicatorCalculator {
         val size = candles.size
         val kLine = MutableList<Double?>(size) { null }
         val dLine = MutableList<Double?>(size) { null }
+        if (size == 0) return StochasticResult(kLine, dLine)
+
+        val effectiveK = kPeriod.coerceIn(1, size)
+        val effectiveD = dPeriod.coerceIn(1, size)
 
         // Calculate %K
-        for (i in (kPeriod - 1) until size) {
+        for (i in (effectiveK - 1) until size) {
             var highestHigh = Double.MIN_VALUE
             var lowestLow = Double.MAX_VALUE
-            for (j in (i - kPeriod + 1)..i) {
+            for (j in (i - effectiveK + 1)..i) {
                 highestHigh = max(highestHigh, candles[j].high)
                 lowestLow = min(lowestLow, candles[j].low)
             }
@@ -283,15 +313,15 @@ object IndicatorCalculator {
 
         // Calculate %D (SMA of %K)
         val kValues = kLine.filterNotNull()
-        if (kValues.size >= dPeriod) {
+        if (kValues.size >= effectiveD) {
             val kStartIndex = kLine.indexOfFirst { it != null }
-            for (i in (kStartIndex + dPeriod - 1) until size) {
+            for (i in (kStartIndex + effectiveD - 1) until size) {
                 var sum = 0.0
                 var count = 0
-                for (j in (i - dPeriod + 1)..i) {
+                for (j in (i - effectiveD + 1)..i) {
                     kLine[j]?.let { sum += it; count++ }
                 }
-                if (count == dPeriod) dLine[i] = sum / dPeriod
+                if (count == effectiveD) dLine[i] = sum / effectiveD
             }
         }
         return StochasticResult(kLine, dLine)
@@ -604,7 +634,8 @@ object IndicatorCalculator {
         val plusDI = MutableList<Double?>(size) { null }
         val minusDI = MutableList<Double?>(size) { null }
         val adx = MutableList<Double?>(size) { null }
-        if (size <= period) return AdxResult(plusDI, minusDI, adx)
+        if (size < 2) return AdxResult(plusDI, minusDI, adx)
+        val p = period.coerceIn(2, size - 1)
 
         val tr = MutableList(size) { 0.0 }
         val plusDM = MutableList(size) { 0.0 }
@@ -627,7 +658,7 @@ object IndicatorCalculator {
         var plusDMSum = 0.0
         var minusDMSum = 0.0
 
-        for (i in 1..period) {
+        for (i in 1..p) {
             trSum += tr[i]
             plusDMSum += plusDM[i]
             minusDMSum += minusDM[i]
@@ -635,11 +666,11 @@ object IndicatorCalculator {
 
         val dx = MutableList<Double?>(size) { null }
 
-        for (i in period until size) {
-            if (i > period) {
-                trSum = trSum - (trSum / period) + tr[i]
-                plusDMSum = plusDMSum - (plusDMSum / period) + plusDM[i]
-                minusDMSum = minusDMSum - (minusDMSum / period) + minusDM[i]
+        for (i in p until size) {
+            if (i > p) {
+                trSum = trSum - (trSum / p) + tr[i]
+                plusDMSum = plusDMSum - (plusDMSum / p) + plusDM[i]
+                minusDMSum = minusDMSum - (minusDMSum / p) + minusDM[i]
             }
 
             val pdi = if (trSum == 0.0) 0.0 else 100 * plusDMSum / trSum
@@ -653,13 +684,13 @@ object IndicatorCalculator {
 
         var dxSum = 0.0
         var dxCount = 0
-        for (i in period until size) {
+        for (i in p until size) {
             dxSum += dx[i]!!
             dxCount++
-            if (dxCount == period) {
-                adx[i] = dxSum / period
-            } else if (dxCount > period) {
-                adx[i] = ((adx[i - 1]!! * (period - 1)) + dx[i]!!) / period
+            if (dxCount == p) {
+                adx[i] = dxSum / p
+            } else if (dxCount > p) {
+                adx[i] = ((adx[i - 1]!! * (p - 1)) + dx[i]!!) / p
             }
         }
 
@@ -689,22 +720,23 @@ object IndicatorCalculator {
     fun calculateCCI(candles: List<Candle>, period: Int = 20): List<Double?> {
         val size = candles.size
         val cci = MutableList<Double?>(size) { null }
-        if (size < period) return cci
+        if (size == 0) return cci
+        val p = period.coerceIn(1, size)
 
         val tp = candles.map { (it.high + it.low + it.close) / 3.0 }
 
-        for (i in (period - 1) until size) {
+        for (i in (p - 1) until size) {
             var sum = 0.0
-            for (j in (i - period + 1)..i) {
+            for (j in (i - p + 1)..i) {
                 sum += tp[j]
             }
-            val sma = sum / period
+            val sma = sum / p
 
             var meanDevSum = 0.0
-            for (j in (i - period + 1)..i) {
+            for (j in (i - p + 1)..i) {
                 meanDevSum += abs(tp[j] - sma)
             }
-            val meanDev = meanDevSum / period
+            val meanDev = meanDevSum / p
 
             cci[i] = if (meanDev == 0.0) 0.0 else (tp[i] - sma) / (0.015 * meanDev)
         }
@@ -715,13 +747,14 @@ object IndicatorCalculator {
     fun calculateWilliamsR(candles: List<Candle>, period: Int = 14): List<Double?> {
         val size = candles.size
         val r = MutableList<Double?>(size) { null }
-        if (size < period) return r
+        if (size == 0) return r
+        val p = period.coerceIn(1, size)
 
-        for (i in (period - 1) until size) {
+        for (i in (p - 1) until size) {
             var highestHigh = Double.MIN_VALUE
             var lowestLow = Double.MAX_VALUE
 
-            for (j in (i - period + 1)..i) {
+            for (j in (i - p + 1)..i) {
                 highestHigh = max(highestHigh, candles[j].high)
                 lowestLow = min(lowestLow, candles[j].low)
             }
@@ -736,16 +769,17 @@ object IndicatorCalculator {
     fun calculateMFI(candles: List<Candle>, period: Int = 14): List<Double?> {
         val size = candles.size
         val mfi = MutableList<Double?>(size) { null }
-        if (size <= period) return mfi
+        if (size < 2) return mfi
+        val p = period.coerceIn(1, size - 1)
 
         val tp = candles.map { (it.high + it.low + it.close) / 3.0 }
         val rmf = DoubleArray(size) { i -> tp[i] * candles[i].volume }
 
-        for (i in period until size) {
+        for (i in p until size) {
             var posFlow = 0.0
             var negFlow = 0.0
 
-            for (j in (i - period + 1)..i) {
+            for (j in (i - p + 1)..i) {
                 if (tp[j] > tp[j - 1]) {
                     posFlow += rmf[j]
                 } else if (tp[j] < tp[j - 1]) {

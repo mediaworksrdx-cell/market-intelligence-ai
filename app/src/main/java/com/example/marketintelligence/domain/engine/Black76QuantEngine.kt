@@ -12,7 +12,8 @@ data class InstitutionalGreeks(
     val vega: Double,
     val vanna: Double,
     val charm: Double,
-    val volga: Double
+    val volga: Double,
+    val rho: Double = 0.0
 )
 
 @Singleton
@@ -65,6 +66,11 @@ class Black76QuantEngine @Inject constructor() {
         val gamma = (discount * pdfD1) / (forward * vol * sqrtT)
         val vega = forward * discount * pdfD1 * sqrtT / 100.0 // per 1% vol change
         val theta = -(forward * discount * pdfD1 * vol) / (2 * sqrtT) / 365.0 // per day
+        val rho = if (isCall) {
+            (strike * t * discount * normalCdf(d2)) / 100.0 // per 1% rate change
+        } else {
+            (-strike * t * discount * normalCdf(-d2)) / 100.0
+        }
 
         // Second-order Institutional Greeks
         val vanna = -discount * pdfD1 * (d2 / vol)
@@ -79,7 +85,8 @@ class Black76QuantEngine @Inject constructor() {
             vega = vega,
             vanna = vanna,
             charm = charm,
-            volga = volga
+            volga = volga,
+            rho = rho
         )
     }
 
@@ -88,7 +95,8 @@ class Black76QuantEngine @Inject constructor() {
         breakevens: List<Double>,
         volatility: Double,
         timeToExpiryYears: Double,
-        isDebitOrBreakout: Boolean
+        isDebitOrBreakout: Boolean,
+        isBullish: Boolean? = null
     ): Double {
         if (breakevens.isEmpty()) return if (isDebitOrBreakout) 40.0 else 65.0
         val vol = volatility.coerceAtLeast(0.05)
@@ -97,7 +105,12 @@ class Black76QuantEngine @Inject constructor() {
         return if (breakevens.size == 1) {
             val be = breakevens[0]
             val d2 = (ln(spot / be) - 0.5 * vol * vol * t) / (vol * sqrt(t))
-            val prob = normalCdf(d2) * 100.0
+            val bullishBias = isBullish ?: (be >= spot)
+            val prob = if (bullishBias) {
+                normalCdf(d2) * 100.0
+            } else {
+                normalCdf(-d2) * 100.0
+            }
             prob.coerceIn(10.0, 90.0)
         } else {
             val lowerBe = breakevens.minOrNull() ?: spot

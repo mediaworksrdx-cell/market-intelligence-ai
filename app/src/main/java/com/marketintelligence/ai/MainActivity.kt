@@ -1,7 +1,10 @@
 package com.marketintelligence.ai
 
+import android.app.Activity
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
@@ -98,16 +101,24 @@ class MainActivity : ComponentActivity() {
     @Inject
     lateinit var authTokenManager: AuthTokenManager
 
+    private var mainVm: MainViewModel? = null
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         handleDeepLink(intent)
+        requestNotificationPermission()
         setContent {
             CompositionLocalProvider(
                 androidx.compose.ui.platform.LocalLifecycleOwner provides this
             ) {
                 val mainViewModel: MainViewModel = hiltViewModel()
+                mainVm = mainViewModel
                 val isDarkMode by mainViewModel.isDarkMode.collectAsState()
                 
+                LaunchedEffect(intent) {
+                    handleNotificationIntent(intent)
+                }
+
                 MarketIntelligenceAiAndroidTheme(darkTheme = isDarkMode) {
                     var showSplash by remember { mutableStateOf(true) }
                     Crossfade(targetState = showSplash, animationSpec = tween(400), label = "splashCrossfade") { isSplash ->
@@ -128,6 +139,23 @@ class MainActivity : ComponentActivity() {
         super.onNewIntent(intent)
         setIntent(intent)
         handleDeepLink(intent)
+        handleNotificationIntent(intent)
+    }
+
+    private fun handleNotificationIntent(intent: Intent?) {
+        val navTo = intent?.getStringExtra("NAVIGATE_TO")
+        if (navTo == "notifications") {
+            mainVm?.navigateTo(Screen.Notifications.route)
+            intent.removeExtra("NAVIGATE_TO")
+        }
+    }
+
+    private fun requestNotificationPermission() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+                requestPermissions(arrayOf(android.Manifest.permission.POST_NOTIFICATIONS), 101)
+            }
+        }
     }
 
     private fun handleDeepLink(intent: Intent?) {
@@ -169,6 +197,16 @@ fun MainScreen(mainViewModel: MainViewModel) {
     val currentRoute = navBackStackEntry?.destination?.route
     val unreadCount by mainViewModel.unreadNotificationCount.collectAsState()
     val colors = MaterialTheme.colorScheme
+
+    val pendingRoute by mainViewModel.pendingRoute.collectAsState()
+    LaunchedEffect(pendingRoute) {
+        pendingRoute?.let { route ->
+            navController.navigate(route) {
+                launchSingleTop = true
+            }
+            mainViewModel.navigateTo(null)
+        }
+    }
 
     val isUtilityScreen = currentRoute == Screen.Settings.route || 
                           currentRoute == Screen.Notifications.route || 
@@ -353,7 +391,15 @@ fun MainScreen(mainViewModel: MainViewModel) {
                         navController.navigate(Screen.HoldingDetail.createRoute(symbol)) { launchSingleTop = true }
                     })
                 }
-                composable(Screen.Academy.route) { AcademyScreen() }
+                composable(Screen.Academy.route) { 
+                    AcademyScreen(
+                        onNavigateToAnalysis = { symbol, type ->
+                            navController.navigate(Screen.Analysis.createRoute(symbol, type)) {
+                                launchSingleTop = true
+                            }
+                        }
+                    ) 
+                }
                 composable(Screen.Notifications.route) {
                     NotificationsScreen(onNavigateToAnalysis = { symbol ->
                         navController.navigate(Screen.Analysis.createRoute(symbol, "STOCK")) {

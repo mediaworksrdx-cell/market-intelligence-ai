@@ -92,16 +92,16 @@ fun DrawScope.drawVolumePanelLayer(
     val candleWidth = chartWidth / visibleCount
     val bodyWidth = (candleWidth * 0.72f).coerceAtLeast(1f)
 
-    // 0. Panel Background (prevents upper chart layers from leaking into the volume panel)
+    // 0. Panel Background (matches clean white chart theme)
     drawRect(
-        color = Color(0xFF0F1117),
+        color = Color.White,
         topLeft = Offset(0f, panelTop),
         size = Size(chartWidth + rightMargin, panelHeight)
     )
 
     // 1. Panel Separator Line
     drawLine(
-        color = Color(0xFF2A2E39),
+        color = Color(0xFFE8ECF2),
         start = Offset(0f, panelTop),
         end = Offset(chartWidth + rightMargin, panelTop),
         strokeWidth = 1.dp.toPx()
@@ -122,7 +122,7 @@ fun DrawScope.drawVolumePanelLayer(
     val labelResult = textMeasurer.measure(
         volText,
         androidx.compose.ui.text.TextStyle(
-            color = Color(0xFF00E5FF),
+            color = Color(0xFF00897B),
             fontSize = 8.5.sp,
             fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
             fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace
@@ -135,13 +135,13 @@ fun DrawScope.drawVolumePanelLayer(
         val maxVolStr = formatVolume(maxVolume)
         val maxVolResult = textMeasurer.measure(
             maxVolStr,
-            androidx.compose.ui.text.TextStyle(color = Color(0xFF78909C), fontSize = 7.5.sp, fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace)
+            androidx.compose.ui.text.TextStyle(color = Color(0xFF6B7280), fontSize = 7.5.sp, fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace)
         )
         drawText(maxVolResult, topLeft = Offset(chartWidth + 3.dp.toPx(), panelTop + 2.dp.toPx()))
 
         val zeroResult = textMeasurer.measure(
             "0",
-            androidx.compose.ui.text.TextStyle(color = Color(0xFF78909C), fontSize = 7.5.sp, fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace)
+            androidx.compose.ui.text.TextStyle(color = Color(0xFF6B7280), fontSize = 7.5.sp, fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace)
         )
         drawText(zeroResult, topLeft = Offset(chartWidth + 3.dp.toPx(), panelTop + panelHeight - 11.dp.toPx()))
     }
@@ -161,9 +161,9 @@ fun DrawScope.drawVolumePanelLayer(
         val barTop = panelTop + panelHeight - barHeight
 
         val color = if (isBullish) {
-            Color(0xFF00E676).copy(alpha = 0.70f)
+            Color(0xFF089981).copy(alpha = 0.65f)
         } else {
-            Color(0xFFFF1744).copy(alpha = 0.70f)
+            Color(0xFFF23645).copy(alpha = 0.65f)
         }
 
         drawRect(

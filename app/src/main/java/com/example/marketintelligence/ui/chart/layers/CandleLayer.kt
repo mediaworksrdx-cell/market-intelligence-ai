@@ -15,10 +15,10 @@ import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.min
 
-private val BullColor = Color(0xFF00E676)
-private val BearColor = Color(0xFFFF1744)
-private val LineColor = Color(0xFF42A5F5)
-private val AreaFill = Color(0xFF42A5F5).copy(alpha = 0.12f)
+private val BullColor = Color(0xFF089981)
+private val BearColor = Color(0xFFF23645)
+private val LineColor = Color(0xFF2962FF)
+private val AreaFill = Color(0xFF2962FF).copy(alpha = 0.12f)
 
 /**
  * Draws the main price chart in the selected chart type.
@@ -61,8 +61,9 @@ private fun DrawScope.drawCandlesticks(
     chartHeight: Float,
     filled: Boolean
 ) {
-    val bodyWidth = candleWidth * 0.65f
-    val wickWidth = 1.dp.toPx()
+    val maxBodyWidth = 24.dp.toPx()
+    val bodyWidth = min(candleWidth * 0.70f, maxBodyWidth).coerceAtLeast(1.5f)
+    val wickWidth = maxOf(1.dp.toPx(), (bodyWidth * 0.08f).coerceAtMost(2.5.dp.toPx()))
 
     for (i in startIndex until minOf(endIndex, candles.size)) {
         val localIndex = i - startIndex
@@ -80,7 +81,7 @@ private fun DrawScope.drawCandlesticks(
 
         val bodyTop = min(openY, closeY)
         val bodyBottom = max(openY, closeY)
-        val bodyHeight = max(bodyBottom - bodyTop, 1f)
+        val bodyHeight = max(bodyBottom - bodyTop, 1.5.dp.toPx())
 
         // Draw wick
         drawLine(
@@ -104,7 +105,7 @@ private fun DrawScope.drawCandlesticks(
                 color = color,
                 topLeft = Offset(bodyLeft, bodyTop),
                 size = Size(bodyWidth, bodyHeight),
-                style = Stroke(width = 1.dp.toPx())
+                style = Stroke(width = maxOf(1.dp.toPx(), wickWidth))
             )
         }
     }
@@ -119,8 +120,9 @@ private fun DrawScope.drawHeikinAshi(
     priceRange: Double,
     chartHeight: Float
 ) {
-    val bodyWidth = candleWidth * 0.65f
-    val wickWidth = 1.dp.toPx()
+    val maxBodyWidth = 24.dp.toPx()
+    val bodyWidth = min(candleWidth * 0.70f, maxBodyWidth).coerceAtLeast(1.5f)
+    val wickWidth = maxOf(1.dp.toPx(), (bodyWidth * 0.08f).coerceAtMost(2.5.dp.toPx()))
 
     for (i in startIndex until minOf(endIndex, haCandles.size)) {
         val localIndex = i - startIndex
@@ -136,7 +138,7 @@ private fun DrawScope.drawHeikinAshi(
 
         val bodyTop = min(openY, closeY)
         val bodyBottom = max(openY, closeY)
-        val bodyHeight = max(bodyBottom - bodyTop, 1f)
+        val bodyHeight = max(bodyBottom - bodyTop, 1.5.dp.toPx())
 
         drawLine(color = color, start = Offset(centerX, highY), end = Offset(centerX, lowY), strokeWidth = wickWidth)
         drawRect(color = color, topLeft = Offset(centerX - bodyWidth / 2f, bodyTop), size = Size(bodyWidth, bodyHeight))
@@ -168,7 +170,7 @@ private fun DrawScope.drawLineChart(
         }
     }
 
-    drawPath(path, LineColor, style = Stroke(width = 1.5.dp.toPx()))
+    drawPath(path, LineColor, style = Stroke(width = 2.dp.toPx()))
 }
 
 private fun DrawScope.drawAreaChart(
@@ -210,5 +212,5 @@ private fun DrawScope.drawAreaChart(
     fillPath.close()
 
     drawPath(fillPath, AreaFill, style = Fill)
-    drawPath(linePath, LineColor, style = Stroke(width = 1.5.dp.toPx()))
+    drawPath(linePath, LineColor, style = Stroke(width = 2.dp.toPx()))
 }

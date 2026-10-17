@@ -48,4 +48,5 @@ metadata.json
 /components/
 /backend/
 /services/
+.tmp.driveupload/
 

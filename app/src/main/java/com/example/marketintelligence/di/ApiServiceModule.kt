@@ -44,7 +44,7 @@ object ApiServiceModule {
     fun provideRetrofit(json: Json, authTokenManager: AuthTokenManager): Retrofit {
         val okHttpClient = OkHttpClient.Builder()
             .connectTimeout(30, TimeUnit.SECONDS)
-            .readTimeout(90, TimeUnit.SECONDS)
+            .readTimeout(120, TimeUnit.SECONDS)
             .writeTimeout(30, TimeUnit.SECONDS)
             .addInterceptor { chain ->
                 val original = chain.request()

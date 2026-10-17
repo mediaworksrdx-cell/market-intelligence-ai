@@ -62,6 +62,15 @@ fun ChartToolbar(
     val colors = MaterialTheme.colorScheme
     val timeframes = listOf("1m", "5m", "15m", "30m", "1H", "4H", "1D", "1W", "1M")
 
+    // Dedicated high-contrast colors for white background to prevent invisible icons in dark themes
+    val btnBgInactive = Color(0xFFF2F4F7)
+    val btnBorderInactive = Color(0xFFD0D5DD)
+    val iconColorInactive = Color(0xFF344054)
+    val activeGreen = Color(0xFF089981)
+    val activeBlue = Color(0xFF0284C7)
+    val dropdownBg = Color.White
+    val dropdownText = Color(0xFF1D2939)
+
     var activeMenu by remember { mutableStateOf(ActiveToolbarMenu.NONE) }
 
     Row(
@@ -82,8 +91,8 @@ fun ChartToolbar(
                 Surface(
                     onClick = { activeMenu = if (activeMenu == ActiveToolbarMenu.TIMEFRAME) ActiveToolbarMenu.NONE else ActiveToolbarMenu.TIMEFRAME },
                     shape = RoundedCornerShape(6.dp),
-                    color = colors.surfaceVariant.copy(alpha = 0.5f),
-                    border = BorderStroke(0.5.dp, colors.outline.copy(alpha = 0.3f))
+                    color = btnBgInactive,
+                    border = BorderStroke(0.8.dp, btnBorderInactive)
                 ) {
                     Row(
                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
@@ -92,7 +101,7 @@ fun ChartToolbar(
                     ) {
                         Text(
                             text = selectedTimeframe,
-                            color = colors.primary,
+                            color = activeGreen,
                             fontSize = 11.sp,
                             fontWeight = FontWeight.ExtraBold,
                             fontFamily = FontFamily.Monospace
@@ -100,7 +109,7 @@ fun ChartToolbar(
                         Icon(
                             imageVector = Icons.Default.ArrowDropDown,
                             contentDescription = "Select Timeframe",
-                            tint = colors.onSurface.copy(alpha = 0.7f),
+                            tint = iconColorInactive,
                             modifier = Modifier.size(16.dp)
                         )
                     }
@@ -110,7 +119,7 @@ fun ChartToolbar(
                     expanded = activeMenu == ActiveToolbarMenu.TIMEFRAME,
                     onDismissRequest = { activeMenu = ActiveToolbarMenu.NONE },
                     modifier = Modifier
-                        .background(colors.surface)
+                        .background(dropdownBg)
                         .heightIn(max = 280.dp)
                 ) {
                     timeframes.forEach { tf ->
@@ -122,7 +131,7 @@ fun ChartToolbar(
                                     text = tf,
                                     fontSize = 12.sp,
                                     fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                                    color = if (isSelected) colors.primary else colors.onSurface,
+                                    color = if (isSelected) activeGreen else dropdownText,
                                     fontFamily = FontFamily.Monospace
                                 )
                             },
@@ -131,7 +140,7 @@ fun ChartToolbar(
                                     Icon(
                                         Icons.Default.Check,
                                         contentDescription = "Selected",
-                                        tint = colors.primary,
+                                        tint = activeGreen,
                                         modifier = Modifier.size(16.dp)
                                     )
                                 }
@@ -145,40 +154,33 @@ fun ChartToolbar(
                 }
             }
 
-            // ── 2. Chart Type Dropdown ──
+            // ── 2. Chart Type Icon Dropdown (Compact Candlestick Icon) ──
             Box {
+                val isChartTypeOpen = activeMenu == ActiveToolbarMenu.CHART_TYPE
                 Surface(
-                    onClick = { activeMenu = if (activeMenu == ActiveToolbarMenu.CHART_TYPE) ActiveToolbarMenu.NONE else ActiveToolbarMenu.CHART_TYPE },
+                    onClick = { activeMenu = if (isChartTypeOpen) ActiveToolbarMenu.NONE else ActiveToolbarMenu.CHART_TYPE },
                     shape = RoundedCornerShape(6.dp),
-                    color = colors.surfaceVariant.copy(alpha = 0.5f),
-                    border = BorderStroke(0.5.dp, colors.outline.copy(alpha = 0.3f))
+                    color = if (isChartTypeOpen) Color(0xFFE0F2FE) else btnBgInactive,
+                    border = BorderStroke(0.8.dp, if (isChartTypeOpen) activeBlue else btnBorderInactive)
                 ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(2.dp)
+                    Box(
+                        modifier = Modifier.size(32.dp),
+                        contentAlignment = Alignment.Center
                     ) {
-                        Text(
-                            text = chartType.label,
-                            color = colors.onSurface,
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold,
-                            fontFamily = FontFamily.Monospace
-                        )
                         Icon(
-                            imageVector = Icons.Default.ArrowDropDown,
-                            contentDescription = "Select Chart Type",
-                            tint = colors.onSurface.copy(alpha = 0.7f),
-                            modifier = Modifier.size(16.dp)
+                            imageVector = Icons.Default.BarChart,
+                            contentDescription = "Chart Type (${chartType.label})",
+                            tint = if (isChartTypeOpen) activeBlue else iconColorInactive,
+                            modifier = Modifier.size(19.dp)
                         )
                     }
                 }
 
                 DropdownMenu(
-                    expanded = activeMenu == ActiveToolbarMenu.CHART_TYPE,
+                    expanded = isChartTypeOpen,
                     onDismissRequest = { activeMenu = ActiveToolbarMenu.NONE },
                     modifier = Modifier
-                        .background(colors.surface)
+                        .background(dropdownBg)
                         .heightIn(max = 280.dp)
                 ) {
                     ChartType.entries.forEach { type ->
@@ -190,7 +192,7 @@ fun ChartToolbar(
                                     text = type.label,
                                     fontSize = 12.sp,
                                     fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                                    color = if (isSelected) colors.primary else colors.onSurface,
+                                    color = if (isSelected) activeBlue else dropdownText,
                                     fontFamily = FontFamily.Monospace
                                 )
                             },
@@ -199,7 +201,7 @@ fun ChartToolbar(
                                     Icon(
                                         Icons.Default.Check,
                                         contentDescription = "Selected",
-                                        tint = colors.primary,
+                                        tint = activeBlue,
                                         modifier = Modifier.size(16.dp)
                                     )
                                 }
@@ -213,52 +215,46 @@ fun ChartToolbar(
                 }
             }
 
-            // Divider
-            Box(
-                modifier = Modifier
-                    .width(1.dp)
-                    .height(20.dp)
-                    .background(colors.outline.copy(alpha = 0.3f))
-            )
-
-            // ── 3. Indicators Dropdown (Compact, Categorized, Styled with Green Highlights & Direct Settings) ──
+            // ── 3. Indicators Icon Dropdown (Compact fx/ShowChart Icon with Badge) ──
             Box {
-                val activeGreen = Color(0xFF00E676)
+                val isIndOpen = activeMenu == ActiveToolbarMenu.INDICATORS
+                val hasIndicators = activeIndicatorCount > 0
                 Surface(
-                    onClick = { activeMenu = if (activeMenu == ActiveToolbarMenu.INDICATORS) ActiveToolbarMenu.NONE else ActiveToolbarMenu.INDICATORS },
+                    onClick = { activeMenu = if (isIndOpen) ActiveToolbarMenu.NONE else ActiveToolbarMenu.INDICATORS },
                     shape = RoundedCornerShape(6.dp),
-                    color = if (activeIndicatorCount > 0) activeGreen.copy(alpha = 0.15f) else colors.surfaceVariant.copy(alpha = 0.5f),
+                    color = if (hasIndicators) Color(0xFFE8F5E9) else if (isIndOpen) Color(0xFFE0F2FE) else btnBgInactive,
                     border = BorderStroke(
-                        0.5.dp,
-                        if (activeIndicatorCount > 0) activeGreen.copy(alpha = 0.8f) else colors.outline.copy(alpha = 0.3f)
+                        0.8.dp,
+                        if (hasIndicators) activeGreen else if (isIndOpen) activeBlue else btnBorderInactive
                     )
                 ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(2.dp)
+                    Box(
+                        modifier = Modifier.size(32.dp),
+                        contentAlignment = Alignment.Center
                     ) {
-                        Text(
-                            text = if (activeIndicatorCount > 0) "Ind ($activeIndicatorCount)" else "Indicators",
-                            color = if (activeIndicatorCount > 0) activeGreen else colors.onSurface,
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold,
-                            fontFamily = FontFamily.Monospace
-                        )
                         Icon(
-                            imageVector = Icons.Default.ArrowDropDown,
-                            contentDescription = "Select Indicator",
-                            tint = if (activeIndicatorCount > 0) activeGreen else colors.onSurface.copy(alpha = 0.7f),
-                            modifier = Modifier.size(16.dp)
+                            imageVector = Icons.AutoMirrored.Filled.ShowChart,
+                            contentDescription = "Indicators",
+                            tint = if (hasIndicators) activeGreen else if (isIndOpen) activeBlue else iconColorInactive,
+                            modifier = Modifier.size(18.dp)
                         )
+                        if (hasIndicators) {
+                            Box(
+                                modifier = Modifier
+                                    .padding(3.dp)
+                                    .size(6.dp)
+                                    .background(activeGreen, RoundedCornerShape(3.dp))
+                                    .align(Alignment.TopEnd)
+                            )
+                        }
                     }
                 }
 
                 DropdownMenu(
-                    expanded = activeMenu == ActiveToolbarMenu.INDICATORS,
+                    expanded = isIndOpen,
                     onDismissRequest = { activeMenu = ActiveToolbarMenu.NONE },
                     modifier = Modifier
-                        .background(colors.surface)
+                        .background(dropdownBg)
                         .heightIn(max = 340.dp)
                         .widthIn(min = 195.dp, max = 240.dp)
                 ) {
@@ -291,7 +287,7 @@ fun ChartToolbar(
                         }
                     )
 
-                    HorizontalDivider(color = colors.outline.copy(alpha = 0.2f))
+                    HorizontalDivider(color = btnBorderInactive.copy(alpha = 0.5f))
 
                     // Header: Overlays
                     DropdownMenuItem(
@@ -303,7 +299,7 @@ fun ChartToolbar(
                                 text = "── OVERLAYS ──",
                                 fontSize = 9.sp,
                                 fontWeight = FontWeight.Black,
-                                color = colors.onSurface.copy(alpha = 0.4f),
+                                color = dropdownText.copy(alpha = 0.5f),
                                 fontFamily = FontFamily.Monospace
                             )
                         }
@@ -320,7 +316,7 @@ fun ChartToolbar(
                                     text = indicator.label,
                                     fontSize = 11.sp,
                                     fontWeight = if (isEnabled) FontWeight.Bold else FontWeight.Normal,
-                                    color = if (isEnabled) activeGreen else colors.onSurface,
+                                    color = if (isEnabled) activeGreen else dropdownText,
                                     fontFamily = FontFamily.Monospace
                                 )
                             },
@@ -351,7 +347,7 @@ fun ChartToolbar(
                                         Icon(
                                             Icons.Default.Settings,
                                             contentDescription = "Edit ${indicator.label}",
-                                            tint = if (isEnabled) activeGreen else colors.onSurface.copy(alpha = 0.4f),
+                                            tint = if (isEnabled) activeGreen else iconColorInactive,
                                             modifier = Modifier.size(14.dp)
                                         )
                                     }
@@ -359,17 +355,12 @@ fun ChartToolbar(
                             },
                             onClick = {
                                 onToggleIndicator(indicator)
-                                // If activating for the first time, open settings so default values are immediately visible/editable
-                                if (!isEnabled && onOpenIndicatorSettingsFor != null) {
-                                    activeMenu = ActiveToolbarMenu.NONE
-                                    onOpenIndicatorSettingsFor(indicator)
-                                }
                             }
                         )
                     }
 
                     // Smart overlays (Volume Bars, Volume Profile, SMC, F&O)
-                    HorizontalDivider(color = colors.outline.copy(alpha = 0.2f))
+                    HorizontalDivider(color = btnBorderInactive.copy(alpha = 0.5f))
 
                     // Volume Bars
                     DropdownMenuItem(
@@ -380,7 +371,7 @@ fun ChartToolbar(
                                 text = "Volume Bars",
                                 fontSize = 11.sp,
                                 fontWeight = if (showVolume) FontWeight.Bold else FontWeight.Normal,
-                                color = if (showVolume) activeGreen else colors.onSurface,
+                                color = if (showVolume) activeGreen else dropdownText,
                                 fontFamily = FontFamily.Monospace
                             )
                         },
@@ -404,7 +395,7 @@ fun ChartToolbar(
                                 text = "Volume Profile (VPVR)",
                                 fontSize = 11.sp,
                                 fontWeight = if (showVolumeProfile) FontWeight.Bold else FontWeight.Normal,
-                                color = if (showVolumeProfile) activeGreen else colors.onSurface,
+                                color = if (showVolumeProfile) activeGreen else dropdownText,
                                 fontFamily = FontFamily.Monospace
                             )
                         },
@@ -428,7 +419,7 @@ fun ChartToolbar(
                                 text = "SMC (Orderblocks)",
                                 fontSize = 11.sp,
                                 fontWeight = if (smcEnabled) FontWeight.Bold else FontWeight.Normal,
-                                color = if (smcEnabled) activeGreen else colors.onSurface,
+                                color = if (smcEnabled) activeGreen else dropdownText,
                                 fontFamily = FontFamily.Monospace
                             )
                         },
@@ -452,7 +443,7 @@ fun ChartToolbar(
                                 text = "F&O GEX Walls",
                                 fontSize = 11.sp,
                                 fontWeight = if (fnoEnabled) FontWeight.Bold else FontWeight.Normal,
-                                color = if (fnoEnabled) activeGreen else colors.onSurface,
+                                color = if (fnoEnabled) activeGreen else dropdownText,
                                 fontFamily = FontFamily.Monospace
                             )
                         },
@@ -467,7 +458,7 @@ fun ChartToolbar(
                         }
                     )
 
-                    HorizontalDivider(color = colors.outline.copy(alpha = 0.2f))
+                    HorizontalDivider(color = btnBorderInactive.copy(alpha = 0.5f))
 
                     // Header: Sub-Panels
                     DropdownMenuItem(
@@ -479,7 +470,7 @@ fun ChartToolbar(
                                 text = "── SUB-PANELS ──",
                                 fontSize = 9.sp,
                                 fontWeight = FontWeight.Black,
-                                color = colors.onSurface.copy(alpha = 0.4f),
+                                color = dropdownText.copy(alpha = 0.5f),
                                 fontFamily = FontFamily.Monospace
                             )
                         }
@@ -496,7 +487,7 @@ fun ChartToolbar(
                                     text = indicator.label,
                                     fontSize = 11.sp,
                                     fontWeight = if (isEnabled) FontWeight.Bold else FontWeight.Normal,
-                                    color = if (isEnabled) activeGreen else colors.onSurface,
+                                    color = if (isEnabled) activeGreen else dropdownText,
                                     fontFamily = FontFamily.Monospace
                                 )
                             },
@@ -527,7 +518,7 @@ fun ChartToolbar(
                                         Icon(
                                             Icons.Default.Settings,
                                             contentDescription = "Edit ${indicator.label}",
-                                            tint = if (isEnabled) activeGreen else colors.onSurface.copy(alpha = 0.4f),
+                                            tint = if (isEnabled) activeGreen else iconColorInactive,
                                             modifier = Modifier.size(14.dp)
                                         )
                                     }
@@ -535,44 +526,33 @@ fun ChartToolbar(
                             },
                             onClick = {
                                 onToggleIndicator(indicator)
-                                if (!isEnabled && onOpenIndicatorSettingsFor != null) {
-                                    activeMenu = ActiveToolbarMenu.NONE
-                                    onOpenIndicatorSettingsFor(indicator)
-                                }
                             }
                         )
                     }
                 }
             }
 
-            // ── 4. Drawing Tools Dropdown (Styled like Candle Dropdown) ──
+            // ── 4. Drawing Tools Icon Dropdown (Compact Edit/Pencil Icon) ──
             Box {
+                val isDrawActive = activeDrawingTool != DrawingToolType.NONE
                 Surface(
                     onClick = { activeMenu = if (activeMenu == ActiveToolbarMenu.DRAW) ActiveToolbarMenu.NONE else ActiveToolbarMenu.DRAW },
                     shape = RoundedCornerShape(6.dp),
-                    color = if (activeDrawingTool != DrawingToolType.NONE) colors.secondary.copy(alpha = 0.15f) else colors.surfaceVariant.copy(alpha = 0.5f),
+                    color = if (isDrawActive) Color(0xFFE0F2FE) else btnBgInactive,
                     border = BorderStroke(
-                        0.5.dp,
-                        if (activeDrawingTool != DrawingToolType.NONE) colors.secondary.copy(alpha = 0.6f) else colors.outline.copy(alpha = 0.3f)
+                        0.8.dp,
+                        if (isDrawActive) activeBlue else btnBorderInactive
                     )
                 ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(2.dp)
+                    Box(
+                        modifier = Modifier.size(32.dp),
+                        contentAlignment = Alignment.Center
                     ) {
-                        Text(
-                            text = if (activeDrawingTool != DrawingToolType.NONE) activeDrawingTool.label else "Draw",
-                            color = if (activeDrawingTool != DrawingToolType.NONE) colors.secondary else colors.onSurface,
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold,
-                            fontFamily = FontFamily.Monospace
-                        )
                         Icon(
-                            imageVector = Icons.Default.ArrowDropDown,
-                            contentDescription = "Select Drawing Tool",
-                            tint = if (activeDrawingTool != DrawingToolType.NONE) colors.secondary else colors.onSurface.copy(alpha = 0.7f),
-                            modifier = Modifier.size(16.dp)
+                            imageVector = Icons.Default.Edit,
+                            contentDescription = "Drawing Tools (${if (isDrawActive) activeDrawingTool.label else "None"})",
+                            tint = if (isDrawActive) activeBlue else iconColorInactive,
+                            modifier = Modifier.size(17.dp)
                         )
                     }
                 }
@@ -581,10 +561,40 @@ fun ChartToolbar(
                     expanded = activeMenu == ActiveToolbarMenu.DRAW,
                     onDismissRequest = { activeMenu = ActiveToolbarMenu.NONE },
                     modifier = Modifier
-                        .background(colors.surface)
-                        .heightIn(max = 280.dp)
-                        .widthIn(min = 160.dp, max = 210.dp)
+                        .background(dropdownBg)
+                        .heightIn(max = 320.dp)
+                        .widthIn(min = 180.dp, max = 230.dp)
                 ) {
+                    DropdownMenuItem(
+                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+                        text = {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                Icon(
+                                    Icons.Default.Palette,
+                                    contentDescription = "Palette",
+                                    tint = activeBlue,
+                                    modifier = Modifier.size(15.dp)
+                                )
+                                Text(
+                                    text = "🎨 All Drawing Tools",
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = activeBlue,
+                                    fontFamily = FontFamily.Monospace
+                                )
+                            }
+                        },
+                        onClick = {
+                            activeMenu = ActiveToolbarMenu.NONE
+                            onToggleDrawingTools()
+                        }
+                    )
+
+                    HorizontalDivider(color = btnBorderInactive.copy(alpha = 0.5f))
+
                     DrawingToolType.entries.forEach { tool ->
                         val isSelected = activeDrawingTool == tool
                         DropdownMenuItem(
@@ -594,7 +604,7 @@ fun ChartToolbar(
                                     text = if (tool == DrawingToolType.NONE) "None (Select/Pan)" else tool.label,
                                     fontSize = 12.sp,
                                     fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                                    color = if (isSelected) colors.secondary else colors.onSurface,
+                                    color = if (isSelected) activeBlue else dropdownText,
                                     fontFamily = FontFamily.Monospace
                                 )
                             },
@@ -603,7 +613,7 @@ fun ChartToolbar(
                                     Icon(
                                         Icons.Default.Check,
                                         contentDescription = "Selected",
-                                        tint = colors.secondary,
+                                        tint = activeBlue,
                                         modifier = Modifier.size(14.dp)
                                     )
                                 }
@@ -615,7 +625,7 @@ fun ChartToolbar(
                         )
                     }
 
-                    HorizontalDivider(color = colors.outline.copy(alpha = 0.2f))
+                    HorizontalDivider(color = btnBorderInactive.copy(alpha = 0.5f))
 
                     DropdownMenuItem(
                         contentPadding = PaddingValues(horizontal = 10.dp, vertical = 2.dp),
@@ -643,67 +653,123 @@ fun ChartToolbar(
                     )
                 }
             }
+
+            // ── 5. Quick Palette Button (Brush next to Draw) ──
+            Surface(
+                onClick = onToggleDrawingTools,
+                shape = RoundedCornerShape(6.dp),
+                color = if (activeDrawingTool != DrawingToolType.NONE) Color(0xFFE0F2FE) else btnBgInactive,
+                border = BorderStroke(
+                    0.8.dp,
+                    if (activeDrawingTool != DrawingToolType.NONE) activeBlue else btnBorderInactive
+                )
+            ) {
+                Box(
+                    modifier = Modifier.size(32.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        Icons.Default.Brush,
+                        contentDescription = "Drawing Tools Palette",
+                        tint = if (activeDrawingTool != DrawingToolType.NONE) activeBlue else iconColorInactive,
+                        modifier = Modifier.size(17.dp)
+                    )
+                }
+            }
         }
 
         Spacer(Modifier.width(4.dp))
 
         // ── Undo/Redo Buttons (Visible only when drawing tool is active) ──
         if (activeDrawingTool != DrawingToolType.NONE) {
-            IconButton(
+            Surface(
                 onClick = onUndo,
-                modifier = Modifier.size(32.dp)
+                shape = RoundedCornerShape(6.dp),
+                color = btnBgInactive,
+                border = BorderStroke(0.8.dp, btnBorderInactive)
             ) {
-                Icon(
-                    Icons.Default.Undo,
-                    contentDescription = "Undo",
-                    tint = colors.onSurface.copy(alpha = 0.7f),
-                    modifier = Modifier.size(20.dp)
-                )
+                Box(
+                    modifier = Modifier.size(32.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        Icons.Default.Undo,
+                        contentDescription = "Undo",
+                        tint = iconColorInactive,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
             }
-            
-            IconButton(
+
+            Spacer(Modifier.width(4.dp))
+
+            Surface(
                 onClick = onRedo,
-                modifier = Modifier.size(32.dp)
+                shape = RoundedCornerShape(6.dp),
+                color = btnBgInactive,
+                border = BorderStroke(0.8.dp, btnBorderInactive)
             ) {
-                Icon(
-                    Icons.Default.Redo,
-                    contentDescription = "Redo",
-                    tint = colors.onSurface.copy(alpha = 0.7f),
-                    modifier = Modifier.size(20.dp)
-                )
+                Box(
+                    modifier = Modifier.size(32.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        Icons.Default.Redo,
+                        contentDescription = "Redo",
+                        tint = iconColorInactive,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
             }
             Spacer(Modifier.width(4.dp))
         }
 
         // ── Cursor Mode Toggle (Crosshair vs Pan/Hand) ──
-        IconButton(
+        Surface(
             onClick = {
                 val nextMode = if (cursorMode == CursorMode.CROSSHAIR) CursorMode.HAND else CursorMode.CROSSHAIR
                 onCursorModeChanged(nextMode)
             },
-            modifier = Modifier.size(32.dp)
-        ) {
-            Icon(
-                imageVector = if (cursorMode == CursorMode.CROSSHAIR) Icons.Default.FilterCenterFocus else Icons.Default.PanTool,
-                contentDescription = if (cursorMode == CursorMode.CROSSHAIR) "Crosshair Mode" else "Pan Mode",
-                tint = colors.onSurface.copy(alpha = 0.7f),
-                modifier = Modifier.size(20.dp)
+            shape = RoundedCornerShape(6.dp),
+            color = if (cursorMode == CursorMode.CROSSHAIR) Color(0xFFE8F5E9) else btnBgInactive,
+            border = BorderStroke(
+                0.8.dp,
+                if (cursorMode == CursorMode.CROSSHAIR) activeGreen else btnBorderInactive
             )
+        ) {
+            Box(
+                modifier = Modifier.size(32.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = if (cursorMode == CursorMode.CROSSHAIR) Icons.Default.FilterCenterFocus else Icons.Default.PanTool,
+                    contentDescription = if (cursorMode == CursorMode.CROSSHAIR) "Crosshair Mode" else "Pan Mode",
+                    tint = if (cursorMode == CursorMode.CROSSHAIR) activeGreen else iconColorInactive,
+                    modifier = Modifier.size(19.dp)
+                )
+            }
         }
 
         Spacer(Modifier.width(4.dp))
 
         // ── Fullscreen Button ──
-        IconButton(
+        Surface(
             onClick = onToggleFullScreen,
-            modifier = Modifier.size(32.dp)
+            shape = RoundedCornerShape(6.dp),
+            color = btnBgInactive,
+            border = BorderStroke(0.8.dp, btnBorderInactive)
         ) {
-            Icon(
-                Icons.Default.Fullscreen,
-                contentDescription = "Fullscreen",
-                tint = colors.onSurface.copy(alpha = 0.7f),
-                modifier = Modifier.size(20.dp)
-            )
+            Box(
+                modifier = Modifier.size(32.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    Icons.Default.Fullscreen,
+                    contentDescription = "Fullscreen",
+                    tint = iconColorInactive,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
         }
     }
 }

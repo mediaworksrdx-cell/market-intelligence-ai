@@ -88,22 +88,24 @@ class InstitutionalIndicatorEngine @Inject constructor() {
     }
 
     fun computeBollingerBands(candles: List<Candle>, period: Int = 20, numStdDev: Double = 2.0): Map<Long, BollingerBandsResult> {
-        if (candles.size < period) return emptyMap()
+        if (candles.isEmpty()) return emptyMap()
+        val p = period.coerceIn(1, candles.size)
         val result = HashMap<Long, BollingerBandsResult>(candles.size)
 
-        for (i in period - 1 until candles.size) {
+        for (i in 0 until candles.size) {
+            val window = minOf(p, i + 1)
             var sum = 0.0
-            for (j in (i - period + 1)..i) {
+            for (j in (i - window + 1)..i) {
                 sum += candles[j].close
             }
-            val sma = sum / period
+            val sma = sum / window
 
             var varianceSum = 0.0
-            for (j in (i - period + 1)..i) {
+            for (j in (i - window + 1)..i) {
                 val diff = candles[j].close - sma
                 varianceSum += diff * diff
             }
-            val stdDev = sqrt(varianceSum / period)
+            val stdDev = sqrt(varianceSum / window)
 
             result[candles[i].openTime] = BollingerBandsResult(
                 middleSma = sma,
@@ -115,30 +117,31 @@ class InstitutionalIndicatorEngine @Inject constructor() {
     }
 
     fun computeWildersRSI(candles: List<Candle>, period: Int = 14): Map<Long, Double> {
-        if (candles.size <= period) return emptyMap()
+        if (candles.size < 2) return emptyMap()
+        val p = period.coerceIn(1, candles.size - 1)
         val result = HashMap<Long, Double>(candles.size)
 
         var gainSum = 0.0
         var lossSum = 0.0
 
-        for (i in 1..period) {
+        for (i in 1..p) {
             val diff = candles[i].close - candles[i - 1].close
             if (diff >= 0.0) gainSum += diff else lossSum += -diff
         }
 
-        var avgGain = gainSum / period
-        var avgLoss = lossSum / period
+        var avgGain = gainSum / p
+        var avgLoss = lossSum / p
 
         val firstRsi = if (avgGain == 0.0 && avgLoss == 0.0) 50.0 else if (avgLoss == 0.0) 100.0 else 100.0 - (100.0 / (1.0 + (avgGain / avgLoss)))
-        result[candles[period].openTime] = firstRsi
+        result[candles[p].openTime] = firstRsi
 
-        for (i in (period + 1) until candles.size) {
+        for (i in (p + 1) until candles.size) {
             val diff = candles[i].close - candles[i - 1].close
             val currentGain = if (diff > 0.0) diff else 0.0
             val currentLoss = if (diff < 0.0) -diff else 0.0
 
-            avgGain = (avgGain * (period - 1) + currentGain) / period
-            avgLoss = (avgLoss * (period - 1) + currentLoss) / period
+            avgGain = (avgGain * (p - 1) + currentGain) / p
+            avgLoss = (avgLoss * (p - 1) + currentLoss) / p
 
             val rsi = if (avgGain == 0.0 && avgLoss == 0.0) 50.0 else if (avgLoss == 0.0) 100.0 else 100.0 - (100.0 / (1.0 + (avgGain / avgLoss)))
             result[candles[i].openTime] = rsi

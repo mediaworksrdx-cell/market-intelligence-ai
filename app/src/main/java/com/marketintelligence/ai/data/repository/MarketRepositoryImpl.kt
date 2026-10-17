@@ -254,14 +254,24 @@ class MarketRepositoryImpl @Inject constructor(
 
     override suspend fun getMacroData(): List<MacroData> {
         return withContext(Dispatchers.IO) {
-            delay(700)
-            listOf(
-                MacroData("USDINR", "83.45"),
-                MacroData("CRUDEOIL", "78.23"),
-                MacroData("GOLD", "2350.10")
-            )
+            try {
+                val data = apiService.getMacroData()
+                if (data.isNotEmpty()) data else defaultMacroData()
+            } catch (e: Exception) {
+                Log.w(TAG, "Failed to fetch remote macro data: ${e.message}")
+                defaultMacroData()
+            }
         }
     }
+
+    private fun defaultMacroData(): List<MacroData> = listOf(
+        MacroData("DXY", "103.91"),
+        MacroData("XAU/USD", "4164.76"),
+        MacroData("XAG/USD", "51.51"),
+        MacroData("US10Y", "4.25%"),
+        MacroData("BRENT", "67.19"),
+        MacroData("VIX", "17.73")
+    )
 
     private fun getTokenForSymbol(symbol: String): Long {
         val clean = symbol.removeSuffix(".NS").removeSuffix(".BO").trim().uppercase()
@@ -283,6 +293,7 @@ class MarketRepositoryImpl @Inject constructor(
             "ITC" -> 424961L
             "SBIN" -> 779521L
             "LT" -> 2939649L
+            "HINDPETRO", "HPCL" -> 356865L
             else -> 0L
         }
     }
@@ -307,6 +318,7 @@ class MarketRepositoryImpl @Inject constructor(
             "TATAMOTORS" -> 980.0 to -0.3
             "ITC" -> 435.0 to 0.2
             "LT" -> 3540.0 to 0.85
+            "HINDPETRO", "HPCL" -> 410.50 to 0.45
             "BTC" -> 67450.0 to 2.14
             "ETH" -> 3520.0 to 1.62
             "DOGE" -> 0.125 to 3.85
@@ -327,7 +339,12 @@ class MarketRepositoryImpl @Inject constructor(
         }
         val defaultCrypto = if (type == "CRYPTO") MockData.CRYPTO_INITIAL.find { it.symbol.equals(instrument.symbol, ignoreCase = true) } else null
         val (defPrice, defChange) = getDefaultPriceAndChange(instrument.symbol)
-        val token = getTokenForSymbol(instrument.symbol)
+        val dbInst = try {
+            instrumentDao.search(instrument.symbol).firstOrNull {
+                it.tradingsymbol.equals(instrument.symbol, ignoreCase = true)
+            }
+        } catch (e: Exception) { null }
+        val token = dbInst?.instrument_token ?: getTokenForSymbol(instrument.symbol)
         val watchlistEntity = WatchlistEntity(
             symbol = instrument.symbol.uppercase(),
             name = instrument.name,
