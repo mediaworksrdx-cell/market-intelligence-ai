@@ -23,7 +23,8 @@ object MockData {
     val INDICES_US = listOf(
         IndexData("SPX", "S&P 500 Index", 5500.0, 5470.0, 30.0, 0.55, MarketType.US, null),
         IndexData("NDX", "NASDAQ 100", 19200.0, 19050.0, 150.0, 0.79, MarketType.US, null),
-        IndexData("DJI", "Dow Jones Industrial", 39500.0, 39350.0, 150.0, 0.38, MarketType.US, null)
+        IndexData("DJI", "Dow Jones Industrial", 39500.0, 39350.0, 150.0, 0.38, MarketType.US, null),
+        IndexData("VIX", "Volatility Index", 18.40, 18.65, -0.25, -1.25, MarketType.US, null)
     )
 
     val WATCHLIST_US = listOf(

@@ -124,13 +124,16 @@ object TwelveDataClient {
         "^DJI" to "DIA",
         "DOW" to "DIA",
         "RUT" to "IWM",
-        "RUSSELL" to "IWM"
+        "RUSSELL" to "IWM",
+        "VIX" to "VIXY",
+        "^VIX" to "VIXY"
     )
 
     val supportedSymbols = setOf(
         "SPX", "NDX", "DJI", "IXIC", "SPY", "QQQ", "DIA", "IWM",
         "AAPL", "MSFT", "NVDA", "TSLA", "AMZN", "GOOGL", "META",
-        "NFLX", "AMD", "INTC", "BRK.B", "JPM", "V", "WMT", "DIS"
+        "NFLX", "AMD", "INTC", "BRK.B", "JPM", "V", "WMT", "DIS",
+        "VIX", "VIXY"
     )
 
     /**
@@ -169,6 +172,7 @@ object TwelveDataClient {
             "COST" -> 989.1
             "COIN" -> 173.2
             "XOM" -> 174.6
+            "VIXY", "VIX" -> 18.40
             "DIS" -> 110.6
             "WMT" -> 118.8
             "V" -> 402.7
