@@ -6,6 +6,7 @@ data class FnoUiState(
     val searchQuery: String = "NIFTY",
     val selectedAsset: String = "NIFTY 50",
     val spotPrice: Double = 22500.0,
+    val selectedMarket: MarketType = MarketType.IN,
     val isLoading: Boolean = false,
     
     // 1. Dashboard Data

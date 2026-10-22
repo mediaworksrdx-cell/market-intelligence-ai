@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.marketintelligence.data.local.MockData
 import com.example.marketintelligence.data.util.MarketPriceCatalog
+import com.example.marketintelligence.data.util.ZerodhaStockCatalog
 import com.example.marketintelligence.domain.engine.Black76QuantEngine
 import com.example.marketintelligence.domain.engine.DealerGammaExposureEngine
 import com.example.marketintelligence.domain.model.*
@@ -147,6 +148,7 @@ class FnoViewModel @Inject constructor(
                 MarketType.US -> "SPX"
                 MarketType.UAE -> "DFMGI"
             }
+            _uiState.update { it.copy(selectedMarket = market) }
             onSearchQueryChanged(defaultAsset)
             // Defer initial load to prevent startup crash
             viewModelScope.launch {
@@ -241,20 +243,83 @@ class FnoViewModel @Inject constructor(
         val qUpper = q.uppercase()
         val qClean = qUpper.replace("-", "").replace(" ", "")
 
+        val currentMarket = _uiState.value.selectedMarket
+
+        // Strictly isolate US market
+        if (currentMarket == MarketType.US) {
+            val usUniverse = listOf(
+                FnoBuildupStock("SPX", "S&P 500 Index", true, "US Broad Market", 5890.75, 24.15, 0.41, 11450000L, 345000L, 3.10, BuildupType.LONG_BUILDUP, 4890000L, 1.25, 0.0),
+                FnoBuildupStock("NDX", "Nasdaq 100 Index", true, "US Technology", 20520.40, 238.10, 1.17, 8900000L, 420000L, 4.95, BuildupType.LONG_BUILDUP, 3600000L, 1.30, 0.0),
+                FnoBuildupStock("NVDA", "NVIDIA Corporation", false, "Semiconductors", 142.50, 3.10, 2.22, 18500000L, 1420000L, 8.30, BuildupType.LONG_BUILDUP, 9500000L, 1.45, 0.0),
+                FnoBuildupStock("AAPL", "Apple Inc", false, "Consumer Electronics", 232.80, -1.20, -0.51, 14200000L, 980000L, 7.41, BuildupType.SHORT_BUILDUP, 4100000L, 0.85, 0.0),
+                FnoBuildupStock("MSFT", "Microsoft Corporation", false, "Enterprise Cloud", 428.50, 4.85, 1.15, 9800000L, 450000L, 4.80, BuildupType.LONG_BUILDUP, 3800000L, 1.20, 0.0),
+                FnoBuildupStock("TSLA", "Tesla Inc", false, "Automotive & AI", 260.40, 8.70, 3.45, 24500000L, 2100000L, 9.38, BuildupType.LONG_BUILDUP, 11200000L, 1.60, 0.0),
+                FnoBuildupStock("AMZN", "Amazon.com Inc", false, "E-Commerce & Cloud", 188.60, 1.60, 0.85, 11200000L, -580000L, -4.92, BuildupType.SHORT_COVERING, 3400000L, 1.15, 0.0),
+                FnoBuildupStock("GOOGL", "Alphabet Inc", false, "Search & AI", 166.20, -2.10, -1.25, 9400000L, 820000L, 9.55, BuildupType.SHORT_BUILDUP, 2900000L, 0.75, 0.0),
+                FnoBuildupStock("META", "Meta Platforms Inc", false, "Social Media & AI", 595.00, 10.50, 1.80, 8100000L, 620000L, 8.28, BuildupType.LONG_BUILDUP, 2700000L, 1.35, 0.0),
+                FnoBuildupStock("AMD", "Advanced Micro Devices", false, "Semiconductors", 156.30, -2.95, -1.85, 13400000L, -650000L, -4.62, BuildupType.LONG_UNWINDING, 4800000L, 0.88, 0.0),
+                FnoBuildupStock("NFLX", "Netflix Inc", false, "Digital Entertainment", 755.20, 4.90, 0.65, 4200000L, 280000L, 7.14, BuildupType.LONG_BUILDUP, 1800000L, 1.25, 0.0),
+                FnoBuildupStock("JPM", "JPMorgan Chase & Co", false, "Investment Banking", 222.40, -0.90, -0.40, 6800000L, -290000L, -4.09, BuildupType.LONG_UNWINDING, 2100000L, 0.90, 0.0)
+            )
+            return usUniverse.filter {
+                it.symbol.contains(qUpper) || it.name.contains(q, ignoreCase = true)
+            }.take(15)
+        }
+
+        // Strictly isolate UAE market
+        if (currentMarket == MarketType.UAE) {
+            val uaeUniverse = listOf(
+                FnoBuildupStock("DFMGI", "DFM General Index", true, "Broad Market Index", 4485.30, 18.90, 0.42, 480000L, 16000L, 3.45, BuildupType.LONG_BUILDUP, 620000L, 1.20, 0.0),
+                FnoBuildupStock("EMAAR", "Emaar Properties PJSC", false, "Real Estate", 8.75, 0.12, 1.39, 12500000L, 780000L, 6.66, BuildupType.LONG_BUILDUP, 4500000L, 1.40, 0.0),
+                FnoBuildupStock("FAB", "First Abu Dhabi Bank", false, "Banking", 13.80, -0.14, -1.00, 8900000L, 540000L, 6.46, BuildupType.SHORT_BUILDUP, 2800000L, 0.78, 0.0),
+                FnoBuildupStock("DEWA", "Dubai Electricity & Water", false, "Utilities", 2.48, 0.01, 0.40, 14200000L, -420000L, -2.87, BuildupType.SHORT_COVERING, 7200000L, 1.15, 0.0),
+                FnoBuildupStock("ALDAR", "Aldar Properties PJSC", false, "Real Estate", 6.85, 0.11, 1.63, 7800000L, 480000L, 6.56, BuildupType.LONG_BUILDUP, 3100000L, 1.32, 0.0),
+                FnoBuildupStock("AIRARABIA", "Air Arabia PJSC", false, "Aviation", 2.92, -0.02, -0.68, 5800000L, -240000L, -3.97, BuildupType.LONG_UNWINDING, 3100000L, 0.88, 0.0),
+                FnoBuildupStock("ETISALAT", "e& Emirates Telecommunications", false, "Telecom", 18.20, 0.10, 0.55, 4200000L, -130000L, -3.00, BuildupType.SHORT_COVERING, 2200000L, 1.10, 0.0),
+                FnoBuildupStock("EMIRATESNBD", "Emirates NBD Bank", false, "Banking", 19.50, -0.20, -1.02, 3400000L, 210000L, 6.58, BuildupType.SHORT_BUILDUP, 1400000L, 0.82, 0.0)
+            )
+            return uaeUniverse.filter {
+                it.symbol.contains(qUpper) || it.name.contains(q, ignoreCase = true)
+            }.take(15)
+        }
+
+        // INDIA Market: Curated buildup stocks + 3,800+ Zerodha Kite catalog
         val catalog = if (_uiState.value.buildupStocks.isNotEmpty()) {
             _uiState.value.buildupStocks
         } else {
             buildupRepository.getInitialBuildupList()
         }
 
-        return catalog.filter { stock ->
+        val seen = HashSet<String>()
+        val results = mutableListOf<FnoBuildupStock>()
+
+        val curatedMatches = catalog.filter { stock ->
             val symClean = stock.symbol.uppercase().replace("-", "").replace(" ", "")
             val nameClean = stock.name.uppercase().replace("-", "").replace(" ", "")
             symClean.contains(qClean) ||
             nameClean.contains(qClean) ||
             stock.symbol.contains(q, ignoreCase = true) ||
             stock.name.contains(q, ignoreCase = true)
-        }.take(5)
+        }
+
+        for (stock in curatedMatches) {
+            seen.add(stock.symbol.uppercase())
+            results.add(stock)
+            if (results.size >= 25) return results
+        }
+
+        // Search 3,800+ Zerodha Kite catalog
+        val zerodhaMatches = ZerodhaStockCatalog.search(context, q, 30)
+        for (z in zerodhaMatches) {
+            val sym = z.symbol.uppercase()
+            if (!seen.contains(sym)) {
+                seen.add(sym)
+                results.add(ZerodhaStockCatalog.toBuildupStock(z))
+                if (results.size >= 30) break
+            }
+        }
+
+        return results
     }
 
     fun addAsset() {
@@ -406,7 +471,15 @@ class FnoViewModel @Inject constructor(
             clean.contains("HINDUNILVR") -> 300
             clean.contains("TITAN") -> 175
             clean.contains("BHARTIARTL") -> 475
-            else -> 65
+            else -> {
+                val zItem = ZerodhaStockCatalog.findStockBySymbol(context, clean)
+                if (zItem != null) {
+                    val spot = ZerodhaStockCatalog.getFallbackSpotPrice(zItem)
+                    ZerodhaStockCatalog.calculateRealisticLotSize(spot)
+                } else {
+                    65
+                }
+            }
         }
     }
 
@@ -427,13 +500,19 @@ class FnoViewModel @Inject constructor(
             clean.contains("SILVER") -> 0.5
             clean.contains("CRUDE") -> 1.0
             clean.contains("TATASTEEL") -> 2.5
-            spot < 100.0 -> 1.0
-            spot < 250.0 -> 2.5
-            spot < 500.0 -> 5.0
-            spot < 1000.0 -> 10.0
-            spot < 2500.0 -> 20.0
-            spot < 5000.0 -> 50.0
-            else -> 100.0
+            else -> {
+                val zItem = ZerodhaStockCatalog.findStockBySymbol(context, clean)
+                if (zItem != null) {
+                    ZerodhaStockCatalog.calculateRealisticStrikeStep(spot)
+                } else if (spot < 50.0) 0.5
+                else if (spot < 100.0) 1.0
+                else if (spot < 250.0) 2.5
+                else if (spot < 500.0) 5.0
+                else if (spot < 1000.0) 10.0
+                else if (spot < 2500.0) 20.0
+                else if (spot < 5000.0) 50.0
+                else 100.0
+            }
         }
     }
 
@@ -496,6 +575,22 @@ class FnoViewModel @Inject constructor(
                 displayName = qTrimmed,
                 spotPrice = spot,
                 changePercent = liveInfo.changePercent,
+                lotSize = lot,
+                strikeStep = step
+            )
+        }
+
+        // 2b. Check in 3,800+ Zerodha Kite Catalog
+        val zStock = ZerodhaStockCatalog.findStockBySymbol(context, qClean) ?: ZerodhaStockCatalog.findStockBySymbol(context, qTrimmed)
+        if (zStock != null) {
+            val spot = intelligenceBus.getLivePrice(zStock.symbol)?.price ?: ZerodhaStockCatalog.getFallbackSpotPrice(zStock)
+            val lot = ZerodhaStockCatalog.calculateRealisticLotSize(spot)
+            val step = ZerodhaStockCatalog.calculateRealisticStrikeStep(spot)
+            return AssetResolution(
+                symbol = zStock.symbol.uppercase(),
+                displayName = "${zStock.symbol} • ${zStock.name}",
+                spotPrice = spot,
+                changePercent = 1.15,
                 lotSize = lot,
                 strikeStep = step
             )

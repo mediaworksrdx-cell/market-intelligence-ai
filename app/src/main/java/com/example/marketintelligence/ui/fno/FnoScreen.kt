@@ -59,6 +59,11 @@ fun FnoScreen(
     val uiState by viewModel.uiState.collectAsState()
     var selectedTab by remember { mutableIntStateOf(0) }
     val tabs = listOf("MARKET", "ANALYTICS", "BUILDER")
+    val curr = when (uiState.selectedMarket) {
+        MarketType.US -> "$"
+        MarketType.UAE -> "AED "
+        MarketType.IN -> "₹"
+    }
 
     Column(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background).padding(horizontal = 12.dp)) {
         Spacer(modifier = Modifier.height(6.dp))
@@ -105,8 +110,13 @@ fun FnoScreen(
                                     contentAlignment = Alignment.CenterStart
                                 ) {
                                     if (uiState.searchQuery.isEmpty()) {
+                                        val placeholder = when (uiState.selectedMarket) {
+                                            MarketType.IN -> "Search 3,800+ Zerodha Kite & NSE F&O assets..."
+                                            MarketType.US -> "Search US Derivatives & Options..."
+                                            MarketType.UAE -> "Search UAE Derivatives..."
+                                        }
                                         Text(
-                                            "Search F&O Asset (e.g. Tata Steel, Nifty, Reliance)...",
+                                            placeholder,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                                             fontSize = 11.sp
                                         )
@@ -161,11 +171,29 @@ fun FnoScreen(
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Column {
-                                        Text(stock.symbol, color = MaterialTheme.colorScheme.onSurface, fontSize = 11.sp, fontWeight = FontWeight.ExtraBold)
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            Text(stock.symbol, color = MaterialTheme.colorScheme.onSurface, fontSize = 11.sp, fontWeight = FontWeight.ExtraBold)
+                                            if (stock.isZerodha) {
+                                                Spacer(Modifier.width(4.dp))
+                                                Surface(
+                                                    color = Color(0xFFF59E0B).copy(alpha = 0.15f),
+                                                    shape = RoundedCornerShape(3.dp),
+                                                    border = androidx.compose.foundation.BorderStroke(0.5.dp, Color(0xFFF59E0B).copy(alpha = 0.4f))
+                                                ) {
+                                                    Text(
+                                                        "KITE",
+                                                        color = Color(0xFFF59E0B),
+                                                        fontSize = 7.5.sp,
+                                                        fontWeight = FontWeight.Bold,
+                                                        modifier = Modifier.padding(horizontal = 3.dp, vertical = 0.5.dp)
+                                                    )
+                                                }
+                                            }
+                                        }
                                         Text(stock.name, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 9.sp)
                                     }
                                     Column(horizontalAlignment = Alignment.End) {
-                                        Text("₹${"%.2f".format(stock.ltp)}", color = MaterialTheme.colorScheme.onSurface, fontSize = 11.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace)
+                                        Text("$curr${"%.2f".format(stock.ltp)}", color = MaterialTheme.colorScheme.onSurface, fontSize = 11.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace)
                                         Text(
                                             "${if (stock.priceChangePct >= 0) "+" else ""}${"%.2f".format(stock.priceChangePct)}%",
                                             color = if (stock.priceChangePct >= 0) AppGreen else AppRed,
@@ -190,7 +218,7 @@ fun FnoScreen(
             Column {
                 Text(uiState.selectedAsset.uppercase(), color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 8.sp, fontWeight = FontWeight.ExtraBold)
                 Text(
-                    "SPOT: ₹${"%.2f".format(uiState.spotPrice)}",
+                    "SPOT: $curr${"%.2f".format(uiState.spotPrice)}",
                     color = MaterialTheme.colorScheme.onBackground,
                     fontSize = 14.sp,
                     fontWeight = FontWeight.ExtraBold,
@@ -284,6 +312,11 @@ fun SummaryTab(
     onSelectStrike: (strike: OptionChainData, side: String) -> Unit = { _, _ -> }
 ) {
     val scrollState = rememberScrollState()
+    val curr = when (uiState.selectedMarket) {
+        MarketType.US -> "$"
+        MarketType.UAE -> "AED "
+        MarketType.IN -> "₹"
+    }
     Column(modifier = Modifier.fillMaxSize().verticalScroll(scrollState), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Card(
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
@@ -296,7 +329,7 @@ fun SummaryTab(
                 for (fp in uiState.summary.contracts) {
                     Row(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp), horizontalArrangement = Arrangement.SpaceBetween) {
                         Text(fp.expiry, color = MaterialTheme.colorScheme.onSurface, fontSize = 10.sp, fontWeight = FontWeight.Bold)
-                        Text("₹${"%.2f".format(fp.ltp)}", color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold, fontSize = 11.sp, fontFamily = FontFamily.Monospace)
+                        Text("$curr${"%.2f".format(fp.ltp)}", color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold, fontSize = 11.sp, fontFamily = FontFamily.Monospace)
                         Text(
                             "${if (fp.changePercent >= 0) "+" else ""}${"%.2f".format(fp.changePercent)}%",
                             color = if (fp.changePercent >= 0) AppGreen else AppRed,
@@ -314,7 +347,7 @@ fun SummaryTab(
             SummaryStatCard("PUT-CALL RATIO", "%.2f".format(uiState.summary.pcr), Modifier.weight(1f))
         }
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            SummaryStatCard("MAX PAIN", "₹${uiState.summary.maxPain.toInt()}", Modifier.weight(1f))
+            SummaryStatCard("MAX PAIN", "$curr${uiState.summary.maxPain.toInt()}", Modifier.weight(1f))
             SummaryStatCard("LOT SIZE", "${uiState.summary.lotSize}", Modifier.weight(1f))
         }
 
@@ -332,7 +365,7 @@ fun SummaryTab(
                         modifier = if (callStrikeObj != null) Modifier.clickable { onSelectStrike(callStrikeObj, "CALL") } else Modifier
                     ) {
                         Text("RESISTANCE (CALL OI)", color = AppRed, fontSize = 8.sp, fontWeight = FontWeight.ExtraBold)
-                        Text("₹${uiState.summary.highestCallOIStrike.toInt()}", color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.ExtraBold, fontSize = 14.sp, fontFamily = FontFamily.Monospace)
+                        Text("$curr${uiState.summary.highestCallOIStrike.toInt()}", color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.ExtraBold, fontSize = 14.sp, fontFamily = FontFamily.Monospace)
                         if (callStrikeObj != null) {
                             Text("Tap to analyze →", color = AppRed.copy(alpha = 0.7f), fontSize = 7.5.sp, fontWeight = FontWeight.Bold)
                         }
@@ -343,7 +376,7 @@ fun SummaryTab(
                         modifier = if (putStrikeObj != null) Modifier.clickable { onSelectStrike(putStrikeObj, "PUT") } else Modifier
                     ) {
                         Text("SUPPORT (PUT OI)", color = AppGreen, fontSize = 8.sp, fontWeight = FontWeight.ExtraBold)
-                        Text("₹${uiState.summary.highestPutOIStrike.toInt()}", color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.ExtraBold, fontSize = 14.sp, fontFamily = FontFamily.Monospace)
+                        Text("$curr${uiState.summary.highestPutOIStrike.toInt()}", color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.ExtraBold, fontSize = 14.sp, fontFamily = FontFamily.Monospace)
                         if (putStrikeObj != null) {
                             Text("Tap to analyze →", color = AppGreen.copy(alpha = 0.7f), fontSize = 7.5.sp, fontWeight = FontWeight.Bold)
                         }
@@ -372,7 +405,12 @@ fun SummaryStatCard(label: String, value: String, modifier: Modifier) {
 
 @Composable
 fun OptionsStudyTab(uiState: FnoUiState, viewModel: FnoViewModel, onOpenBuildupScanner: () -> Unit) {
-    var viewMode by remember { mutableStateOf("OI") } // "OI", "GREEKS", "GEX", "PAIN", "IV"
+    var viewMode by remember { mutableStateOf("PAIN") } // "PAIN", "OI", "GREEKS", "GEX", "IV"
+    val curr = when (uiState.selectedMarket) {
+        MarketType.US -> "$"
+        MarketType.UAE -> "AED "
+        MarketType.IN -> "₹"
+    }
 
     Column(modifier = Modifier.fillMaxSize()) {
         // Buildup Scanner Quick Header Banner
@@ -406,24 +444,38 @@ fun OptionsStudyTab(uiState: FnoUiState, viewModel: FnoViewModel, onOpenBuildupS
 
         Spacer(Modifier.height(10.dp))
 
-        // Toggle View
+        // Toggle View: High Quality Visual Analytics Tabs (Max Pain, PCR/OI, Greeks, DEX/GEX, IV)
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
             Text("DERIVATIVES ANALYTICS", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 9.sp, fontWeight = FontWeight.ExtraBold)
             Row(
                 modifier = Modifier
-                    .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(4.dp))
+                    .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(6.dp))
                     .padding(2.dp)
                     .horizontalScroll(rememberScrollState())
             ) {
-                listOf("OI", "GREEKS", "GEX", "PAIN", "IV").forEach { mode ->
+                listOf(
+                    "PAIN" to "MAX PAIN",
+                    "OI" to "PCR / OI",
+                    "GREEKS" to "GREEKS",
+                    "GEX" to "DEX / GEX",
+                    "IV" to "IV"
+                ).forEach { (mode, label) ->
                     val isSelected = viewMode == mode
                     Box(
                         modifier = Modifier
-                            .background(if (isSelected) MaterialTheme.colorScheme.outline else Color.Transparent, RoundedCornerShape(3.dp))
+                            .background(
+                                if (isSelected) MaterialTheme.colorScheme.primary else Color.Transparent,
+                                RoundedCornerShape(4.dp)
+                            )
                             .clickable { viewMode = mode }
-                            .padding(horizontal = 7.dp, vertical = 4.dp)
+                            .padding(horizontal = 8.dp, vertical = 4.dp)
                     ) {
-                        Text(mode, color = if (isSelected) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 8.sp, fontWeight = FontWeight.Bold)
+                        Text(
+                            label,
+                            color = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
+                            fontSize = 8.5.sp,
+                            fontWeight = FontWeight.ExtraBold
+                        )
                     }
                 }
             }
@@ -434,13 +486,15 @@ fun OptionsStudyTab(uiState: FnoUiState, viewModel: FnoViewModel, onOpenBuildupS
         if (viewMode == "GEX") {
             GexAnalyticsView(
                 profile = uiState.gexProfile,
-                spotPrice = uiState.spotPrice
+                spotPrice = uiState.spotPrice,
+                curr = curr
             )
         } else if (viewMode == "PAIN") {
             MaxPainAnalyticsView(
                 history = uiState.maxPainHistory,
                 currentMaxPain = uiState.summary.maxPain,
-                spotPrice = uiState.spotPrice
+                spotPrice = uiState.spotPrice,
+                curr = curr
             )
         } else if (viewMode == "IV") {
             IvAnalyticsView(
@@ -1724,7 +1778,7 @@ fun AdvancedPayoffChart(points: List<PayoffPoint>, spotPrice: Double) {
 }
 
 @Composable
-fun MaxPainAnalyticsView(history: List<Double>, currentMaxPain: Double, spotPrice: Double) {
+fun MaxPainAnalyticsView(history: List<Double>, currentMaxPain: Double, spotPrice: Double, curr: String = "₹") {
     val diff = spotPrice - currentMaxPain
     val diffPercent = if (currentMaxPain > 0) (diff / currentMaxPain) * 100 else 0.0
     val dataPoints = if (history.isNotEmpty()) history else listOf(currentMaxPain - 100, currentMaxPain - 50, currentMaxPain + 50, currentMaxPain)
@@ -1748,7 +1802,7 @@ fun MaxPainAnalyticsView(history: List<Double>, currentMaxPain: Double, spotPric
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                     Column {
                         Text("MAX PAIN STRIKE", color = onSurfaceVariant, fontSize = 8.sp, fontWeight = FontWeight.Bold)
-                        Text("₹${currentMaxPain.toInt()}", color = onSurface, fontSize = 16.sp, fontWeight = FontWeight.ExtraBold, fontFamily = FontFamily.Monospace)
+                        Text("$curr${currentMaxPain.toInt()}", color = onSurface, fontSize = 16.sp, fontWeight = FontWeight.ExtraBold, fontFamily = FontFamily.Monospace)
                     }
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Text("SPOT GAP", color = onSurfaceVariant, fontSize = 8.sp, fontWeight = FontWeight.Bold)
@@ -1905,7 +1959,7 @@ fun IvAnalyticsView(history: List<Double>, currentIv: Double) {
 }
 
 @Composable
-fun GexAnalyticsView(profile: com.example.marketintelligence.domain.engine.GexProfile?, spotPrice: Double) {
+fun GexAnalyticsView(profile: com.example.marketintelligence.domain.engine.GexProfile?, spotPrice: Double, curr: String = "₹") {
     if (profile == null || profile.strikeGexList.isEmpty()) {
         Box(modifier = Modifier.fillMaxWidth().height(200.dp), contentAlignment = Alignment.Center) {
             Text("Calculating Dealer Gamma Exposure (GEX)...", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp)
@@ -1955,11 +2009,11 @@ fun GexAnalyticsView(profile: com.example.marketintelligence.domain.engine.GexPr
                     }
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Text("GAMMA FLIP", color = onSurfaceVariant, fontSize = 8.sp, fontWeight = FontWeight.Bold)
-                        Text("₹${profile.gammaFlipStrike.toInt()}", color = Color.Cyan, fontSize = 13.sp, fontWeight = FontWeight.ExtraBold, fontFamily = FontFamily.Monospace)
+                        Text("$curr${profile.gammaFlipStrike.toInt()}", color = Color.Cyan, fontSize = 13.sp, fontWeight = FontWeight.ExtraBold, fontFamily = FontFamily.Monospace)
                     }
                     Column(horizontalAlignment = Alignment.End) {
                         Text("CALL / PUT WALL", color = onSurfaceVariant, fontSize = 8.sp, fontWeight = FontWeight.Bold)
-                        Text("₹${profile.callWallStrike.toInt()} / ₹${profile.putWallStrike.toInt()}", color = onSurface, fontSize = 12.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace)
+                        Text("$curr${profile.callWallStrike.toInt()} / $curr${profile.putWallStrike.toInt()}", color = onSurface, fontSize = 12.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace)
                     }
                 }
 
@@ -2017,7 +2071,7 @@ fun GexAnalyticsView(profile: com.example.marketintelligence.domain.engine.GexPr
                 Spacer(Modifier.height(10.dp))
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                     Text("← Put GEX (Short Vol Risk)", color = AppRed, fontSize = 8.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace)
-                    Text("Spot ● Flip ₹${profile.gammaFlipStrike.toInt()}", color = onSurfaceVariant, fontSize = 8.sp, fontFamily = FontFamily.Monospace)
+                    Text("Spot ● Flip $curr${profile.gammaFlipStrike.toInt()}", color = onSurfaceVariant, fontSize = 8.sp, fontFamily = FontFamily.Monospace)
                     Text("Call GEX (Pinning Magnet) →", color = AppGreen, fontSize = 8.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace)
                 }
             }

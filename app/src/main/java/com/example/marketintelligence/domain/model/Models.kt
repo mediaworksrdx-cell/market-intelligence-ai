@@ -290,7 +290,8 @@ data class FnoBuildupStock(
     val buildupType: BuildupType,
     val volume: Long,
     val pcr: Double = 1.0,
-    val basis: Double = 0.0
+    val basis: Double = 0.0,
+    val isZerodha: Boolean = false
 )
 
 @Serializable
