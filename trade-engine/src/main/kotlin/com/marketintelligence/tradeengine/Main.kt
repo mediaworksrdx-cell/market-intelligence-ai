@@ -843,6 +843,26 @@ fun main() {
                 }
             }
 
+            
+            // Dedicated F&O Engine Routes (Twelve Data Venture Ready & Isolated)
+            get("/fno/quote") {
+                val symbol = call.request.queryParameters["symbol"] ?: "SPX"
+                val quote = com.marketintelligence.tradeengine.service.FnoService.getQuote(symbol)
+                call.respond(quote)
+            }
+
+            get("/fno/chain") {
+                val symbol = call.request.queryParameters["symbol"] ?: "SPX"
+                val expiry = call.request.queryParameters["expiry"]
+                val chain = com.marketintelligence.tradeengine.service.FnoService.getChain(symbol, expiry)
+                call.respond(chain)
+            }
+
+            get("/fno/status") {
+                val status = com.marketintelligence.tradeengine.service.FnoService.getStatus()
+                call.respond(status)
+            }
+
             get("/instruments") {
                 val csv = instruments.joinToString("\n") { 
                     "${it.instrument_token},${it.exchange_token},${it.tradingsymbol},${it.name},${it.last_price},${it.expiry},${it.strike},${it.tick_size},${it.lot_size},${it.instrument_type},${it.segment},${it.exchange}"

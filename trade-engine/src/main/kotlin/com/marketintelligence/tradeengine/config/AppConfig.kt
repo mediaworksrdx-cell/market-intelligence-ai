@@ -43,6 +43,10 @@ object AppConfig {
     // --- Twelve Data API Credentials (for US Stocks & Index EOD Data) --- //
     val twelveDataApiKey: String = properties.getProperty("TWELVE_DATA_API_KEY", properties.getProperty("TD_API_KEY", System.getenv("TWELVE_DATA_API_KEY") ?: "3c6252df98714218a5e24b09be3c6ad4"))
 
+    // --- Twelve Data F&O Dedicated Credentials (Isolated from General Trade Engine) --- //
+    val twelveDataFnoApiKey: String = properties.getProperty("TWELVE_DATA_FNO_API_KEY", properties.getProperty("TD_FNO_API_KEY", System.getenv("TWELVE_DATA_FNO_API_KEY") ?: twelveDataApiKey))
+    val twelveDataFnoPlan: String = properties.getProperty("TWELVE_DATA_FNO_PLAN", System.getenv("TWELVE_DATA_FNO_PLAN") ?: "venture")
+
     // --- Instruments to Track (Token to Symbol Map) --- //
     val symbolMap = mapOf(
         256265L to "NIFTY 50",

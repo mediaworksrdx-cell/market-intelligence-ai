@@ -295,6 +295,31 @@ data class FnoBuildupStock(
 )
 
 @Serializable
+data class FnoQuoteDto(
+    val symbol: String,
+    val price: Double,
+    val change: Double,
+    val changePercent: Double,
+    val high: Double? = null,
+    val low: Double? = null,
+    val volume: Long? = null,
+    val timestamp: Long,
+    val source: String
+)
+
+@Serializable
+data class FnoStatusDto(
+    val engine: String = "TradeEngine-FnoService",
+    val isIsolated: Boolean = true,
+    val plan: String,
+    val isVentureReady: Boolean,
+    val hasDedicatedKey: Boolean,
+    val activeKeyPreview: String,
+    val callsPerMinuteLimit: Int,
+    val status: String = "ONLINE"
+)
+
+@Serializable
 data class Holding(
     val symbol: String,
     val quantity: Double,

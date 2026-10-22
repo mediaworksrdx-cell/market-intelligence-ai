@@ -49,4 +49,10 @@ interface MarketApiService {
         @Query("vs_currency") vsCurrency: String,
         @Query("days") days: Int
     ): List<List<Double>>
+
+    @GET("fno/quote")
+    suspend fun getFnoQuote(@Query("symbol") symbol: String): com.marketintelligence.ai.domain.model.FnoQuoteDto
+
+    @GET("fno/status")
+    suspend fun getFnoStatus(): com.marketintelligence.ai.domain.model.FnoStatusDto
 }
