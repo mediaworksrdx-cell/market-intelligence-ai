@@ -3,6 +3,12 @@ package com.marketintelligence.tradeengine
 import com.marketintelligence.tradeengine.config.AppConfig
 import com.marketintelligence.tradeengine.models.Candle
 import com.marketintelligence.tradeengine.service.CandleService
+import com.marketintelligence.tradeengine.service.NewsIngestionService
+import com.marketintelligence.tradeengine.service.CalendarService
+import com.marketintelligence.tradeengine.service.NotificationService
+import com.marketintelligence.tradeengine.models.NewsItem
+import com.marketintelligence.tradeengine.models.EconomicEvent
+import com.marketintelligence.tradeengine.models.AppNotification
 import com.github.benmanes.caffeine.cache.Caffeine
 import com.zerodhatech.kiteconnect.KiteConnect
 import com.zerodhatech.models.HistoricalData
@@ -288,6 +294,30 @@ fun main() {
         }
     }
 
+    // 3. Periodic Background Ingestion of Live News Wire (Every 3 minutes)
+    CoroutineScope(Dispatchers.IO).launch {
+        while (true) {
+            try {
+                NewsIngestionService.refreshNews()
+            } catch (e: Exception) {
+                logger.warn("Periodic news refresh error: ${e.message}")
+            }
+            delay(180_000)
+        }
+    }
+
+    // 4. Periodic Background Ingestion of Global Macro Calendar (Every 10 minutes)
+    CoroutineScope(Dispatchers.IO).launch {
+        while (true) {
+            try {
+                CalendarService.refreshEvents()
+            } catch (e: Exception) {
+                logger.warn("Periodic calendar refresh error: ${e.message}")
+            }
+            delay(600_000)
+        }
+    }
+
     embeddedServer(Netty, port = 8080, host = "0.0.0.0") {
         install(ContentNegotiation) { json(jsonEncoder) }
         install(WebSockets) {
@@ -327,6 +357,49 @@ fun main() {
                 } finally {
                     connectedSessions.remove(this)
                 }
+            }
+
+            webSocket("/ws/notifications") {
+                NotificationService.notificationSessions.add(this)
+                logger.info("Client connected to /ws/notifications. Total active: ${NotificationService.notificationSessions.size}")
+                try {
+                    for (frame in incoming) { /* keep alive */ }
+                } catch (e: Exception) {
+                    logger.info("Client disconnected from /ws/notifications: ${e.message}")
+                } finally {
+                    NotificationService.notificationSessions.remove(this)
+                }
+            }
+
+            get("/news") {
+                val category = call.request.queryParameters["category"] ?: "ALL"
+                val market = call.request.queryParameters["market"] ?: "ALL"
+                val ticker = call.request.queryParameters["ticker"] ?: ""
+                val q = call.request.queryParameters["q"] ?: ""
+                val limit = call.request.queryParameters["limit"]?.toIntOrNull() ?: 40
+
+                val rawNews = NewsIngestionService.getNews()
+                val filtered = NewsIngestionService.filterNews(rawNews, category, market, ticker, q, limit)
+                call.respond(filtered)
+            }
+
+            get("/economic-calendar") {
+                val range = call.request.queryParameters["range"] ?: "all"
+                val region = call.request.queryParameters["region"] ?: "ALL"
+                val impact = call.request.queryParameters["impact"] ?: "ALL"
+                val q = call.request.queryParameters["q"] ?: ""
+
+                val rawEvents = CalendarService.getEvents()
+                val filtered = CalendarService.filterEvents(rawEvents, range, region, impact, q)
+                call.respond(filtered)
+            }
+
+            get("/notifications") {
+                val type = call.request.queryParameters["type"] ?: "ALL"
+                val limit = call.request.queryParameters["limit"]?.toIntOrNull() ?: 25
+
+                val response = NotificationService.getNotifications(type, limit)
+                call.respond(response)
             }
 
             get("/candles") {
