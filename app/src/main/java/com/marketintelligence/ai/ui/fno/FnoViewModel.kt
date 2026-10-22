@@ -369,12 +369,12 @@ class FnoViewModel @Inject constructor(
     fun getLotSize(symbol: String): Int {
         val s = symbol.uppercase().trim().removeSuffix(".NS").removeSuffix(".BO").replace("-", "").replace(" ", "")
         return when {
-            s.contains("BANKNIFTY") -> 15
-            s.contains("FINNIFTY") -> 40
-            s.contains("MIDCPNIFTY") -> 75
+            s.contains("BANKNIFTY") -> 30
+            s.contains("FINNIFTY") -> 65
+            s.contains("MIDCPNIFTY") -> 120
             s.contains("NIFTY") -> 65 // REQUIRED: NIFTY lot size is 65
-            s.contains("SENSEX") -> 10
-            s.contains("BANKEX") -> 15
+            s.contains("SENSEX") -> 20
+            s.contains("BANKEX") -> 30
             // Global US Indices & Equities (Standard US Option contract lot size is 100 shares)
             s.contains("SPX") || s.contains("SP500") -> 100
             s.contains("NDX") || s.contains("QQQ") || s.contains("NASDAQ") -> 100

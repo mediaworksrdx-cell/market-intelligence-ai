@@ -417,12 +417,12 @@ class FnoViewModel @Inject constructor(
     fun getLotSize(symbol: String = _uiState.value.selectedAsset): Int {
         val clean = symbol.uppercase().trim().removeSuffix(".NS").removeSuffix(".BO").replace("-", "").replace(" ", "")
         return when {
-            clean.contains("BANKNIFTY") -> 15
-            clean.contains("FINNIFTY") -> 40
-            clean.contains("MIDCPNIFTY") -> 75
-            clean.contains("NIFTY") -> 65 // REQUIRED: NIFTY lot size is 65
-            clean.contains("SENSEX") -> 10
-            clean.contains("BANKEX") -> 15
+            clean.contains("BANKNIFTY") -> 30 // Official SEBI/NSE Revised Lot
+            clean.contains("FINNIFTY") -> 65 // Official SEBI/NSE Revised Lot
+            clean.contains("MIDCPNIFTY") -> 120 // Official SEBI/NSE Revised Lot
+            clean.contains("NIFTY") -> 65 // Official SEBI/NSE Revised Lot
+            clean.contains("SENSEX") -> 20 // Official SEBI/BSE Revised Lot
+            clean.contains("BANKEX") -> 30 // Official SEBI/BSE Revised Lot
             // Global US Indices & Equities (Standard US Option contract lot size is 100 shares)
             clean.contains("SPX") || clean.contains("SP500") -> 100
             clean.contains("NDX") || clean.contains("QQQ") || clean.contains("NASDAQ") -> 100
